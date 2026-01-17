@@ -128,7 +128,7 @@ const Verify: React.FC = () => {
             margin: 2,
         }}>
             <Typography variant="h3">Verifikasjon</Typography>
-            <Grid item xs={12} md={6}>
+            <Grid size={{xs:12, md:6}}>
                 <Typography variant="h6" color={getColor()}>
                     {verificationResult === null
                         ? "Laster..."
@@ -139,7 +139,7 @@ const Verify: React.FC = () => {
             </Grid>
             <Box>
                 <Grid container spacing={2} paddingTop={2}>
-                    <Grid item xs={10} md={12}>
+                    <Grid size={{xs:10, md:12}}>
                         <TextField
                             label="Navn"
                             variant="outlined"
@@ -151,7 +151,7 @@ const Verify: React.FC = () => {
                 </Grid>
                 <Grid container spacing={2} paddingTop={3}>
                     {formFields.map((field) => (
-                        <Grid item xs={5} md={3} key={field.key}>
+                        <Grid size={{xs:5, md:3}} key={field.key}>
                             <TextField
                                 label={field.label}
                                 variant="outlined"
@@ -175,7 +175,7 @@ const Verify: React.FC = () => {
                 ).map((extraRole, index) => (
                     <Box key={index} sx={{ marginTop: 2 }}>
                         <Grid container spacing={2}>
-                            <Grid item xs={5} md={3}>
+                            <Grid size={{xs:5, md:3}}>
                                 <TextField
                                     label={`Rolle ${index + 1}`}
                                     variant="outlined"
@@ -184,7 +184,7 @@ const Verify: React.FC = () => {
                                     onChange={(e) => handleExtraRoleChange(index, 'role', e.target.value)}
                                 />
                             </Grid>
-                            <Grid item xs={5} md={3}>
+                            <Grid size={{xs:5, md:3}}>
                                 <TextField
                                     label={`Ekstra Rolle Gruppe ${index + 1}`}
                                     variant="outlined"
@@ -193,7 +193,7 @@ const Verify: React.FC = () => {
                                     onChange={(e) => handleExtraRoleChange(index, 'groupName', e.target.value)}
                                 />
                             </Grid>
-                            <Grid item xs={5} md={3}>
+                            <Grid size={{xs:5, md:3}}>
                                 <TextField
                                     label={`Startdato ${index + 1}`}
                                     variant="outlined"
@@ -202,7 +202,7 @@ const Verify: React.FC = () => {
                                     onChange={(e) => handleExtraRoleChange(index, 'startDate', e.target.value)}
                                 />
                             </Grid>
-                            <Grid item xs={5} md={3}>
+                            <Grid size={{xs:5, md:3}}>
                                 <TextField
                                     label={`Sluttdato ${index + 1}`}
                                     variant="outlined"

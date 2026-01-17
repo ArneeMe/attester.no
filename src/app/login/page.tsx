@@ -27,7 +27,7 @@ const LoginPage: React.FC = () => {
         <Container component="main" maxWidth="lg">
             {currentUser ? (
                 <Grid container spacing={2}>
-                    <Grid item lg={6} justifyContent="center" spacing={2}>
+                    <Grid size={{lg:6}} justifyContent="center" spacing={2}>
                         <Typography variant="h6">
                             Velkommen, {currentUser.email}
                         </Typography>
@@ -39,7 +39,7 @@ const LoginPage: React.FC = () => {
                             <Typography>Logg Ut</Typography>
                         </Button>
                     </Grid>
-                    <Grid item lg={12}>
+                    <Grid size={{lg:12}}>
                         <AdminPage />
                     </Grid>
 

@@ -129,12 +129,12 @@ const AdminPage: React.FC = () => {
     return (
         <>
             <Grid container>
-                <Grid item sm={10}>
+                <Grid size={{ sm: 10 }}>
                     <Typography variant="h4" gutterBottom>
                         Oversikt
                     </Typography>
                 </Grid>
-                <Grid item sm={2}>
+                <Grid size={{sm:2}}>
                     <Button onClick={openBatchDeleteClick}>
                         Delete all selected
                     </Button>
@@ -142,7 +142,7 @@ const AdminPage: React.FC = () => {
             </Grid>
             <Grid container spacing={2}>
                 {volunteers.map((volunteer: Volunteer) => (
-                    <Grid item xs={12} sm={6} key={volunteer.id}>
+                    <Grid size={{xs:12, sm:6}} key={volunteer.id}>
                         <Paper elevation={3} style={{ padding: '20px', marginTop: '10px' }}>
                             <Grid>
                                 <FormControlLabel

@@ -95,22 +95,22 @@ const VolunteerForm = () => {
     return (
         <Container component="main">
             <Grid container spacing={0}>
-                <Grid item xs={8}>
+                <Grid size={{ xs: 8 }}>
                     <Typography variant="h5">
                         Søk om attest til echo - Linjeforeningen for informatikk
                     </Typography>
                 </Grid>
-                <Grid item xs={7}>
+                <Grid size={{ xs: 7 }}>
                     <Typography>
                         Her kan du sende inn din informasjon for å få en attest fra echo!
                     </Typography>
                 </Grid>
-                <Grid item xs={1}>
+                <Grid size={{ xs: 1 }}>
                     <Button onClick={() => setOpenHelpDialog(true)}  color="primary">
                         Hjelp
                     </Button>
                 </Grid>
-                <Grid item xs={2}>
+                <Grid size={{ xs: 2 }}>
                     <Link href="/login" passHref>
                         <Button variant="contained" color="primary">
                             Admin innlogging
@@ -120,7 +120,7 @@ const VolunteerForm = () => {
             </Grid>
             <form onSubmit={handleSubmit}>
                 <Grid container spacing={2}>
-                    <Grid item xs={12} md={10}>
+                    <Grid size={{ xs: 12, md: 10 }}>
                         <TextField
                             margin="normal"
                             required
@@ -130,7 +130,7 @@ const VolunteerForm = () => {
                             onChange={handleChange}
                         />
                     </Grid>
-                    <Grid item xs={6} md={5}>
+                    <Grid size={{ xs: 6, md: 5 }}>
                         <Select
                             required
                             fullWidth
@@ -150,7 +150,7 @@ const VolunteerForm = () => {
                             Velg UGP eller HS
                         </FormHelperText>
                     </Grid>
-                    <Grid item xs={6} md={5}>
+                    <Grid size={{ xs: 6, md: 5 }}>
                         <TextField
                             required
                             margin="normal"
@@ -160,7 +160,7 @@ const VolunteerForm = () => {
                             onChange={handleChange}
                         />
                     </Grid>
-                    <Grid item xs={6} md={5}>
+                    <Grid size={{ xs: 6, md: 5 }}>
                         <TextField
                             margin="normal"
                             required
@@ -172,7 +172,7 @@ const VolunteerForm = () => {
                             onChange={handleChange}
                         />
                     </Grid>
-                    <Grid item xs={6} md={5}>
+                    <Grid size={{ xs: 6, md: 5 }}>
                         <TextField
                             margin="normal"
                             required
@@ -185,7 +185,7 @@ const VolunteerForm = () => {
                         />
                     </Grid>
 
-                    <Grid item xs={6} md={5}>
+                    <Grid size={{ xs: 6, md: 5 }}>
                         <Button
                             type="button"
                             onClick={() => setShowExtraRoles(prev => !prev)}
@@ -197,10 +197,10 @@ const VolunteerForm = () => {
                     {/*todo gjør finere, er ikke linet opp med resten*/}
                     {showExtraRoles && (formData.extraRole || []).map((role, index) => (
                         <Grid container spacing={2} key={index}>
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Typography variant={"h6"}>Ekstra rolle {index + 1}</Typography>
                             </Grid>
-                            <Grid item xs={6} md={5}>
+                            <Grid size={{ xs: 6, md: 5 }}>
                                 <TextField
                                     margin="normal"
                                     fullWidth
@@ -209,7 +209,7 @@ const VolunteerForm = () => {
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleIndexChange(e, index)}
                                 />
                             </Grid>
-                            <Grid item xs={6} md={5}>
+                            <Grid size={{ xs: 6, md: 5 }}>
                                 <TextField
                                     margin="normal"
                                     fullWidth
@@ -218,7 +218,7 @@ const VolunteerForm = () => {
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleIndexChange(e, index)}
                                 />
                             </Grid>
-                            <Grid item xs={6} md={5}>
+                            <Grid size={{ xs: 6, md: 5 }}>
                                 <TextField
                                     margin="normal"
                                     fullWidth
@@ -229,7 +229,7 @@ const VolunteerForm = () => {
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleIndexChange(e, index)}
                                 />
                             </Grid>
-                            <Grid item xs={6} md={5}>
+                            <Grid size={{ xs: 6, md: 5 }}>
                                 <TextField
                                     margin="normal"
                                     fullWidth
@@ -243,7 +243,7 @@ const VolunteerForm = () => {
 
                         </Grid>
                     ))}
-                    <Grid item xs={6} md={5}>
+                    <Grid size={{ xs: 6, md: 5 }}>
                         <Button
                             type="submit"
                             fullWidth
