@@ -13,6 +13,7 @@ import {
     Box,
     IconButton,
 } from '@mui/material';
+import ImageUpload from "@/app/login/adminpage/rediger/ImageUpload";
 
 
 interface SignatureInfo {
@@ -242,14 +243,11 @@ const AdminSettingsPage: React.FC = () => {
                                     />
                                 </Grid>
                                 <Grid size={{ xs: 12 }}>
-                                    <TextField
-                                        fullWidth
-                                        label="Bilde (base64)"
+                                    <ImageUpload
+                                        label="Signaturbilde"
                                         value={sig.photo}
-                                        onChange={(e) => updateSignature(index, 'photo', e.target.value)}
-                                        multiline
-                                        rows={2}
-                                        placeholder="data:image/png;base64,..."
+                                        onChange={(base64) => updateSignature(index, 'photo', base64)}
+                                        maxSizeKB={500}
                                     />
                                 </Grid>
                             </Grid>
