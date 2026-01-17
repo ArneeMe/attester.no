@@ -1,4 +1,5 @@
-import React, {useState} from 'react';
+'use client'
+import React, { useEffect, useState } from 'react';
 import {
     Button,
     Container,
@@ -9,22 +10,26 @@ import {
     SelectChangeEvent,
     TextField,
     Typography,
+    CircularProgress,
 } from '@mui/material';
-import {db} from "./firebase/fb_config";
-import {addDoc, collection} from "firebase/firestore";
+import { db } from "./firebase/fb_config";
+import { addDoc, collection } from "firebase/firestore";
 import Link from "next/link";
-import {v4 as uuidv4} from 'uuid';
-import {Volunteer} from "@/app/util/Volunteer";
+import { v4 as uuidv4 } from 'uuid';
+import { Volunteer } from "@/app/util/Volunteer";
 import ConfirmDialog from "@/app/util/confirmDialog";
-import {formatVolunteerDetails} from "@/app/util/formatVolunteer";
-import {undergrupper} from "@/app/pdfinfo/echoInfo";
-
+import { formatVolunteerDetails } from "@/app/util/formatVolunteer";
+import { getGroupInfo, fallbackValues } from "@/app/util/databaseInteractions/fetchInfo";
 
 const VolunteerForm = () => {
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
     const [openSummaryDialog, setOpenSummaryDialog] = useState(false);
     const [openHelpDialog, setOpenHelpDialog] = useState(false);
     const [showExtraRoles, setShowExtraRoles] = useState(false);
+
+    const [groups, setGroups] = useState<{ [key: string]: string }>({});
+    const [loadingGroups, setLoadingGroups] = useState(true);
+
     const [formData, setformData] = useState<Volunteer>({
         id: '',
         personName: '',
@@ -33,14 +38,35 @@ const VolunteerForm = () => {
         endDate: '',
         role: '',
         extraRole: [
-            {groupName: '', startDate: '', endDate: '', role: ''},
-            {groupName: '', startDate: '', endDate: '', role: ''},
-            {groupName: '', startDate: '', endDate: '', role: ''},
+            { groupName: '', startDate: '', endDate: '', role: '' },
+            { groupName: '', startDate: '', endDate: '', role: '' },
+            { groupName: '', startDate: '', endDate: '', role: '' },
         ],
     });
 
+    useEffect(() => {
+        const fetchGroups = async () => {
+            setLoadingGroups(true);
+            try {
+                const groupData = await getGroupInfo();
+                if (Object.keys(groupData).length > 0) {
+                    setGroups(groupData);
+                } else {
+                    // Use fallback if DB returns empty
+                    setGroups(fallbackValues.groups);
+                }
+            } catch (error) {
+                console.error('Error fetching groups:', error);
+                // Use fallback on error
+                setGroups(fallbackValues.groups);
+            }
+            setLoadingGroups(false);
+        };
+        fetchGroups();
+    }, []);
+
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const {name, value} = event.target;
+        const { name, value } = event.target;
         setformData(prevState => ({
             ...prevState,
             [name]: value
@@ -48,29 +74,31 @@ const VolunteerForm = () => {
     };
 
     const handleSelectChange = (event: SelectChangeEvent<string>) => {
-        const {name, value} = event.target;
+        const { name, value } = event.target;
         setformData(prevState => ({
             ...prevState,
             [name]: value
         }));
     };
+
     const handleIndexChange = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
-        const {name, value} = event.target;
+        const { name, value } = event.target;
         setformData(prevState => {
             const updatedRoles = [...(prevState.extraRole || [])];
-            console.log(updatedRoles, index)
-            updatedRoles[index] = {...updatedRoles[index], [name]: value};
-            return {...prevState, extraRole: updatedRoles};
+            updatedRoles[index] = { ...updatedRoles[index], [name]: value };
+            return { ...prevState, extraRole: updatedRoles };
         });
     };
 
-    const handleSubmit = (event: any) => {
+    const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
         setOpenConfirmDialog(true);
     };
+
     const handleCloseSummary = () => {
         setOpenSummaryDialog(false);
     };
+
     const handleHelpSummary = () => {
         setOpenHelpDialog(false);
     };
@@ -106,7 +134,7 @@ const VolunteerForm = () => {
                     </Typography>
                 </Grid>
                 <Grid size={{ xs: 1 }}>
-                    <Button onClick={() => setOpenHelpDialog(true)}  color="primary">
+                    <Button onClick={() => setOpenHelpDialog(true)} color="primary">
                         Hjelp
                     </Button>
                 </Grid>
@@ -131,21 +159,25 @@ const VolunteerForm = () => {
                         />
                     </Grid>
                     <Grid size={{ xs: 6, md: 5 }}>
-                        <Select
-                            required
-                            fullWidth
-                            label="Gruppe"
-                            name="groupName"
-                            value={formData.groupName}
-                            onChange={handleSelectChange}
-                            sx={{ marginTop: '16px' }}
-                        >
-                            {Object.keys(undergrupper).map((key) => (
-                                <MenuItem key={key} value={key}>
-                                    {key}
-                                </MenuItem>
-                            ))}
-                        </Select>
+                        {loadingGroups ? (
+                            <CircularProgress size={24} sx={{ mt: 3 }} />
+                        ) : (
+                            <Select
+                                required
+                                fullWidth
+                                label="Gruppe"
+                                name="groupName"
+                                value={formData.groupName}
+                                onChange={handleSelectChange}
+                                sx={{ marginTop: '16px' }}
+                            >
+                                {Object.keys(groups).map((key) => (
+                                    <MenuItem key={key} value={key}>
+                                        {key}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        )}
                         <FormHelperText>
                             Velg UGP eller HS
                         </FormHelperText>
@@ -189,12 +221,11 @@ const VolunteerForm = () => {
                         <Button
                             type="button"
                             onClick={() => setShowExtraRoles(prev => !prev)}
-                            style={{marginTop: '16px'}}
+                            style={{ marginTop: '16px' }}
                         >
                             {showExtraRoles ? 'Skjul andre roller' : 'Legg til andre roller'}
                         </Button>
                     </Grid>
-                    {/*todo gjør finere, er ikke linet opp med resten*/}
                     {showExtraRoles && (formData.extraRole || []).map((role, index) => (
                         <Grid container spacing={2} key={index}>
                             <Grid size={{ xs: 12 }}>
@@ -240,7 +271,6 @@ const VolunteerForm = () => {
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleIndexChange(e, index)}
                                 />
                             </Grid>
-
                         </Grid>
                     ))}
                     <Grid size={{ xs: 6, md: 5 }}>
@@ -248,7 +278,7 @@ const VolunteerForm = () => {
                             type="submit"
                             fullWidth
                             variant="contained"
-                            sx={{mt: 3, mb: 2}}
+                            sx={{ mt: 3, mb: 2 }}
                         >
                             Send inn PDF
                         </Button>
@@ -286,7 +316,7 @@ const VolunteerForm = () => {
                         Dette er en nettside for å gi deg attest fra echo. Du sender inn din informasjon i en database,
                         en admin vil inspisere det du har sendt inn.
                         Fyll ut info om deg, dine roller. Du kan velge inntil 3 ekstra roller.
-                        Bruk din "hovedrolle" først, den blir mest synlig på PDF-en.
+                        Bruk din &quot;hovedrolle&quot; først, den blir mest synlig på PDF-en.
                         Hvis dette ser bra ut vil det bli generert en PDF, og din informasjon vil bli slettet fra
                         databasen. Vi unngår å lagre dataen din lenge.
 
@@ -300,9 +330,6 @@ const VolunteerForm = () => {
                 confirmButtonText="takk for info 😊"
                 showCancelButton={false}
             />
-
-
-
         </Container>
     );
 };

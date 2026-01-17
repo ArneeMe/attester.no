@@ -1,7 +1,5 @@
 'use client'
 import React, { useEffect, useState } from 'react';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/app/firebase/fb_config';
 import {
     Button,
     TextField,
@@ -13,15 +11,17 @@ import {
     Box,
     IconButton,
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import {SignatureInfo} from "@/app/pdfinfo/pdfTypes";
+import {
+    fallbackValues,
+    getGroupInfo,
+    getOrganizationInfo,
+    getSignatureInfo
+} from "@/app/util/databaseInteractions/fetchInfo";
+import {updateGroupInfo, updateOrganizationInfo, updateSignatureInfo} from "@/app/util/databaseInteractions/insertData";
 import ImageUpload from "@/app/login/adminpage/rediger/ImageUpload";
-
-
-interface SignatureInfo {
-    name: string;
-    role: string;
-    phone: string;
-    photo: string;
-}
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -37,7 +37,7 @@ function TabPanel({ children, value, index }: TabPanelProps) {
     );
 }
 
-const AdminSettingsPage: React.FC = () => {
+const RedigerPage: React.FC = () => {
     const [tab, setTab] = useState(0);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -59,29 +59,22 @@ const AdminSettingsPage: React.FC = () => {
     const fetchAllData = async () => {
         setLoading(true);
         try {
-            // Fetch organization info
-            const orgDoc = await getDoc(doc(db, 'sitecontent', 'organizationInfo'));
-            if (orgDoc.exists()) {
-                setGenericText(orgDoc.data().generic_text || '');
-            }
+            // Use existing fetch functions
+            const [orgData, sigData, groupData] = await Promise.all([
+                getOrganizationInfo(),
+                getSignatureInfo(),
+                getGroupInfo(),
+            ]);
 
-            // Fetch signatures
-            const sigDoc = await getDoc(doc(db, 'sitecontent', 'signatureInfo'));
-            if (sigDoc.exists()) {
-                const data = sigDoc.data();
-                if (Array.isArray(data.signatories)) {
-                    setSignatures(data.signatories);
-                }
-            }
-
-            // Fetch groups
-            const groupsDoc = await getDoc(doc(db, 'sitecontent', 'groupDescriptions'));
-            if (groupsDoc.exists()) {
-                setGroups(groupsDoc.data() as { [key: string]: string });
-            }
+            setGenericText(orgData.generic_text || fallbackValues.organization.generic_text);
+            setSignatures(sigData.length > 0 ? sigData : fallbackValues.signatures);
+            setGroups(Object.keys(groupData).length > 0 ? groupData : fallbackValues.groups);
         } catch (error) {
             console.error('Error fetching data:', error);
-            alert('Feil ved henting av data');
+            // Use fallback values on error
+            setGenericText(fallbackValues.organization.generic_text);
+            setSignatures(fallbackValues.signatures);
+            setGroups(fallbackValues.groups);
         }
         setLoading(false);
     };
@@ -89,9 +82,7 @@ const AdminSettingsPage: React.FC = () => {
     const saveOrganizationInfo = async () => {
         setSaving(true);
         try {
-            await updateDoc(doc(db, 'sitecontent', 'organizationInfo'), {
-                generic_text: genericText,
-            });
+            await updateOrganizationInfo({ generic_text: genericText });
             alert('Organisasjonsinfo lagret!');
         } catch (error) {
             console.error('Error saving:', error);
@@ -103,9 +94,7 @@ const AdminSettingsPage: React.FC = () => {
     const saveSignatures = async () => {
         setSaving(true);
         try {
-            await updateDoc(doc(db, 'sitecontent', 'signatureInfo'), {
-                signatories: signatures,
-            });
+            await updateSignatureInfo(signatures);
             alert('Signaturer lagret!');
         } catch (error) {
             console.error('Error saving:', error);
@@ -117,7 +106,7 @@ const AdminSettingsPage: React.FC = () => {
     const saveGroups = async () => {
         setSaving(true);
         try {
-            await updateDoc(doc(db, 'sitecontent', 'groupDescriptions'), groups);
+            await updateGroupInfo(groups);
             alert('Grupper lagret!');
         } catch (error) {
             console.error('Error saving:', error);
@@ -162,9 +151,9 @@ const AdminSettingsPage: React.FC = () => {
     }
 
     return (
-        <Box sx={{ maxWidth: 1200, margin: '0 auto', p: 2 }}>
+        <Box>
             <Typography variant="h4" gutterBottom>
-                Innstillinger
+                Rediger innhold
             </Typography>
 
             <Tabs value={tab} onChange={(_, newValue) => setTab(newValue)}>
@@ -215,6 +204,7 @@ const AdminSettingsPage: React.FC = () => {
                                             color="error"
                                             size="small"
                                         >
+                                            <DeleteIcon />
                                         </IconButton>
                                     </Typography>
                                 </Grid>
@@ -253,7 +243,7 @@ const AdminSettingsPage: React.FC = () => {
                             </Grid>
                         </Paper>
                     ))}
-                    <Button  onClick={addSignature} sx={{ mr: 2 }}>
+                    <Button startIcon={<AddIcon />} onClick={addSignature} sx={{ mr: 2 }}>
                         Legg til signatur
                     </Button>
                     <Button variant="contained" onClick={saveSignatures} disabled={saving}>
@@ -278,6 +268,7 @@ const AdminSettingsPage: React.FC = () => {
                                 </Grid>
                                 <Grid size={{ xs: 1 }}>
                                     <IconButton onClick={() => removeGroup(key)} color="error" size="small">
+                                        <DeleteIcon />
                                     </IconButton>
                                 </Grid>
                                 <Grid size={{ xs: 12 }}>
@@ -304,6 +295,7 @@ const AdminSettingsPage: React.FC = () => {
                         </Grid>
                         <Grid size={{ xs: 4 }}>
                             <Button
+                                startIcon={<AddIcon />}
                                 onClick={addGroup}
                                 disabled={!newGroupName}
                                 fullWidth
@@ -327,4 +319,4 @@ const AdminSettingsPage: React.FC = () => {
     );
 };
 
-export default AdminSettingsPage;
+export default RedigerPage;

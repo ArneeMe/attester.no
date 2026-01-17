@@ -1,5 +1,5 @@
 import {baseURL, generateURL} from "./generateURL";
-import {fallbackValues, getGroupInfo, getOrganizationInfo, getSignatureInfo} from "@/app/pdfinfo/fetchInfo";
+import {fallbackValues, getGroupInfo, getOrganizationInfo, getSignatureInfo} from "@/app/util/databaseInteractions/fetchInfo";
 import {formatDate} from "@/app/util/formatDate";
 import {Volunteer} from '@/app/util/Volunteer'
 import {Certificate} from '@/app/login/adminpage/Certificate'
