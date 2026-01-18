@@ -1,4 +1,4 @@
-import {Volunteer} from '../../util/Volunteer'
+import {Volunteer} from '@/util/Volunteer'
 
 
 export const generateParams = (formData: Volunteer): string => {

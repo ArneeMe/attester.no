@@ -1,6 +1,6 @@
 import {doc, getDoc} from 'firebase/firestore';
 import {db} from '@/app/firebase/fb_config';
-import {ContentCache, GroupInfo, OrganizationInfo, SignatureInfo} from '../../pdfinfo/pdfTypes';
+import {ContentCache, GroupInfo, OrganizationInfo, SignatureInfo} from '@/types/pdfTypes';
 import {generic_echo, undergrupper} from "@/app/pdfinfo/echoInfo";
 import {signaturePerson1, signaturePerson2} from "@/app/pdfinfo/signatureInfo";
 

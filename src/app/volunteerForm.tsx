@@ -16,10 +16,10 @@ import { db } from "./firebase/fb_config";
 import { addDoc, collection } from "firebase/firestore";
 import Link from "next/link";
 import { v4 as uuidv4 } from 'uuid';
-import { Volunteer } from "@/app/util/Volunteer";
-import ConfirmDialog from "@/app/util/confirmDialog";
-import { formatVolunteerDetails } from "@/app/util/formatVolunteer";
-import { getGroupInfo, fallbackValues } from "@/app/util/databaseInteractions/fetchInfo";
+import { Volunteer } from "@/util/Volunteer";
+import ConfirmDialog from "@/util/confirmDialog";
+import { formatVolunteerDetails } from "@/util/formatVolunteer";
+import { getGroupInfo, fallbackValues } from "@/util/databaseInteractions/fetchInfo";
 
 const VolunteerForm = () => {
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);

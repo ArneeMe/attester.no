@@ -13,14 +13,14 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import {SignatureInfo} from "@/app/pdfinfo/pdfTypes";
+import {SignatureInfo} from "@/types/pdfTypes";
 import {
     fallbackValues,
     getGroupInfo,
     getOrganizationInfo,
     getSignatureInfo
-} from "@/app/util/databaseInteractions/fetchInfo";
-import {updateGroupInfo, updateOrganizationInfo, updateSignatureInfo} from "@/app/util/databaseInteractions/insertData";
+} from "@/util/databaseInteractions/fetchInfo";
+import {updateGroupInfo, updateOrganizationInfo, updateSignatureInfo} from "@/util/databaseInteractions/insertData";
 import ImageUpload from "@/app/login/adminpage/rediger/ImageUpload";
 
 interface TabPanelProps {

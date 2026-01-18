@@ -1,7 +1,7 @@
 // app/util/insertData.ts
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/app/firebase/fb_config';
-import { GroupInfo, OrganizationInfo, SignatureInfo } from '@/app/pdfinfo/pdfTypes';
+import { GroupInfo, OrganizationInfo, SignatureInfo } from '@/types/pdfTypes';
 
 export const updateGroupInfo = async (groups: GroupInfo): Promise<void> => {
     await setDoc(doc(db, 'sitecontent', 'groupDescriptions'), groups);

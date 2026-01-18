@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react';
-import { login, useAuth } from '@/app/util/auth';
+import { login, useAuth } from '@/util/auth';
 import { Box, Button, Container, TextField, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
 

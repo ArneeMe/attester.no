@@ -1,8 +1,8 @@
-import {Volunteer} from "@/app/util/Volunteer";
+import {Volunteer} from "@/util/Volunteer";
 import {generateParams} from "@/app/login/adminpage/generateParams";
 import {addDoc, collection} from "firebase/firestore";
 import {db} from "@/app/firebase/fb_config";
-import {hashFunction} from "@/app/util/hashFunction";
+import {hashFunction} from "@/util/hashFunction";
 
 export const submitHash = async (volunteer: Volunteer) => {
     try {

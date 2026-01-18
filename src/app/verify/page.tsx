@@ -1,13 +1,13 @@
 'use client'
 import React, {useEffect, useState} from 'react';
 import {useSearchParams} from 'next/navigation';
-import {ExtraRole, Volunteer} from '@/app/util/Volunteer';
+import {ExtraRole, Volunteer} from '@/util/Volunteer';
 import {Box, Grid, Palette, TextField, Typography} from '@mui/material';
 import {collection, getDocs, query, where} from 'firebase/firestore';
 import {db} from '@/app/firebase/fb_config';
-import {hashFunction} from "@/app/util/hashFunction";
+import {hashFunction} from "@/util/hashFunction";
 import {customTheme} from "@/app/style/customTheme";
-import {formatDate} from "@/app/util/formatDate";
+import {formatDate} from "@/util/formatDate";
 
 const Verify: React.FC = () => {
     const paramsString = useSearchParams().toString();
