@@ -1,4 +1,4 @@
-import {Volunteer} from '@/app/util/Volunteer'
+import {Volunteer} from '@/util/Volunteer'
 import {barcodes, image, text} from '@pdfme/schemas';
 import {generate} from '@pdfme/generator';
 import {customTemplate} from '@/app/pdfinfo/customTemplate';

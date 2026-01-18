@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import {auth} from '../firebase/fb_config';
+import {auth} from '../app/firebase/fb_config';
 import {onAuthStateChanged, signInWithEmailAndPassword, signOut, User} from 'firebase/auth';
 
 export const login = async (email: string, password: string): Promise<void> => {

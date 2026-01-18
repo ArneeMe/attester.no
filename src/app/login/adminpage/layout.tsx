@@ -1,7 +1,7 @@
 // app/login/adminpage/layout.tsx
 'use client'
 import React from 'react';
-import { useAuth, logout } from '@/app/util/auth';
+import { useAuth, logout } from '@/util/auth';
 import { Box, Button, Container, Typography, CircularProgress } from '@mui/material';
 import Link from 'next/link';
 

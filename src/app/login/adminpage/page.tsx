@@ -3,13 +3,13 @@ import React, {useEffect, useState} from 'react';
 import {db} from '@/app/firebase/fb_config';
 import {collection, getDocs} from 'firebase/firestore';
 import {Button, Checkbox, FormControlLabel, Grid, Link, Paper, Typography} from '@mui/material';
-import {Volunteer} from '@/app/util/Volunteer'
+import {Volunteer} from '@/util/Volunteer'
 import {generatePDF} from "@/app/login/adminpage/generatePDF"
-import {deleteVolunteer} from "@/app/util/deleteVolunteer";
-import ConfirmDialog from "@/app/util/confirmDialog";
+import {deleteVolunteer} from "@/util/deleteVolunteer";
+import ConfirmDialog from "@/util/confirmDialog";
 import {generateURL} from "@/app/login/adminpage/generateURL";
 import {submitHash} from "@/app/login/adminpage/submitHash";
-import {formatVolunteerDetails} from "@/app/util/formatVolunteer";
+import {formatVolunteerDetails} from "@/util/formatVolunteer";
 
 
 const AdminPage: React.FC = () => {

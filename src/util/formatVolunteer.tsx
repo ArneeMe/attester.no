@@ -1,6 +1,6 @@
 import {Typography} from '@mui/material'
-import {Volunteer} from "@/app/util/Volunteer";
-import {formatDate} from "@/app/util/formatDate";
+import {Volunteer} from "@/util/Volunteer";
+import {formatDate} from "@/util/formatDate";
 
 export const formatVolunteerDetails = (data: Volunteer) => {
     return (

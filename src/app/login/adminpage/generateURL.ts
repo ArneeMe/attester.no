@@ -1,4 +1,4 @@
-import {Volunteer} from "@/app/util/Volunteer";
+import {Volunteer} from "@/util/Volunteer";
 import {generateParams} from "@/app/login/adminpage/generateParams";
 
 export const baseURL = () : string => {
