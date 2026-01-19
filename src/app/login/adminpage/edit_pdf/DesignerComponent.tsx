@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Box, Button, Paper, CircularProgress } from '@mui/material';
 import { Designer } from '@pdfme/ui';
 import { text, image, barcodes } from '@pdfme/schemas';
@@ -23,6 +24,7 @@ export default function DesignerComponent({
                                               onSuccess,
                                               onTemplateLoad,
                                           }: Props) {
+    const router = useRouter();
     const containerRef = useRef<HTMLDivElement>(null);
     const designerRef = useRef<Designer | null>(null);
     const [saving, setSaving] = useState(false);
@@ -87,11 +89,15 @@ export default function DesignerComponent({
                 isDefault,
             });
 
-            await saveTemplate(data);
+            const saved = await saveTemplate(data);
             onSuccess(`Mal "${templateName}" lagret!`);
 
             const templates = await getTemplates();
             setExistingTemplates(templates);
+
+            if (saved.id) {
+                router.push(`/login/adminpage/edit_pdf/configure?id=${saved.id}`);
+            }
         } catch {
             onError('Kunne ikke lagre mal');
         } finally {
@@ -108,6 +114,12 @@ export default function DesignerComponent({
         });
 
         onTemplateLoad(template.name, template.description || '', template.isDefault);
+    };
+
+    const handleConfigure = (template: PDFTemplate) => {
+        if (template.id) {
+            router.push(`/login/adminpage/edit_pdf/configure?id=${template.id}`);
+        }
     };
 
     const handleExport = () => {
@@ -146,15 +158,23 @@ export default function DesignerComponent({
                 {existingTemplates.length > 0 && (
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                         {existingTemplates.map((template) => (
-                            <Button
-                                key={template.id}
-                                variant={template.isDefault ? 'contained' : 'outlined'}
-                                size="small"
-                                onClick={() => handleLoadTemplate(template)}
-                            >
-                                {template.name}
-                                {template.isDefault && ' (standard)'}
-                            </Button>
+                            <Box key={template.id} sx={{ display: 'flex', gap: 0.5 }}>
+                                <Button
+                                    variant={template.isDefault ? 'contained' : 'outlined'}
+                                    size="small"
+                                    onClick={() => handleLoadTemplate(template)}
+                                >
+                                    {template.name}
+                                    {template.isDefault && ' (standard)'}
+                                </Button>
+                                <Button
+                                    variant="text"
+                                    size="small"
+                                    onClick={() => handleConfigure(template)}
+                                >
+                                    Konfigurer
+                                </Button>
+                            </Box>
                         ))}
                     </Box>
                 )}
