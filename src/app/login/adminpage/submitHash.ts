@@ -8,21 +8,19 @@ export const submitHash = async (volunteer: Volunteer): Promise<void> => {
         const toHash = generateParams(volunteer);
         const hash = await hashFunction(toHash);
         const organizationId = await getDefaultOrgId();
+        const accessToken = nhost.getUserSession()?.accessToken;
+        if (!accessToken) throw new Error('Not authenticated');
 
-        const res = await nhost.graphql.request({
-            query: `
-                mutation InsertCertificate($organizationId: uuid!, $volunteerId: String!, $hash: String!) {
-                    insert_certificates_one(object: {
-                        organization_id: $organizationId,
-                        volunteer_id: $volunteerId,
-                        hash: $hash
-                    }) { id }
-                }
-            `,
-            variables: { organizationId, volunteerId: volunteer.id, hash },
+        const res = await fetch('/api/certificates', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ organizationId, volunteerId: volunteer.id, hash }),
         });
-
-        if (res.body.errors?.length) throw new Error(res.body.errors[0].message);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? 'Server error');
     } catch (error) {
         alert('Feil ved lagring av hash');
         console.error(error);

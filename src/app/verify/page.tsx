@@ -3,7 +3,6 @@ import React, {useEffect, useState} from 'react';
 import {useSearchParams} from 'next/navigation';
 import {ExtraRole, Volunteer} from '@/util/Volunteer';
 import {Box, Grid, Palette, TextField, Typography} from '@mui/material';
-import { nhost } from '@/lib/nhost';
 import {hashFunction} from "@/util/hashFunction";
 import {customTheme} from "@/app/style/customTheme";
 import {formatDate} from "@/util/formatDate";
@@ -33,20 +32,10 @@ const Verify: React.FC = () => {
 
         try {
             const generatedHash = await hashFunction(toCheck);
-            const res = await nhost.graphql.request<{ certificates: { hash: string }[] }>({
-                query: `
-                    query VerifyCertificate($volunteerId: String!) {
-                        certificates(where: { volunteer_id: { _eq: $volunteerId } }, limit: 1) {
-                            hash
-                        }
-                    }
-                `,
-                variables: { volunteerId: formData.id },
-            });
-
-            const cert = res.body.data?.certificates?.[0];
-            if (cert) {
-                setVerificationResult(generatedHash === cert.hash ? 'verified' : 'invalid');
+            const res = await fetch(`/api/certificates/verify?volunteerId=${encodeURIComponent(formData.id)}`);
+            const json = await res.json();
+            if (json.hash) {
+                setVerificationResult(generatedHash === json.hash ? 'verified' : 'invalid');
             } else {
                 console.log("Ingen attester funnet med den spesifikke ID-en.");
             }
