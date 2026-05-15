@@ -13,3 +13,6 @@ scripts/hashes-import.sql
 
 # TypeScript incremental build info
 tsconfig.tsbuildinfo
+
+# Next.js generated types
+next-env.d.ts
