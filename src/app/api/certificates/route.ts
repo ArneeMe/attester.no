@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SUBDOMAIN = process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN;
-const REGION = process.env.NEXT_PUBLIC_NHOST_REGION;
-const HASURA = `https://${SUBDOMAIN}.hasura.${REGION}.nhost.run`;
-const AUTH = `https://${SUBDOMAIN}.auth.${REGION}.nhost.run`;
+const HASURA = `https://${process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN}.hasura.${process.env.NEXT_PUBLIC_NHOST_REGION}.nhost.run`;
+
+function isValidJwt(authHeader: string | null): boolean {
+    if (!authHeader?.startsWith("Bearer ")) return false;
+    const token = authHeader.slice(7);
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    try {
+        const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+        return typeof payload.exp === "number" && payload.exp > Date.now() / 1000;
+    } catch {
+        return false;
+    }
+}
 
 export async function POST(req: NextRequest) {
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-        return NextResponse.json({ error: "Missing bearer token" }, { status: 401 });
-    }
-
-    const userRes = await fetch(`${AUTH}/user`, { headers: { authorization: authHeader } });
-    if (!userRes.ok) {
+    if (!isValidJwt(req.headers.get("authorization"))) {
         return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
