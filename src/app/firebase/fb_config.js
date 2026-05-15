@@ -1,45 +1,28 @@
-/*
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import {getAuth} from "firebase/auth";
-import {getFirestore} from "firebase/firestore";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyDT1GukIvoxK8CuNKLqcQ27AIooo14Szh0",
-    authDomain: "badeklubben-attest.firebaseapp.com",
-    projectId: "badeklubben-attest",
-    storageBucket: "badeklubben-attest.appspot.com",
-    messagingSenderId: "957452398710",
-    appId: "1:957452398710:web:c4be4877122a1370a16f57"
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
 };
 
-const app = initializeApp(firebaseConfig);
+const required = ["apiKey", "authDomain", "projectId", "storageBucket", "messagingSenderId", "appId"];
+const missing = required.filter((key) => !firebaseConfig[key]);
+
+if (missing.length > 0) {
+    throw new Error(
+        `Missing Firebase config: ${missing.map((k) => `NEXT_PUBLIC_FIREBASE_${k.replace(/([A-Z])/g, "_$1").toUpperCase()}`).join(", ")}. ` +
+        `Copy .env.example to .env.local and fill in your Firebase project values.`
+    );
+}
+
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
 export const auth = getAuth(app);
-
-export const db = getFirestore(app) ; */
-
-
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import {getAuth} from "firebase/auth";
-import {getFirestore} from "firebase/firestore";
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const echo_firebaseConfig = {
-    apiKey: "AIzaSyBGTLIqBRpFC1qPNJsFyP2v1zUT1uSTVtI",
-    authDomain: "echo-attest.firebaseapp.com",
-    databaseURL: "https://echo-attest-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "echo-attest",
-    storageBucket: "echo-attest.firebasestorage.app",
-    messagingSenderId: "824360539665",
-    appId: "1:824360539665:web:7273f3916dd285218143b0"
-};
-
-const echo_app = initializeApp(echo_firebaseConfig);
-export const auth = getAuth(echo_app);
-
-export const db = getFirestore(echo_app);
+export const db = getFirestore(app);
