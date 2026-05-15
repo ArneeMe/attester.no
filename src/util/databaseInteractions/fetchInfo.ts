@@ -1,20 +1,8 @@
-import { nhost } from '@/lib/nhost';
 import { GroupInfo, OrganizationInfo, SignatureInfo } from '@/types/pdfTypes';
 import { generic_echo, undergrupper } from '@/app/pdfinfo/echoInfo';
 import { signaturePerson1, signaturePerson2 } from '@/app/pdfinfo/signatureInfo';
 
 const ORG_SLUG = 'echo';
-
-const GET_ORG_CONTENT = `
-    query GetOrgContent($slug: String!) {
-        organizations(where: { slug: { _eq: $slug } }, limit: 1) {
-            id
-            generic_text
-            groups
-            signatures
-        }
-    }
-`;
 
 type OrgRow = {
     id: string;
@@ -24,11 +12,10 @@ type OrgRow = {
 };
 
 async function fetchOrgContent(): Promise<OrgRow | null> {
-    const res = await nhost.graphql.request<{ organizations: OrgRow[] }>({
-        query: GET_ORG_CONTENT,
-        variables: { slug: ORG_SLUG },
-    });
-    return res.body.data?.organizations?.[0] ?? null;
+    const res = await fetch(`/api/organizations?slug=${ORG_SLUG}`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.organization ?? null;
 }
 
 export const getGroupInfo = async (): Promise<GroupInfo> => {

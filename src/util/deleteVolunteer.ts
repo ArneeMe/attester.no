@@ -1,17 +1,13 @@
-import { nhost } from '@/lib/nhost';
+import { authHeader } from '@/lib/nhost';
 
 export const deleteVolunteer = async (id: string): Promise<void> => {
-    const res = await nhost.graphql.request({
-        query: `
-            mutation DeleteVolunteer($id: uuid!) {
-                delete_volunteers_by_pk(id: $id) { id }
-            }
-        `,
-        variables: { id },
+    const res = await fetch(`/api/volunteers/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: authHeader(),
     });
-
-    if (res.body.errors?.length) {
-        console.error('Error removing volunteer:', res.body.errors);
+    if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        console.error('Error removing volunteer:', json);
         alert('Feil ved sletting av dokument. Sjekk konsollen for detaljer.');
     }
 };
