@@ -12,7 +12,7 @@ import {
     Typography,
     CircularProgress,
 } from '@mui/material';
-import { nhost, getDefaultOrgId } from '@/lib/nhost';
+import { getDefaultOrgId } from '@/lib/nhost';
 import Link from "next/link";
 import { v4 as uuidv4 } from 'uuid';
 import { Volunteer } from "@/util/Volunteer";
@@ -106,22 +106,10 @@ const VolunteerForm = () => {
         const uuid = uuidv4();
         try {
             const organizationId = await getDefaultOrgId();
-            const res = await nhost.graphql.request({
-                query: `
-                    mutation InsertVolunteer(
-                        $id: uuid!, $organizationId: uuid!,
-                        $personName: String!, $groupName: String!, $startDate: String!,
-                        $endDate: String!, $role: String!, $extraRoles: jsonb!
-                    ) {
-                        insert_volunteers_one(object: {
-                            id: $id, organization_id: $organizationId,
-                            person_name: $personName, group_name: $groupName,
-                            start_date: $startDate, end_date: $endDate,
-                            role: $role, extra_roles: $extraRoles
-                        }) { id }
-                    }
-                `,
-                variables: {
+            const res = await fetch("/api/volunteers", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({
                     id: uuid,
                     organizationId,
                     personName: formData.personName,
@@ -130,9 +118,10 @@ const VolunteerForm = () => {
                     endDate: formData.endDate,
                     role: formData.role,
                     extraRoles: formData.extraRole ?? [],
-                },
+                }),
             });
-            if (res.body.errors?.length) throw new Error(res.body.errors[0].message);
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error ?? "Server error");
             setformData(prev => ({ ...prev, id: uuid }));
             setOpenConfirmDialog(false);
             setOpenSummaryDialog(true);
