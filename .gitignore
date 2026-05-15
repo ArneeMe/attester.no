@@ -9,3 +9,4 @@
 
 # One-shot migration exports
 scripts/hashes-export.json
+scripts/hashes-import.sql
