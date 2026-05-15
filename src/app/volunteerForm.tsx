@@ -12,8 +12,7 @@ import {
     Typography,
     CircularProgress,
 } from '@mui/material';
-import { db } from "./firebase/fb_config";
-import { addDoc, collection } from "firebase/firestore";
+import { nhost, getDefaultOrgId } from '@/lib/nhost';
 import Link from "next/link";
 import { v4 as uuidv4 } from 'uuid';
 import { Volunteer } from "@/util/Volunteer";
@@ -106,16 +105,39 @@ const VolunteerForm = () => {
     const handleConfirmSubmit = async () => {
         const uuid = uuidv4();
         try {
-            const docRef = await addDoc(collection(db, 'volunteers'), {
-                ...formData,
-                id: uuid,
-                timestamp: new Date()
+            const organizationId = await getDefaultOrgId();
+            const res = await nhost.graphql.request({
+                query: `
+                    mutation InsertVolunteer(
+                        $id: uuid!, $organizationId: uuid!,
+                        $personName: String!, $groupName: String!, $startDate: String!,
+                        $endDate: String!, $role: String!, $extraRoles: jsonb!
+                    ) {
+                        insert_volunteers_one(object: {
+                            id: $id, organization_id: $organizationId,
+                            person_name: $personName, group_name: $groupName,
+                            start_date: $startDate, end_date: $endDate,
+                            role: $role, extra_roles: $extraRoles
+                        }) { id }
+                    }
+                `,
+                variables: {
+                    id: uuid,
+                    organizationId,
+                    personName: formData.personName,
+                    groupName: formData.groupName,
+                    startDate: formData.startDate,
+                    endDate: formData.endDate,
+                    role: formData.role,
+                    extraRoles: formData.extraRole ?? [],
+                },
             });
-            console.log('Data saved with ID:', docRef.id);
+            if (res.body.errors?.length) throw new Error(res.body.errors[0].message);
+            setformData(prev => ({ ...prev, id: uuid }));
             setOpenConfirmDialog(false);
             setOpenSummaryDialog(true);
         } catch (error) {
-            console.error('Error adding document: ', error);
+            console.error('Error adding document:', error);
             alert('Feil ved lagring av data.');
         }
     };

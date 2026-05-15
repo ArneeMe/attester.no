@@ -1,7 +1,6 @@
 'use client'
 import React, {useEffect, useState} from 'react';
-import {db} from '@/app/firebase/fb_config';
-import {collection, getDocs} from 'firebase/firestore';
+import { nhost } from '@/lib/nhost';
 import {Button, Checkbox, FormControlLabel, Grid, Link, Paper, Typography} from '@mui/material';
 import {Volunteer} from '@/util/Volunteer'
 import {generatePDF} from "@/app/login/adminpage/generatePDF"
@@ -26,15 +25,26 @@ const AdminPage: React.FC = () => {
 
     useEffect(() => {
         const fetchVolunteers = async () => {
-            const querySnapshot = await getDocs(collection(db, 'volunteers'));
-            const volunteersData: Volunteer[] = [];
-            querySnapshot.forEach((doc) => {
-                const data = doc.data() as Omit<Volunteer, 'id'>;
-                volunteersData.push({
-                    id: doc.id,
-                    ...data,
-                });
+            const res = await nhost.graphql.request<{ volunteers: Array<{
+                id: string; person_name: string; group_name: string;
+                start_date: string; end_date: string; role: string;
+                extra_roles: Volunteer['extraRole'];
+            }> }>({
+                query: `query GetVolunteers {
+                    volunteers(order_by: { created_at: asc }) {
+                        id person_name group_name start_date end_date role extra_roles
+                    }
+                }`,
             });
+            const volunteersData: Volunteer[] = (res.body.data?.volunteers ?? []).map((v) => ({
+                id: v.id,
+                personName: v.person_name,
+                groupName: v.group_name,
+                startDate: v.start_date,
+                endDate: v.end_date,
+                role: v.role,
+                extraRole: v.extra_roles ?? [],
+            }));
             setVolunteers(volunteersData);
         };
         fetchVolunteers();

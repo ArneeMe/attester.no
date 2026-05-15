@@ -3,8 +3,7 @@ import React, {useEffect, useState} from 'react';
 import {useSearchParams} from 'next/navigation';
 import {ExtraRole, Volunteer} from '@/util/Volunteer';
 import {Box, Grid, Palette, TextField, Typography} from '@mui/material';
-import {collection, getDocs, query, where} from 'firebase/firestore';
-import {db} from '@/app/firebase/fb_config';
+import { nhost } from '@/lib/nhost';
 import {hashFunction} from "@/util/hashFunction";
 import {customTheme} from "@/app/style/customTheme";
 import {formatDate} from "@/util/formatDate";
@@ -34,22 +33,20 @@ const Verify: React.FC = () => {
 
         try {
             const generatedHash = await hashFunction(toCheck);
-            const q = query(collection(db, "hashcollection"), where("id", "==", formData.id));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    if (generatedHash === data.hash) {
-                        setVerificationResult('verified');
-                        console.log("Hash er gyldig!");
-                    } else {
-                        setVerificationResult('invalid');
-                        console.log("Dette hashes", toCheck)
-                        console.log("Ingen gyldig hash funnet, det ble:", generatedHash);
-                        console.log("I DB-en er det:", data.hash);
+            const res = await nhost.graphql.request<{ certificates: { hash: string }[] }>({
+                query: `
+                    query VerifyCertificate($volunteerId: String!) {
+                        certificates(where: { volunteer_id: { _eq: $volunteerId } }, limit: 1) {
+                            hash
+                        }
                     }
-                });
+                `,
+                variables: { volunteerId: formData.id },
+            });
+
+            const cert = res.body.data?.certificates?.[0];
+            if (cert) {
+                setVerificationResult(generatedHash === cert.hash ? 'verified' : 'invalid');
             } else {
                 console.log("Ingen attester funnet med den spesifikke ID-en.");
             }
