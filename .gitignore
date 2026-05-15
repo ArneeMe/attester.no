@@ -6,3 +6,6 @@
 .env
 .env.local
 .env.*.local
+
+# One-shot migration exports
+scripts/hashes-export.json
