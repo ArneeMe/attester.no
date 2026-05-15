@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { login, useAuth } from '@/util/auth';
 import { Box, Button, Container, TextField, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
@@ -10,10 +10,11 @@ const LoginPage: React.FC = () => {
     const currentUser = useAuth();
     const router = useRouter();
 
-    if (currentUser) {
-        router.push('/login/adminpage');
-        return null;
-    }
+    useEffect(() => {
+        if (currentUser) {
+            router.push('/login/adminpage');
+        }
+    }, [currentUser, router]);
 
     const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
