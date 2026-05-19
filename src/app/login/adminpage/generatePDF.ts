@@ -6,11 +6,11 @@ import {getPdfInput} from "@/app/login/adminpage/getPDFInput";
 
 
 export const generatePDF = async (volunteer: Volunteer) => {
-    const pdfInput = getPdfInput(volunteer);
+    const pdfInput = await getPdfInput(volunteer);
     try {
         const pdf = await generate({
             template: customTemplate,
-            inputs: await pdfInput,
+            inputs: pdfInput,
             plugins: {
                 text,
                 image,
