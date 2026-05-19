@@ -12,8 +12,7 @@ import {
     Typography,
     CircularProgress,
 } from '@mui/material';
-import { db } from "./firebase/fb_config";
-import { addDoc, collection } from "firebase/firestore";
+import { getDefaultOrgId } from '@/lib/nhost';
 import Link from "next/link";
 import { v4 as uuidv4 } from 'uuid';
 import { Volunteer } from "@/util/Volunteer";
@@ -106,16 +105,28 @@ const VolunteerForm = () => {
     const handleConfirmSubmit = async () => {
         const uuid = uuidv4();
         try {
-            const docRef = await addDoc(collection(db, 'volunteers'), {
-                ...formData,
-                id: uuid,
-                timestamp: new Date()
+            const organizationId = await getDefaultOrgId();
+            const res = await fetch("/api/volunteers", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({
+                    id: uuid,
+                    organizationId,
+                    personName: formData.personName,
+                    groupName: formData.groupName,
+                    startDate: formData.startDate,
+                    endDate: formData.endDate,
+                    role: formData.role,
+                    extraRoles: formData.extraRole ?? [],
+                }),
             });
-            console.log('Data saved with ID:', docRef.id);
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error ?? "Server error");
+            setformData(prev => ({ ...prev, id: uuid }));
             setOpenConfirmDialog(false);
             setOpenSummaryDialog(true);
         } catch (error) {
-            console.error('Error adding document: ', error);
+            console.error('Error adding document:', error);
             alert('Feil ved lagring av data.');
         }
     };

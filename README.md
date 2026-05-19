@@ -28,6 +28,12 @@ src/app/
   util/      — hjelpefunksjoner (hashing, db, formatering)
 ```
 
-## Oppsett
+## Kjøre lokalt
 
-Krever Nhost-miljøvariabler i `.env.local` — se `.env.example`.
+Krever Nhost-miljøvariabler i `.env.local` — kopier fra `.env.example`.
+
+```bash
+cp .env.example .env.local
+npm install
+npm run dev
+```

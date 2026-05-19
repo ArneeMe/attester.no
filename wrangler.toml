@@ -1,0 +1,8 @@
+name = "attester-no"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+[vars]
+NEXT_PUBLIC_NHOST_SUBDOMAIN = "fjolhedkolpveurwmylm"
+NEXT_PUBLIC_NHOST_REGION = "eu-central-1"

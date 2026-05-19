@@ -1,59 +1,63 @@
-import {
-    collection,
-    getDocs,
-    addDoc,
-    serverTimestamp,
-} from 'firebase/firestore';
-import { db } from '@/app/firebase/fb_config';
+import { getDefaultOrgId, authHeader } from '@/lib/nhost';
 import type { PDFTemplate } from '@/types/templateTypes';
 import type { Template } from '@pdfme/common';
 
-export function getActiveOrgId(): string {
-    return 'echo-org';
-}
+type TemplateRow = {
+    id: string;
+    organization_id: string;
+    name: string;
+    description: string | null;
+    base_pdf: string;
+    schemas: Template['schemas'];
+    is_default: boolean;
+    created_at: string;
+    updated_at: string;
+};
 
 export async function getTemplates(): Promise<PDFTemplate[]> {
-    const orgId = getActiveOrgId();
-    const templatesRef = collection(db, 'organizations', orgId, 'templates');
-    const snapshot = await getDocs(templatesRef);
-
-    return snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-            id: docSnap.id,
-            organizationId: data.organizationId,
-            name: data.name,
-            description: data.description,
-            basePdf: data.basePdf,
-            schemas: JSON.parse(data.schemas),
-            isDefault: data.isDefault,
-            createdAt: data.createdAt?.toDate?.() || new Date(),
-            updatedAt: data.updatedAt?.toDate?.() || new Date(),
-        } as PDFTemplate;
+    const organizationId = await getDefaultOrgId();
+    const res = await fetch(`/api/templates?organizationId=${encodeURIComponent(organizationId)}`, {
+        headers: authHeader(),
     });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? 'Failed to load templates');
+    return (json.templates as TemplateRow[]).map((row) => ({
+        id: row.id,
+        organizationId: row.organization_id,
+        name: row.name,
+        description: row.description ?? undefined,
+        basePdf: row.base_pdf,
+        schemas: row.schemas,
+        isDefault: row.is_default,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at),
+    }));
 }
 
 export async function saveTemplate(
     template: Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<PDFTemplate> {
-    const orgId = getActiveOrgId();
-    const templatesRef = collection(db, 'organizations', orgId, 'templates');
-
-    const docData = {
-        ...template,
-        schemas: JSON.stringify(template.schemas),
-        organizationId: orgId,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    };
-
-    const docRef = await addDoc(templatesRef, docData);
-
+    const organizationId = await getDefaultOrgId();
+    const res = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...authHeader() },
+        body: JSON.stringify({
+            organizationId,
+            name: template.name,
+            description: template.description,
+            basePdf: template.basePdf,
+            schemas: template.schemas,
+            isDefault: template.isDefault,
+        }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? 'Failed to save template');
+    const row = json.template as { id: string; created_at: string; updated_at: string };
     return {
         ...template,
-        id: docRef.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        id: row.id,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at),
     };
 }
 
@@ -63,7 +67,7 @@ export function fromPdfmeTemplate(
     options?: { description?: string; isDefault?: boolean }
 ): Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'> {
     return {
-        organizationId: getActiveOrgId(),
+        organizationId: 'echo',
         name,
         description: options?.description,
         basePdf: pdfmeTemplate.basePdf as string,

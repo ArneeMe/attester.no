@@ -1,26 +1,19 @@
-import {useEffect, useState} from 'react';
-import {auth} from '../app/firebase/fb_config';
-import {onAuthStateChanged, signInWithEmailAndPassword, signOut, User} from 'firebase/auth';
+import { useEffect, useState } from 'react';
+import { nhost, type NhostUser } from '@/lib/nhost';
 
 export const login = async (email: string, password: string): Promise<void> => {
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-        console.error(error);
-        alert("Login failed: " + (error as Error).message);
-    }
+    await nhost.auth.signInEmailPassword({ email, password });
 };
 
 export const logout = async (): Promise<void> => {
-    await signOut(auth);
+    const session = nhost.getUserSession();
+    await nhost.auth.signOut({ refreshToken: session?.refreshToken });
 };
 
-export const useAuth = (): User | null => {
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
+export const useAuth = (): NhostUser | null | undefined => {
+    const [user, setUser] = useState<NhostUser | null | undefined>(undefined);
     useEffect(() => {
-        return onAuthStateChanged(auth, user => {
-            setCurrentUser(user);
-        });
+        setUser(nhost.getUserSession()?.user ?? null);
     }, []);
-    return currentUser;
+    return user;
 };
