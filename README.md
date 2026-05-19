@@ -10,23 +10,24 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
 
 ## Tech
 
-- Next.js 16 + React 19 (App Router)
+- Next.js + React (App Router)
 - TypeScript
 - Material UI
-- Firebase (Firestore + Auth)
+- Nhost (Postgres + Hasura + Auth)
 - pdfme for PDF-generering i nettleseren
+- Cloudflare Pages
 
 ## Struktur
+
 ```
 src/app/
+  api/       — server-side API-ruter (DB-tilgang via Hasura admin)
   login/     — admin-innlogging og dashboard
   verify/    — offentlig verifiseringsside
   pdfinfo/   — PDF-maler og logikk
   util/      — hjelpefunksjoner (hashing, db, formatering)
 ```
 
-## Kjøre lokalt
-```bash
-npm install
-npm run dev
-```
+## Oppsett
+
+Krever Nhost-miljøvariabler i `.env.local` — se `.env.example`.
