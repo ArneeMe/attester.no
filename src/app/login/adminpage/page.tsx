@@ -1,7 +1,6 @@
 'use client'
 import React, {useEffect, useState} from 'react';
-import {db} from '@/app/firebase/fb_config';
-import {collection, getDocs} from 'firebase/firestore';
+import { authHeader } from '@/lib/nhost';
 import {Button, Checkbox, FormControlLabel, Grid, Link, Paper, Typography} from '@mui/material';
 import {Volunteer} from '@/util/Volunteer'
 import {generatePDF} from "@/app/login/adminpage/generatePDF"
@@ -17,7 +16,6 @@ const AdminPage: React.FC = () => {
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
     const [selectedIDs, setSelectedIDs] = useState<string[]>([]);
-    const [selectedIDsForDeletion, setSelectedIDsForDeletion] = useState<string[]>([]);
 
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [openBatchDeleteDialog, setOpenBatchDeleteDialog] = useState(false);
@@ -26,15 +24,27 @@ const AdminPage: React.FC = () => {
 
     useEffect(() => {
         const fetchVolunteers = async () => {
-            const querySnapshot = await getDocs(collection(db, 'volunteers'));
-            const volunteersData: Volunteer[] = [];
-            querySnapshot.forEach((doc) => {
-                const data = doc.data() as Omit<Volunteer, 'id'>;
-                volunteersData.push({
-                    id: doc.id,
-                    ...data,
-                });
-            });
+            const res = await fetch('/api/volunteers', { headers: authHeader() });
+            if (!res.ok) {
+                console.error('Failed to load volunteers');
+                return;
+            }
+            const json = await res.json() as {
+                volunteers: Array<{
+                    id: string; person_name: string; group_name: string;
+                    start_date: string; end_date: string; role: string;
+                    extra_roles: Volunteer['extraRole'];
+                }>;
+            };
+            const volunteersData: Volunteer[] = (json.volunteers ?? []).map((v) => ({
+                id: v.id,
+                personName: v.person_name,
+                groupName: v.group_name,
+                startDate: v.start_date,
+                endDate: v.end_date,
+                role: v.role,
+                extraRole: v.extra_roles ?? [],
+            }));
             setVolunteers(volunteersData);
         };
         fetchVolunteers();
@@ -72,26 +82,15 @@ const AdminPage: React.FC = () => {
     };
 
 
-    const openBatchDeleteClick = () => {
-        setSelectedIDsForDeletion([...selectedIDs]);
-        setOpenBatchDeleteDialog(true);
-    };
+    const openBatchDeleteClick = () => setOpenBatchDeleteDialog(true);
 
     const handleBatchDeleteConfirm = async () => {
-        if (selectedIDsForDeletion.length > 0) {
+        if (selectedIDs.length > 0) {
             try {
-                for (const id of selectedIDsForDeletion) {
+                for (const id of selectedIDs) {
                     await handleDelete(id);
                 }
-
-                // Update state
-                setVolunteers(volunteers.filter(volunteer =>
-                    !selectedIDsForDeletion.includes(volunteer.id)
-                ));
-
-                // Reset selection and close dialog
                 setOpenBatchDeleteDialog(false);
-                setSelectedIDsForDeletion([]);
                 setSelectedIDs([]);
             } catch (error) {
                 console.log(error);

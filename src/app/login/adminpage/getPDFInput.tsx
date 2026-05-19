@@ -1,4 +1,4 @@
-import {baseURL, generateURL} from "./generateURL";
+import {generateURL} from "./generateURL";
 import {fallbackValues, getGroupInfo, getOrganizationInfo, getSignatureInfo} from "@/util/databaseInteractions/fetchInfo";
 import {formatDate} from "@/util/formatDate";
 import {Volunteer} from '@/util/Volunteer'
@@ -11,7 +11,7 @@ export const getPdfInput = async (volunteer: Volunteer): Promise<Certificate[]> 
     const yyyy = today.getFullYear();
     const name = volunteer.personName;
     const fullURL = generateURL(volunteer);
-    const basePageURL = baseURL();
+    const basePageURL = window.location.origin;
 
     // Default values
     let groupInfo = fallbackValues.groups[volunteer.groupName] || `Information about ${volunteer.groupName}`;

@@ -4,9 +4,15 @@ import React from 'react';
 import { useAuth, logout } from '@/util/auth';
 import { Box, Button, Container, Typography, CircularProgress } from '@mui/material';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const currentUser = useAuth();
+    const router = useRouter();
+    const handleLogout = async () => {
+        await logout();
+        router.push('/login');
+    };
 
     if (currentUser === undefined) {
         return (
@@ -42,7 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <Button component={Link} href="/login/adminpage/rediger" variant="outlined" size="small">
                         Rediger innhold
                     </Button>
-                    <Button onClick={logout} variant="outlined" size="small" color="error">
+                    <Button onClick={handleLogout} variant="outlined" size="small" color="error">
                         Logg ut
                     </Button>
                 </Box>

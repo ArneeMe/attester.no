@@ -1,17 +1,13 @@
-import {collection, deleteDoc, getDocs, query, where} from "firebase/firestore";
-import {db} from "@/app/firebase/fb_config";
+import { authHeader } from '@/lib/nhost';
 
-export const deleteVolunteer = async (id: string) => {
-    console.log('Attempting to delete document with ID:', id);
-    try {
-        const q = query(collection(db, "volunteers"), where("id", "==", id));
-        const querySnapshot = await getDocs(q);
-        querySnapshot.forEach(async (doc): Promise<void> => {
-           await deleteDoc(doc.ref)
-        })
-
-    } catch (error) {
-        console.error('Error removing document: ', error);
+export const deleteVolunteer = async (id: string): Promise<void> => {
+    const res = await fetch(`/api/volunteers/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: authHeader(),
+    });
+    if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        console.error('Error removing volunteer:', json);
         alert('Feil ved sletting av dokument. Sjekk konsollen for detaljer.');
     }
 };

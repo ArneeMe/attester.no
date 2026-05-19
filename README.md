@@ -26,7 +26,25 @@ src/app/
 ```
 
 ## Kjøre lokalt
+
+Lag et eget Firebase-prosjekt for utvikling (ikke bruk produksjon):
+
+1. Gå til [Firebase Console](https://console.firebase.google.com/) → **Add project**.
+2. Aktiver **Authentication** (Email/Password) og **Firestore Database**.
+3. Under **Project settings → General → Your apps**, registrer en web-app og kopier konfigurasjonen.
+
+Sett opp env-variabler:
+
+```bash
+cp .env.example .env.local
+# Fyll inn verdiene fra Firebase Console i .env.local
+```
+
+Start dev-serveren:
+
 ```bash
 npm install
 npm run dev
 ```
+
+`.env.local` er gitignored. For produksjon settes de samme `NEXT_PUBLIC_FIREBASE_*`-variablene i deploy-miljøet.
