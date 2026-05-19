@@ -8,10 +8,6 @@
 .env.local
 .env.*.local
 
-# One-shot migration exports
-scripts/hashes-export.json
-scripts/hashes-import.sql
-
 # TypeScript incremental build info
 tsconfig.tsbuildinfo
 
