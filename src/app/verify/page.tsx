@@ -103,7 +103,7 @@ const Verify: React.FC = () => {
 
     useEffect(() => {
         verifyHash();
-    },[formData]);
+    }, []);
 
     return (
         <Box color={getColor}

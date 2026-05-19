@@ -16,7 +16,6 @@ const AdminPage: React.FC = () => {
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
     const [selectedIDs, setSelectedIDs] = useState<string[]>([]);
-    const [selectedIDsForDeletion, setSelectedIDsForDeletion] = useState<string[]>([]);
 
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [openBatchDeleteDialog, setOpenBatchDeleteDialog] = useState(false);
@@ -83,26 +82,15 @@ const AdminPage: React.FC = () => {
     };
 
 
-    const openBatchDeleteClick = () => {
-        setSelectedIDsForDeletion([...selectedIDs]);
-        setOpenBatchDeleteDialog(true);
-    };
+    const openBatchDeleteClick = () => setOpenBatchDeleteDialog(true);
 
     const handleBatchDeleteConfirm = async () => {
-        if (selectedIDsForDeletion.length > 0) {
+        if (selectedIDs.length > 0) {
             try {
-                for (const id of selectedIDsForDeletion) {
+                for (const id of selectedIDs) {
                     await handleDelete(id);
                 }
-
-                // Update state
-                setVolunteers(volunteers.filter(volunteer =>
-                    !selectedIDsForDeletion.includes(volunteer.id)
-                ));
-
-                // Reset selection and close dialog
                 setOpenBatchDeleteDialog(false);
-                setSelectedIDsForDeletion([]);
                 setSelectedIDs([]);
             } catch (error) {
                 console.log(error);
