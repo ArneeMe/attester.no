@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { isValidJwt } from "@/lib/server/auth";
+import { verifyJwt } from "@/lib/server/auth";
 
 export const runtime = "edge";
 
@@ -17,7 +17,7 @@ type TemplateRow = {
 };
 
 export async function GET(req: NextRequest) {
-    if (!isValidJwt(req.headers.get("authorization"))) {
+    if (!(await verifyJwt(req.headers.get("authorization")))) {
         return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    if (!isValidJwt(req.headers.get("authorization"))) {
+    if (!(await verifyJwt(req.headers.get("authorization")))) {
         return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 

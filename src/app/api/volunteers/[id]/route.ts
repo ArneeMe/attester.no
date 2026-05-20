@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { isValidJwt } from "@/lib/server/auth";
+import { verifyJwt } from "@/lib/server/auth";
 
 export const runtime = "edge";
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    if (!isValidJwt(req.headers.get("authorization"))) {
+    if (!(await verifyJwt(req.headers.get("authorization")))) {
         return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
