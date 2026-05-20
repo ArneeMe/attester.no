@@ -43,10 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button component={Link} href="/login/adminpage" variant="outlined" size="small">
-                        Oversikt
-                    </Button>
-                    <Button component={Link} href="/login/adminpage/rediger" variant="outlined" size="small">
-                        Rediger innhold
+                        Bytt organisasjon
                     </Button>
                     <Button onClick={handleLogout} variant="outlined" size="small" color="error">
                         Logg ut

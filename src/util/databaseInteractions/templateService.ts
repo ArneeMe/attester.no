@@ -1,4 +1,4 @@
-import { getDefaultOrgId, authHeader } from '@/lib/nhost';
+import { getOrgIdBySlug, authHeader } from '@/lib/nhost';
 import type { PDFTemplate } from '@/types/templateTypes';
 import type { Template } from '@pdfme/common';
 
@@ -14,8 +14,8 @@ type TemplateRow = {
     updated_at: string;
 };
 
-export async function getTemplates(): Promise<PDFTemplate[]> {
-    const organizationId = await getDefaultOrgId();
+export async function getTemplates(orgSlug: string): Promise<PDFTemplate[]> {
+    const organizationId = await getOrgIdBySlug(orgSlug);
     const res = await fetch(`/api/templates?organizationId=${encodeURIComponent(organizationId)}`, {
         headers: authHeader(),
     });
@@ -35,9 +35,10 @@ export async function getTemplates(): Promise<PDFTemplate[]> {
 }
 
 export async function saveTemplate(
-    template: Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'>
+    orgSlug: string,
+    template: Omit<PDFTemplate, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>,
 ): Promise<PDFTemplate> {
-    const organizationId = await getDefaultOrgId();
+    const organizationId = await getOrgIdBySlug(orgSlug);
     const res = await fetch('/api/templates', {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...authHeader() },
@@ -56,6 +57,7 @@ export async function saveTemplate(
     return {
         ...template,
         id: row.id,
+        organizationId,
         createdAt: new Date(row.created_at),
         updatedAt: new Date(row.updated_at),
     };
@@ -64,10 +66,9 @@ export async function saveTemplate(
 export function fromPdfmeTemplate(
     pdfmeTemplate: Template,
     name: string,
-    options?: { description?: string; isDefault?: boolean }
-): Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'> {
+    options?: { description?: string; isDefault?: boolean },
+): Omit<PDFTemplate, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'> {
     return {
-        organizationId: 'echo',
         name,
         description: options?.description,
         basePdf: pdfmeTemplate.basePdf as string,

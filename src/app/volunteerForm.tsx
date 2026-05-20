@@ -12,7 +12,7 @@ import {
     Typography,
     CircularProgress,
 } from '@mui/material';
-import { getDefaultOrgId } from '@/lib/nhost';
+import { getOrgBySlug } from '@/lib/nhost';
 import Link from "next/link";
 import { v4 as uuidv4 } from 'uuid';
 import { Volunteer } from "@/util/Volunteer";
@@ -20,12 +20,17 @@ import ConfirmDialog from "@/util/confirmDialog";
 import { formatVolunteerDetails } from "@/util/formatVolunteer";
 import { getGroupInfo, fallbackValues } from "@/util/databaseInteractions/fetchInfo";
 
-const VolunteerForm = () => {
+interface Props {
+    orgSlug: string;
+}
+
+const VolunteerForm: React.FC<Props> = ({ orgSlug }) => {
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
     const [openSummaryDialog, setOpenSummaryDialog] = useState(false);
     const [openHelpDialog, setOpenHelpDialog] = useState(false);
     const [showExtraRoles, setShowExtraRoles] = useState(false);
 
+    const [orgName, setOrgName] = useState<string>(orgSlug);
     const [groups, setGroups] = useState<{ [key: string]: string }>({});
     const [loadingGroups, setLoadingGroups] = useState(true);
 
@@ -44,25 +49,27 @@ const VolunteerForm = () => {
     });
 
     useEffect(() => {
-        const fetchGroups = async () => {
+        const fetchData = async () => {
             setLoadingGroups(true);
             try {
-                const groupData = await getGroupInfo();
-                if (Object.keys(groupData).length > 0) {
-                    setGroups(groupData);
-                } else {
-                    // Use fallback if DB returns empty
-                    setGroups(fallbackValues.groups);
-                }
+                const [groupData, org] = await Promise.all([
+                    getGroupInfo(orgSlug),
+                    getOrgBySlug(orgSlug).catch(() => null),
+                ]);
+                setGroups(
+                    Object.keys(groupData).length > 0
+                        ? groupData
+                        : orgSlug === 'echo' ? fallbackValues.groups : {},
+                );
+                if (org?.name) setOrgName(org.name);
             } catch (error) {
-                console.error('Error fetching groups:', error);
-                // Use fallback on error
-                setGroups(fallbackValues.groups);
+                console.error('Error fetching org data:', error);
+                setGroups(orgSlug === 'echo' ? fallbackValues.groups : {});
             }
             setLoadingGroups(false);
         };
-        fetchGroups();
-    }, []);
+        fetchData();
+    }, [orgSlug]);
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
@@ -105,7 +112,7 @@ const VolunteerForm = () => {
     const handleConfirmSubmit = async () => {
         const uuid = uuidv4();
         try {
-            const organizationId = await getDefaultOrgId();
+            const { id: organizationId } = await getOrgBySlug(orgSlug);
             const res = await fetch("/api/volunteers", {
                 method: "POST",
                 headers: { "content-type": "application/json" },
@@ -136,12 +143,12 @@ const VolunteerForm = () => {
             <Grid container spacing={0}>
                 <Grid size={{ xs: 8 }}>
                     <Typography variant="h5">
-                        Søk om attest til echo - Linjeforeningen for informatikk
+                        Søk om attest til {orgName}
                     </Typography>
                 </Grid>
                 <Grid size={{ xs: 7 }}>
                     <Typography>
-                        Her kan du sende inn din informasjon for å få en attest fra echo!
+                        Her kan du sende inn din informasjon for å få en attest fra {orgName}!
                     </Typography>
                 </Grid>
                 <Grid size={{ xs: 1 }}>
@@ -324,7 +331,7 @@ const VolunteerForm = () => {
                 onConfirm={handleHelpSummary}
                 details={
                     <Typography>
-                        Dette er en nettside for å gi deg attest fra echo. Du sender inn din informasjon i en database,
+                        Dette er en nettside for å gi deg attest fra {orgName}. Du sender inn din informasjon i en database,
                         en admin vil inspisere det du har sendt inn.
                         Fyll ut info om deg, dine roller. Du kan velge inntil 3 ekstra roller.
                         Bruk din &quot;hovedrolle&quot; først, den blir mest synlig på PDF-en.

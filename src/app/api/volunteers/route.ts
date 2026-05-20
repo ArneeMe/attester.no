@@ -9,6 +9,11 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
+    const organizationId = req.nextUrl.searchParams.get("organizationId");
+    if (!organizationId) {
+        return NextResponse.json({ error: "Missing organizationId" }, { status: 400 });
+    }
+
     try {
         const data = await hasuraAdmin<{
             volunteers: Array<{
@@ -17,11 +22,15 @@ export async function GET(req: NextRequest) {
                 extra_roles: Array<{ groupName: string; startDate: string; endDate: string; role: string }> | null;
             }>;
         }>(
-            `query GetVolunteers {
-                volunteers(order_by: { created_at: asc }) {
+            `query GetVolunteers($organizationId: uuid!) {
+                volunteers(
+                    where: { organization_id: { _eq: $organizationId } },
+                    order_by: { created_at: asc }
+                ) {
                     id person_name group_name start_date end_date role extra_roles
                 }
             }`,
+            { organizationId },
         );
         return NextResponse.json({ volunteers: data.volunteers });
     } catch (e) {

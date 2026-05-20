@@ -13,10 +13,25 @@ type OrgRow = {
     signatures: Array<{ photo: string; name: string; role: string; phone: string }> | null;
 };
 
+type OrgListRow = { id: string; slug: string; name: string };
+
 export async function GET(req: NextRequest) {
     const slug = req.nextUrl.searchParams.get("slug");
+
     if (!slug) {
-        return NextResponse.json({ error: "Missing slug" }, { status: 400 });
+        if (!(await verifyJwt(req.headers.get("authorization")))) {
+            return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+        }
+        try {
+            const data = await hasuraAdmin<{ organizations: OrgListRow[] }>(
+                `query ListOrgs {
+                    organizations(order_by: { slug: asc }) { id slug name }
+                }`,
+            );
+            return NextResponse.json({ organizations: data.organizations });
+        } catch (e) {
+            return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        }
     }
 
     try {

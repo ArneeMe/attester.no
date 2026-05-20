@@ -4,7 +4,7 @@ import {formatDate} from "@/util/formatDate";
 import {Volunteer} from '@/util/Volunteer'
 import {Certificate} from '@/app/login/adminpage/Certificate'
 
-export const getPdfInput = async (volunteer: Volunteer): Promise<Certificate[]> => {
+export const getPdfInput = async (orgSlug: string, volunteer: Volunteer): Promise<Certificate[]> => {
     const today = new Date();
     const dd = String(today.getDate()).padStart(2, '0');
     const mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
@@ -21,9 +21,9 @@ export const getPdfInput = async (volunteer: Volunteer): Promise<Certificate[]> 
 
     try {
         const [groupDescriptions, organizationInfo, signatories] = await Promise.all([
-            getGroupInfo(),
-            getOrganizationInfo(),
-            getSignatureInfo()
+            getGroupInfo(orgSlug),
+            getOrganizationInfo(orgSlug),
+            getSignatureInfo(orgSlug)
         ]);
 
         if (volunteer.groupName && groupDescriptions[volunteer.groupName]) {

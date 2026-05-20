@@ -1,13 +1,14 @@
 import { authHeader } from '@/lib/nhost';
 import { GroupInfo, OrganizationInfo, SignatureInfo } from '@/types/pdfTypes';
 
-const ORG_SLUG = 'echo';
-
-async function updateOrg(set: { genericText?: string; groups?: GroupInfo; signatures?: SignatureInfo[] }): Promise<void> {
+async function updateOrg(
+    slug: string,
+    set: { genericText?: string; groups?: GroupInfo; signatures?: SignatureInfo[] },
+): Promise<void> {
     const res = await fetch('/api/organizations', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json', ...authHeader() },
-        body: JSON.stringify({ slug: ORG_SLUG, ...set }),
+        body: JSON.stringify({ slug, ...set }),
     });
     if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -15,7 +16,11 @@ async function updateOrg(set: { genericText?: string; groups?: GroupInfo; signat
     }
 }
 
-export const updateGroupInfo = (groups: GroupInfo) => updateOrg({ groups });
-export const updateSignatureInfo = (signatures: SignatureInfo[]) => updateOrg({ signatures });
-export const updateOrganizationInfo = (organization: OrganizationInfo) =>
-    updateOrg({ genericText: organization.generic_text });
+export const updateGroupInfo = (slug: string, groups: GroupInfo) =>
+    updateOrg(slug, { groups });
+
+export const updateSignatureInfo = (slug: string, signatures: SignatureInfo[]) =>
+    updateOrg(slug, { signatures });
+
+export const updateOrganizationInfo = (slug: string, organization: OrganizationInfo) =>
+    updateOrg(slug, { genericText: organization.generic_text });

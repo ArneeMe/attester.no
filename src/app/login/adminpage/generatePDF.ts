@@ -5,8 +5,8 @@ import {customTemplate} from '@/app/pdfinfo/customTemplate';
 import {getPdfInput} from "@/app/login/adminpage/getPDFInput";
 
 
-export const generatePDF = async (volunteer: Volunteer) => {
-    const pdfInput = await getPdfInput(volunteer);
+export const generatePDF = async (orgSlug: string, volunteer: Volunteer) => {
+    const pdfInput = await getPdfInput(orgSlug, volunteer);
     try {
         const pdf = await generate({
             template: customTemplate,

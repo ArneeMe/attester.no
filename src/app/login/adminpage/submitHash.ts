@@ -1,13 +1,13 @@
-import { getDefaultOrgId, authHeader } from '@/lib/nhost';
+import { getOrgIdBySlug, authHeader } from '@/lib/nhost';
 import { Volunteer } from '@/util/Volunteer';
 import { generateParams } from '@/app/login/adminpage/generateParams';
 import { hashFunction } from '@/util/hashFunction';
 
-export const submitHash = async (volunteer: Volunteer): Promise<void> => {
+export const submitHash = async (orgSlug: string, volunteer: Volunteer): Promise<void> => {
     try {
         const toHash = generateParams(volunteer);
         const hash = await hashFunction(toHash);
-        const organizationId = await getDefaultOrgId();
+        const organizationId = await getOrgIdBySlug(orgSlug);
 
         const res = await fetch('/api/certificates', {
             method: 'POST',
