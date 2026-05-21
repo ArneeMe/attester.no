@@ -5,6 +5,7 @@ import { useAuth, logout } from '@/util/auth';
 import { Box, Button, Container, Typography, CircularProgress } from '@mui/material';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { UserOrgsProvider } from './UserOrgsProvider';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const currentUser = useAuth();
@@ -36,21 +37,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     return (
-        <Container component="main" maxWidth="lg">
-            <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                <Typography variant="h6">
-                    Velkommen, {currentUser.email}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button component={Link} href="/login/adminpage" variant="outlined" size="small">
-                        Bytt organisasjon
-                    </Button>
-                    <Button onClick={handleLogout} variant="outlined" size="small" color="error">
-                        Logg ut
-                    </Button>
+        <UserOrgsProvider>
+            <Container component="main" maxWidth="lg">
+                <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                    <Typography variant="h6">
+                        Velkommen, {currentUser.email}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button component={Link} href="/login/adminpage" variant="outlined" size="small">
+                            Bytt organisasjon
+                        </Button>
+                        <Button onClick={handleLogout} variant="outlined" size="small" color="error">
+                            Logg ut
+                        </Button>
+                    </Box>
                 </Box>
-            </Box>
-            {children}
-        </Container>
+                {children}
+            </Container>
+        </UserOrgsProvider>
     );
 }

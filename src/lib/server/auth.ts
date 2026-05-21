@@ -25,6 +25,10 @@ export async function verifyJwt(authHeader: string | null): Promise<JwtClaims | 
     // Outside the try so misconfigured env vars surface as 500, not a silent 401.
     const jwks = getJwks();
 
+    // Resolve the secret OUTSIDE the try block so a missing env var bubbles up
+    // as a 500 with a clear message rather than being swallowed into a generic 401.
+    const secret = getSecretKey();
+
     try {
         const { payload } = await jwtVerify(token, jwks);
         const hasuraClaims = payload[HASURA_CLAIMS_KEY] as Record<string, unknown> | undefined;
@@ -33,7 +37,8 @@ export async function verifyJwt(authHeader: string | null): Promise<JwtClaims | 
             (typeof payload.sub === "string" ? payload.sub : undefined);
         if (!userId) return null;
         return { userId };
-    } catch {
+    } catch (e) {
+        console.warn("JWT verification failed:", (e as Error).message);
         return null;
     }
 }

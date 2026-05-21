@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { verifyJwt } from "@/lib/server/auth";
-import { userBelongsToOrg } from "@/lib/server/membership";
+import { requireOrgMember } from "@/lib/server/apiAuth";
 
 export const runtime = "edge";
 
@@ -38,11 +37,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-    const claims = await verifyJwt(req.headers.get("authorization"));
-    if (!claims) {
-        return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-    }
-
     const { slug, genericText, groups, signatures } = await req.json();
     if (!slug) {
         return NextResponse.json({ error: "Missing slug" }, { status: 400 });
@@ -57,9 +51,9 @@ export async function PATCH(req: NextRequest) {
         );
         const org = orgLookup.organizations[0];
         if (!org) return NextResponse.json({ error: "Not found" }, { status: 404 });
-        if (!(await userBelongsToOrg(claims.userId, org.id))) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-        }
+
+        const auth = await requireOrgMember(req, org.id);
+        if (auth instanceof NextResponse) return auth;
 
         const fields: Record<string, unknown> = {};
         if (genericText !== undefined) fields.generic_text = genericText;

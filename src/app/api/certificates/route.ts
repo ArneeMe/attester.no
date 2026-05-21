@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { verifyJwt } from "@/lib/server/auth";
-import { userBelongsToOrg } from "@/lib/server/membership";
+import { requireOrgMember } from "@/lib/server/apiAuth";
 
 export const runtime = "edge";
 
 export async function POST(req: NextRequest) {
-    const claims = await verifyJwt(req.headers.get("authorization"));
-    if (!claims) {
-        return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-    }
-
     const { organizationId, volunteerId, hash } = await req.json();
     if (!organizationId || !volunteerId || !hash) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    if (!(await userBelongsToOrg(claims.userId, organizationId))) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireOrgMember(req, organizationId);
+    if (auth instanceof NextResponse) return auth;
 
     try {
         const data = await hasuraAdmin<{ insert_certificates_one: { id: string } }>(

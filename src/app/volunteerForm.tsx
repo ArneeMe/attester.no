@@ -18,7 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Volunteer } from "@/util/Volunteer";
 import ConfirmDialog from "@/util/confirmDialog";
 import { formatVolunteerDetails } from "@/util/formatVolunteer";
-import { getGroupInfo, fallbackValues } from "@/util/databaseInteractions/fetchInfo";
+import { getGroupInfo } from "@/util/databaseInteractions/fetchInfo";
 
 interface Props {
     orgSlug: string;
@@ -56,15 +56,11 @@ const VolunteerForm: React.FC<Props> = ({ orgSlug }) => {
                     getGroupInfo(orgSlug),
                     getOrgBySlug(orgSlug).catch(() => null),
                 ]);
-                setGroups(
-                    Object.keys(groupData).length > 0
-                        ? groupData
-                        : orgSlug === 'echo' ? fallbackValues.groups : {},
-                );
+                setGroups(groupData);
                 if (org?.name) setOrgName(org.name);
             } catch (error) {
                 console.error('Error fetching org data:', error);
-                setGroups(orgSlug === 'echo' ? fallbackValues.groups : {});
+                setGroups({});
             }
             setLoadingGroups(false);
         };
