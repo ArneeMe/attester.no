@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { verifyJwt } from "@/lib/server/auth";
+import { userBelongsToOrg } from "@/lib/server/membership";
 
 export const runtime = "edge";
 
@@ -13,25 +14,10 @@ type OrgRow = {
     signatures: Array<{ photo: string; name: string; role: string; phone: string }> | null;
 };
 
-type OrgListRow = { id: string; slug: string; name: string };
-
 export async function GET(req: NextRequest) {
     const slug = req.nextUrl.searchParams.get("slug");
-
     if (!slug) {
-        if (!(await verifyJwt(req.headers.get("authorization")))) {
-            return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-        }
-        try {
-            const data = await hasuraAdmin<{ organizations: OrgListRow[] }>(
-                `query ListOrgs {
-                    organizations(order_by: { slug: asc }) { id slug name }
-                }`,
-            );
-            return NextResponse.json({ organizations: data.organizations });
-        } catch (e) {
-            return NextResponse.json({ error: (e as Error).message }, { status: 500 });
-        }
+        return NextResponse.json({ error: "Missing slug" }, { status: 400 });
     }
 
     try {
@@ -52,7 +38,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-    if (!(await verifyJwt(req.headers.get("authorization")))) {
+    const claims = await verifyJwt(req.headers.get("authorization"));
+    if (!claims) {
         return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
@@ -61,12 +48,24 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Missing slug" }, { status: 400 });
     }
 
-    const fields: Record<string, unknown> = {};
-    if (genericText !== undefined) fields.generic_text = genericText;
-    if (groups !== undefined) fields.groups = groups;
-    if (signatures !== undefined) fields.signatures = signatures;
-
     try {
+        const orgLookup = await hasuraAdmin<{ organizations: Array<{ id: string }> }>(
+            `query GetOrgIdBySlug($slug: String!) {
+                organizations(where: { slug: { _eq: $slug } }, limit: 1) { id }
+            }`,
+            { slug },
+        );
+        const org = orgLookup.organizations[0];
+        if (!org) return NextResponse.json({ error: "Not found" }, { status: 404 });
+        if (!(await userBelongsToOrg(claims.userId, org.id))) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const fields: Record<string, unknown> = {};
+        if (genericText !== undefined) fields.generic_text = genericText;
+        if (groups !== undefined) fields.groups = groups;
+        if (signatures !== undefined) fields.signatures = signatures;
+
         const data = await hasuraAdmin<{ update_organizations: { affected_rows: number } }>(
             `mutation UpdateOrg($slug: String!, $set: organizations_set_input!) {
                 update_organizations(where: { slug: { _eq: $slug } }, _set: $set) { affected_rows }

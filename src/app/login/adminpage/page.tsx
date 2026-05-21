@@ -4,16 +4,16 @@ import Link from 'next/link';
 import { Box, Button, CircularProgress, Paper, Typography } from '@mui/material';
 import { authHeader } from '@/lib/nhost';
 
-type OrgSummary = { id: string; slug: string; name: string };
+type UserOrg = { id: string; slug: string; name: string; role: string };
 
 const AdminOrgPicker: React.FC = () => {
-    const [orgs, setOrgs] = useState<OrgSummary[] | null>(null);
+    const [orgs, setOrgs] = useState<UserOrg[] | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchOrgs = async () => {
             try {
-                const res = await fetch('/api/organizations', { headers: authHeader() });
+                const res = await fetch('/api/me/organizations', { headers: authHeader() });
                 const json = await res.json();
                 if (!res.ok) throw new Error(json.error ?? 'Failed to load organizations');
                 setOrgs(json.organizations);
@@ -57,7 +57,12 @@ const AdminOrgPicker: React.FC = () => {
                     </Paper>
                 ))}
                 {orgs.length === 0 && !error && (
-                    <Typography>Ingen organisasjoner funnet.</Typography>
+                    <Paper sx={{ p: 3 }}>
+                        <Typography>
+                            Du er ikke koblet til noen organisasjon ennå. Be en
+                            eksisterende admin om å legge deg til.
+                        </Typography>
+                    </Paper>
                 )}
             </Box>
         </Box>
