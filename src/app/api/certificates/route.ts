@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { requireOrgMember } from "@/lib/server/apiAuth";
+import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
 
 export const runtime = "edge";
 
 export async function POST(req: NextRequest) {
-    const { organizationId, volunteerId, hash } = await req.json();
-    if (!organizationId || !volunteerId || !hash) {
+    const { slug, volunteerId, hash } = await req.json();
+    if (!slug || !volunteerId || !hash) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const auth = await requireOrgMember(req, organizationId);
+    const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
 
     try {
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
                     organization_id: $organizationId, volunteer_id: $volunteerId, hash: $hash
                 }) { id }
             }`,
-            { organizationId, volunteerId, hash },
+            { organizationId: auth.organizationId, volunteerId, hash },
         );
         return NextResponse.json({ id: data.insert_certificates_one.id });
     } catch (e) {

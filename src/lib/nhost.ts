@@ -33,10 +33,6 @@ export async function getOrgBySlug(slug: string): Promise<OrgSummary> {
     return org;
 }
 
-export async function getOrgIdBySlug(slug: string): Promise<string> {
-    return (await getOrgBySlug(slug)).id;
-}
-
 export function authHeader(): Record<string, string> {
     const accessToken = nhost.getUserSession()?.accessToken;
     return accessToken ? { authorization: `Bearer ${accessToken}` } : {};

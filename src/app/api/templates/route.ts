@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { requireOrgMember } from "@/lib/server/apiAuth";
+import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
 
 export const runtime = "edge";
 
@@ -17,12 +17,12 @@ type TemplateRow = {
 };
 
 export async function GET(req: NextRequest) {
-    const organizationId = req.nextUrl.searchParams.get("organizationId");
-    if (!organizationId) {
-        return NextResponse.json({ error: "Missing organizationId" }, { status: 400 });
+    const slug = req.nextUrl.searchParams.get("slug");
+    if (!slug) {
+        return NextResponse.json({ error: "Missing slug" }, { status: 400 });
     }
 
-    const auth = await requireOrgMember(req, organizationId);
+    const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
 
     try {
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
                     id organization_id name description base_pdf schemas is_default created_at updated_at
                 }
             }`,
-            { organizationId },
+            { organizationId: auth.organizationId },
         );
         return NextResponse.json({ templates: data.templates });
     } catch (e) {
@@ -41,12 +41,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const { organizationId, name, description, basePdf, schemas, isDefault } = await req.json();
-    if (!organizationId || !name || !basePdf || !schemas) {
+    const { slug, name, description, basePdf, schemas, isDefault } = await req.json();
+    if (!slug || !name || !basePdf || !schemas) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const auth = await requireOrgMember(req, organizationId);
+    const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
 
     try {
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
                     base_pdf: $basePdf, schemas: $schemas, is_default: $isDefault
                 }) { id created_at updated_at }
             }`,
-            { organizationId, name, description, basePdf, schemas, isDefault: isDefault ?? false },
+            { organizationId: auth.organizationId, name, description, basePdf, schemas, isDefault: isDefault ?? false },
         );
         return NextResponse.json({ template: data.insert_templates_one });
     } catch (e) {

@@ -1,7 +1,7 @@
 'use client'
 import React, {useEffect, useState} from 'react';
 import { useParams } from 'next/navigation';
-import { authHeader, getOrgIdBySlug } from '@/lib/nhost';
+import { authHeader } from '@/lib/nhost';
 import {Button, Checkbox, FormControlLabel, Grid, Link, Paper, Typography} from '@mui/material';
 import {Volunteer} from '@/util/Volunteer'
 import {generatePDF} from "@/app/login/adminpage/generatePDF"
@@ -27,9 +27,8 @@ const AdminPage: React.FC = () => {
     useEffect(() => {
         const fetchVolunteers = async () => {
             try {
-                const organizationId = await getOrgIdBySlug(orgSlug);
                 const res = await fetch(
-                    `/api/volunteers?organizationId=${encodeURIComponent(organizationId)}`,
+                    `/api/volunteers?slug=${encodeURIComponent(orgSlug)}`,
                     { headers: authHeader() },
                 );
                 if (!res.ok) {

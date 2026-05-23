@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { requireOrgMember } from "@/lib/server/apiAuth";
+import { requireOrgMemberById } from "@/lib/server/apiAuth";
 
 export const runtime = "edge";
 
@@ -19,7 +19,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         const vol = lookup.volunteers_by_pk;
         if (!vol) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-        const auth = await requireOrgMember(req, vol.organization_id);
+        const auth = await requireOrgMemberById(req, vol.organization_id);
         if (auth instanceof NextResponse) return auth;
 
         await hasuraAdmin(

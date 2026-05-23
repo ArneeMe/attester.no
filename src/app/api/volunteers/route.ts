@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { requireOrgMember } from "@/lib/server/apiAuth";
+import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "@/lib/server/apiAuth";
 
 export const runtime = "edge";
 
 export async function GET(req: NextRequest) {
-    const organizationId = req.nextUrl.searchParams.get("organizationId");
-    if (!organizationId) {
-        return NextResponse.json({ error: "Missing organizationId" }, { status: 400 });
+    const slug = req.nextUrl.searchParams.get("slug");
+    if (!slug) {
+        return NextResponse.json({ error: "Missing slug" }, { status: 400 });
     }
 
-    const auth = await requireOrgMember(req, organizationId);
+    const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
 
     try {
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
                     id person_name group_name start_date end_date role extra_roles
                 }
             }`,
-            { organizationId },
+            { organizationId: auth.organizationId },
         );
         return NextResponse.json({ volunteers: data.volunteers });
     } catch (e) {
@@ -38,12 +38,17 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const { id, organizationId, personName, groupName, startDate, endDate, role, extraRoles } = await req.json();
-    if (!id || !organizationId || !personName || !groupName || !startDate || !endDate || !role) {
+    const { id, slug, personName, groupName, startDate, endDate, role, extraRoles } = await req.json();
+    if (!id || !slug || !personName || !groupName || !startDate || !endDate || !role) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     try {
+        const organizationId = await resolveOrgIdBySlug(slug);
+        if (!organizationId) {
+            return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+        }
+
         const data = await hasuraAdmin<{ insert_volunteers_one: { id: string } }>(
             `mutation InsertVolunteer(
                 $id: uuid!, $organizationId: uuid!,
