@@ -15,7 +15,7 @@ type TemplateRow = {
 };
 
 export async function getTemplates(orgSlug: string): Promise<PDFTemplate[]> {
-    const res = await fetch(`/api/templates?slug=${encodeURIComponent(orgSlug)}`, {
+    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, {
         headers: authHeader(),
     });
     const json = await res.json();
@@ -36,11 +36,10 @@ export async function saveTemplate(
     orgSlug: string,
     template: Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<PDFTemplate> {
-    const res = await fetch('/api/templates', {
+    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...authHeader() },
         body: JSON.stringify({
-            slug: orgSlug,
             name: template.name,
             description: template.description,
             basePdf: template.basePdf,

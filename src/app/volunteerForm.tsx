@@ -108,12 +108,11 @@ const VolunteerForm: React.FC<Props> = ({ orgSlug }) => {
     const handleConfirmSubmit = async () => {
         const uuid = uuidv4();
         try {
-            const res = await fetch("/api/volunteers", {
+            const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/volunteers`, {
                 method: "POST",
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify({
                     id: uuid,
-                    slug: orgSlug,
                     personName: formData.personName,
                     groupName: formData.groupName,
                     startDate: formData.startDate,

@@ -28,7 +28,7 @@ const AdminPage: React.FC = () => {
         const fetchVolunteers = async () => {
             try {
                 const res = await fetch(
-                    `/api/volunteers?slug=${encodeURIComponent(orgSlug)}`,
+                    `/api/org/${encodeURIComponent(orgSlug)}/volunteers`,
                     { headers: authHeader() },
                 );
                 if (!res.ok) {
@@ -68,7 +68,7 @@ const AdminPage: React.FC = () => {
     };
 
     const handleDelete = async (id: string) => {
-        await deleteVolunteer(id);
+        await deleteVolunteer(orgSlug, id);
         setVolunteers(volunteers.filter(volunteer => volunteer.id !== id));
     }
 

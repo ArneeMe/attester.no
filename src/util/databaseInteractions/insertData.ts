@@ -5,10 +5,10 @@ async function updateOrg(
     slug: string,
     set: { genericText?: string; groups?: GroupInfo; signatures?: SignatureInfo[] },
 ): Promise<void> {
-    const res = await fetch('/api/organizations', {
+    const res = await fetch(`/api/org/${encodeURIComponent(slug)}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json', ...authHeader() },
-        body: JSON.stringify({ slug, ...set }),
+        body: JSON.stringify(set),
     });
     if (!res.ok) {
         const json = await res.json().catch(() => ({}));

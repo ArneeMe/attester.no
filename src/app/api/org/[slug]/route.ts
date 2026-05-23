@@ -13,12 +13,11 @@ type OrgRow = {
     signatures: Array<{ photo: string; name: string; role: string; phone: string }> | null;
 };
 
-export async function GET(req: NextRequest) {
-    const slug = req.nextUrl.searchParams.get("slug");
-    if (!slug) {
-        return NextResponse.json({ error: "Missing slug" }, { status: 400 });
-    }
-
+export async function GET(
+    _req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
     try {
         const data = await hasuraAdmin<{ organizations: OrgRow[] }>(
             `query GetOrg($slug: String!) {
@@ -36,15 +35,15 @@ export async function GET(req: NextRequest) {
     }
 }
 
-export async function PATCH(req: NextRequest) {
-    const { slug, genericText, groups, signatures } = await req.json();
-    if (!slug) {
-        return NextResponse.json({ error: "Missing slug" }, { status: 400 });
-    }
-
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
 
+    const { genericText, groups, signatures } = await req.json();
     try {
         const fields: Record<string, unknown> = {};
         if (genericText !== undefined) fields.generic_text = genericText;

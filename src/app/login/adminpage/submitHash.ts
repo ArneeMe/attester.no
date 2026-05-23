@@ -8,10 +8,10 @@ export const submitHash = async (orgSlug: string, volunteer: Volunteer): Promise
         const toHash = generateParams(volunteer);
         const hash = await hashFunction(toHash);
 
-        const res = await fetch('/api/certificates', {
+        const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/certificates`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', ...authHeader() },
-            body: JSON.stringify({ slug: orgSlug, volunteerId: volunteer.id, hash }),
+            body: JSON.stringify({ volunteerId: volunteer.id, hash }),
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? 'Server error');

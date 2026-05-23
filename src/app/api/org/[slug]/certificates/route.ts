@@ -4,14 +4,18 @@ import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
 
 export const runtime = "edge";
 
-export async function POST(req: NextRequest) {
-    const { slug, volunteerId, hash } = await req.json();
-    if (!slug || !volunteerId || !hash) {
-        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
-
+export async function POST(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
+
+    const { volunteerId, hash } = await req.json();
+    if (!volunteerId || !hash) {
+        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
 
     try {
         const data = await hasuraAdmin<{ insert_certificates_one: { id: string } }>(

@@ -4,12 +4,11 @@ import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "@/lib/server/apiAuth
 
 export const runtime = "edge";
 
-export async function GET(req: NextRequest) {
-    const slug = req.nextUrl.searchParams.get("slug");
-    if (!slug) {
-        return NextResponse.json({ error: "Missing slug" }, { status: 400 });
-    }
-
+export async function GET(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
 
@@ -37,9 +36,13 @@ export async function GET(req: NextRequest) {
     }
 }
 
-export async function POST(req: NextRequest) {
-    const { id, slug, personName, groupName, startDate, endDate, role, extraRoles } = await req.json();
-    if (!id || !slug || !personName || !groupName || !startDate || !endDate || !role) {
+export async function POST(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
+    const { id, personName, groupName, startDate, endDate, role, extraRoles } = await req.json();
+    if (!id || !personName || !groupName || !startDate || !endDate || !role) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 

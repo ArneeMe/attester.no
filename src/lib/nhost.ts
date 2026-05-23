@@ -19,7 +19,7 @@ const _orgCache = new Map<string, OrgSummary>();
 export async function getOrgBySlug(slug: string): Promise<OrgSummary> {
     const cached = _orgCache.get(slug);
     if (cached) return cached;
-    const res = await fetch(`/api/organizations?slug=${encodeURIComponent(slug)}`);
+    const res = await fetch(`/api/org/${encodeURIComponent(slug)}`);
     const json = await res.json();
     if (!res.ok || !json.organization?.id) {
         throw new Error(`Organization "${slug}" not found`);

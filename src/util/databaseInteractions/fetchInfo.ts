@@ -11,7 +11,7 @@ type OrgRow = {
 };
 
 async function fetchOrgContent(slug: string): Promise<OrgRow | null> {
-    const res = await fetch(`/api/organizations?slug=${encodeURIComponent(slug)}`);
+    const res = await fetch(`/api/org/${encodeURIComponent(slug)}`);
     if (!res.ok) return null;
     const json = await res.json();
     return json.organization ?? null;

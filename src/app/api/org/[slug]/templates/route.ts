@@ -16,12 +16,11 @@ type TemplateRow = {
     updated_at: string;
 };
 
-export async function GET(req: NextRequest) {
-    const slug = req.nextUrl.searchParams.get("slug");
-    if (!slug) {
-        return NextResponse.json({ error: "Missing slug" }, { status: 400 });
-    }
-
+export async function GET(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
 
@@ -40,14 +39,18 @@ export async function GET(req: NextRequest) {
     }
 }
 
-export async function POST(req: NextRequest) {
-    const { slug, name, description, basePdf, schemas, isDefault } = await req.json();
-    if (!slug || !name || !basePdf || !schemas) {
-        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
-
+export async function POST(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
+
+    const { name, description, basePdf, schemas, isDefault } = await req.json();
+    if (!name || !basePdf || !schemas) {
+        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
 
     try {
         const data = await hasuraAdmin<{
