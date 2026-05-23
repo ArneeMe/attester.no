@@ -1,4 +1,4 @@
-import { jwtVerify } from "jose";
+import { jwtVerify, createRemoteJWKSet } from "jose";
 
 export type JwtClaims = {
     userId: string;
@@ -6,31 +6,27 @@ export type JwtClaims = {
 
 const HASURA_CLAIMS_KEY = "https://hasura.io/jwt/claims";
 
-let _secretKey: Uint8Array | null = null;
-function getSecretKey(): Uint8Array {
-    if (_secretKey) return _secretKey;
-    const raw = process.env.NHOST_JWT_SECRET;
-    if (!raw) throw new Error("NHOST_JWT_SECRET is not configured");
-    // Nhost dashboard shows the secret as {"type":"HS256","key":"..."} — unwrap if so.
-    let keyString = raw;
-    try {
-        const parsed = JSON.parse(raw) as { key?: string };
-        if (parsed.key) keyString = parsed.key;
-    } catch {
-        // plain string — use as-is
-    }
-    _secretKey = new TextEncoder().encode(keyString);
-    return _secretKey;
+let _jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+
+function getJwks(): ReturnType<typeof createRemoteJWKSet> {
+    if (_jwks) return _jwks;
+    const subdomain = process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN;
+    const region = process.env.NEXT_PUBLIC_NHOST_REGION;
+    if (!subdomain || !region) throw new Error("NEXT_PUBLIC_NHOST_SUBDOMAIN / REGION not configured");
+    const jwksUrl = new URL(`https://${subdomain}.auth.${region}.nhost.run/.well-known/jwks.json`);
+    _jwks = createRemoteJWKSet(jwksUrl);
+    return _jwks;
 }
 
 export async function verifyJwt(authHeader: string | null): Promise<JwtClaims | null> {
     if (!authHeader?.startsWith("Bearer ")) return null;
     const token = authHeader.slice(7);
-    // Outside the try so a missing/misconfigured secret surfaces as 500, not a silent 401.
-    const secret = getSecretKey();
+
+    // Outside the try so misconfigured env vars surface as 500, not a silent 401.
+    const jwks = getJwks();
 
     try {
-        const { payload } = await jwtVerify(token, secret);
+        const { payload } = await jwtVerify(token, jwks);
         const hasuraClaims = payload[HASURA_CLAIMS_KEY] as Record<string, unknown> | undefined;
         const userId =
             (hasuraClaims?.["x-hasura-user-id"] as string | undefined) ??
