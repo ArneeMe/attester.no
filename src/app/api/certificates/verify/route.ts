@@ -10,13 +10,13 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        const data = await hasuraAdmin<{ certificates: { hash: string }[] }>(
-            `query VerifyCertificate($volunteerId: String!) {
-                certificates(where: { volunteer_id: { _eq: $volunteerId } }, limit: 1) { hash }
+        const data = await hasuraAdmin<{ legacy_certificates: { hash: string }[] }>(
+            `query VerifyLegacyCertificate($volunteerId: String!) {
+                legacy_certificates(where: { volunteer_id: { _eq: $volunteerId } }, limit: 1) { hash }
             }`,
             { volunteerId },
         );
-        return NextResponse.json({ hash: data.certificates[0]?.hash ?? null });
+        return NextResponse.json({ hash: data.legacy_certificates[0]?.hash ?? null });
     } catch (e) {
         return NextResponse.json({ error: (e as Error).message }, { status: 500 });
     }
