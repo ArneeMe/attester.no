@@ -1,6 +1,8 @@
 'use client';
+export const runtime = 'edge';
 
 import React, { useState } from 'react';
+import { useParams } from 'next/navigation';
 import {
     Box,
     Container,
@@ -25,6 +27,7 @@ const DesignerComponent = dynamic(() => import('./DesignerComponent'), {
 });
 
 export default function TemplateEditorPage() {
+    const { orgSlug } = useParams<{ orgSlug: string }>();
     const [templateName, setTemplateName] = useState('');
     const [templateDescription, setTemplateDescription] = useState('');
     const [isDefault, setIsDefault] = useState(false);
@@ -81,6 +84,7 @@ export default function TemplateEditorPage() {
             </Paper>
 
             <DesignerComponent
+                orgSlug={orgSlug}
                 templateName={templateName}
                 templateDescription={templateDescription}
                 isDefault={isDefault}

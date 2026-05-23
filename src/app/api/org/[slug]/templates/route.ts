@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { isValidJwt } from "@/lib/server/auth";
+import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
 
 export const runtime = "edge";
 
@@ -16,15 +16,13 @@ type TemplateRow = {
     updated_at: string;
 };
 
-export async function GET(req: NextRequest) {
-    if (!isValidJwt(req.headers.get("authorization"))) {
-        return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-    }
-
-    const organizationId = req.nextUrl.searchParams.get("organizationId");
-    if (!organizationId) {
-        return NextResponse.json({ error: "Missing organizationId" }, { status: 400 });
-    }
+export async function GET(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
+    const auth = await requireOrgMemberBySlug(req, slug);
+    if (auth instanceof NextResponse) return auth;
 
     try {
         const data = await hasuraAdmin<{ templates: TemplateRow[] }>(
@@ -33,7 +31,7 @@ export async function GET(req: NextRequest) {
                     id organization_id name description base_pdf schemas is_default created_at updated_at
                 }
             }`,
-            { organizationId },
+            { organizationId: auth.organizationId },
         );
         return NextResponse.json({ templates: data.templates });
     } catch (e) {
@@ -41,17 +39,32 @@ export async function GET(req: NextRequest) {
     }
 }
 
-export async function POST(req: NextRequest) {
-    if (!isValidJwt(req.headers.get("authorization"))) {
-        return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-    }
+export async function POST(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
+    const auth = await requireOrgMemberBySlug(req, slug);
+    if (auth instanceof NextResponse) return auth;
 
-    const { organizationId, name, description, basePdf, schemas, isDefault } = await req.json();
-    if (!organizationId || !name || !basePdf || !schemas) {
+    const { name, description, basePdf, schemas, isDefault } = await req.json();
+    if (!name || !basePdf || !schemas) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     try {
+        if (isDefault) {
+            await hasuraAdmin<{ update_templates: { affected_rows: number } }>(
+                `mutation ClearDefaults($organizationId: uuid!) {
+                    update_templates(
+                        where: { organization_id: { _eq: $organizationId } }
+                        _set: { is_default: false }
+                    ) { affected_rows }
+                }`,
+                { organizationId: auth.organizationId },
+            );
+        }
+
         const data = await hasuraAdmin<{
             insert_templates_one: { id: string; created_at: string; updated_at: string };
         }>(
@@ -64,7 +77,7 @@ export async function POST(req: NextRequest) {
                     base_pdf: $basePdf, schemas: $schemas, is_default: $isDefault
                 }) { id created_at updated_at }
             }`,
-            { organizationId, name, description, basePdf, schemas, isDefault: isDefault ?? false },
+            { organizationId: auth.organizationId, name, description, basePdf, schemas, isDefault: isDefault ?? false },
         );
         return NextResponse.json({ template: data.insert_templates_one });
     } catch (e) {

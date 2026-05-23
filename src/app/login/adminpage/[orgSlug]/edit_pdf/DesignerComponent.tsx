@@ -7,6 +7,7 @@ import { saveTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseIn
 import type { PDFTemplate } from '@/types/templateTypes';
 
 interface Props {
+    orgSlug: string;
     templateName: string;
     templateDescription: string;
     isDefault: boolean;
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function DesignerComponent({
+                                              orgSlug,
                                               templateName,
                                               templateDescription,
                                               isDefault,
@@ -46,7 +48,7 @@ export default function DesignerComponent({
             },
         });
 
-        getTemplates()
+        getTemplates(orgSlug)
             .then(setExistingTemplates)
             .catch(() => {});
 
@@ -56,7 +58,7 @@ export default function DesignerComponent({
                 designerRef.current = null;
             }
         };
-    }, []);
+    }, [orgSlug]);
 
     const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -87,10 +89,10 @@ export default function DesignerComponent({
                 isDefault,
             });
 
-            await saveTemplate(data);
+            await saveTemplate(orgSlug, data);
             onSuccess(`Mal "${templateName}" lagret!`);
 
-            const templates = await getTemplates();
+            const templates = await getTemplates(orgSlug);
             setExistingTemplates(templates);
         } catch {
             onError('Kunne ikke lagre mal');

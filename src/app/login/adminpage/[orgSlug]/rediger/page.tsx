@@ -1,5 +1,8 @@
 'use client'
+export const runtime = 'edge';
+
 import React, { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import {
     Button,
     TextField,
@@ -15,13 +18,12 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import {SignatureInfo} from "@/types/pdfTypes";
 import {
-    fallbackValues,
     getGroupInfo,
     getOrganizationInfo,
     getSignatureInfo
 } from "@/util/databaseInteractions/fetchInfo";
 import {updateGroupInfo, updateOrganizationInfo, updateSignatureInfo} from "@/util/databaseInteractions/insertData";
-import ImageUpload from "@/app/login/adminpage/rediger/ImageUpload";
+import ImageUpload from "@/app/login/adminpage/[orgSlug]/rediger/ImageUpload";
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -38,6 +40,7 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 }
 
 const RedigerPage: React.FC = () => {
+    const { orgSlug } = useParams<{ orgSlug: string }>();
     const [tab, setTab] = useState(0);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -53,36 +56,33 @@ const RedigerPage: React.FC = () => {
     const [newGroupName, setNewGroupName] = useState('');
 
     useEffect(() => {
+        const fetchAllData = async () => {
+            setLoading(true);
+            try {
+                const [orgData, sigData, groupData] = await Promise.all([
+                    getOrganizationInfo(orgSlug),
+                    getSignatureInfo(orgSlug),
+                    getGroupInfo(orgSlug),
+                ]);
+
+                setGenericText(orgData.generic_text);
+                setSignatures(sigData);
+                setGroups(groupData);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                setGenericText('');
+                setSignatures([]);
+                setGroups({});
+            }
+            setLoading(false);
+        };
         fetchAllData();
-    }, []);
-
-    const fetchAllData = async () => {
-        setLoading(true);
-        try {
-            // Use existing fetch functions
-            const [orgData, sigData, groupData] = await Promise.all([
-                getOrganizationInfo(),
-                getSignatureInfo(),
-                getGroupInfo(),
-            ]);
-
-            setGenericText(orgData.generic_text || fallbackValues.organization.generic_text);
-            setSignatures(sigData.length > 0 ? sigData : fallbackValues.signatures);
-            setGroups(Object.keys(groupData).length > 0 ? groupData : fallbackValues.groups);
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            // Use fallback values on error
-            setGenericText(fallbackValues.organization.generic_text);
-            setSignatures(fallbackValues.signatures);
-            setGroups(fallbackValues.groups);
-        }
-        setLoading(false);
-    };
+    }, [orgSlug]);
 
     const saveOrganizationInfo = async () => {
         setSaving(true);
         try {
-            await updateOrganizationInfo({ generic_text: genericText });
+            await updateOrganizationInfo(orgSlug, { generic_text: genericText });
             alert('Organisasjonsinfo lagret!');
         } catch (error) {
             console.error('Error saving:', error);
@@ -94,7 +94,7 @@ const RedigerPage: React.FC = () => {
     const saveSignatures = async () => {
         setSaving(true);
         try {
-            await updateSignatureInfo(signatures);
+            await updateSignatureInfo(orgSlug, signatures);
             alert('Signaturer lagret!');
         } catch (error) {
             console.error('Error saving:', error);
@@ -106,7 +106,7 @@ const RedigerPage: React.FC = () => {
     const saveGroups = async () => {
         setSaving(true);
         try {
-            await updateGroupInfo(groups);
+            await updateGroupInfo(orgSlug, groups);
             alert('Grupper lagret!');
         } catch (error) {
             console.error('Error saving:', error);

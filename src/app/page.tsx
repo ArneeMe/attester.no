@@ -1,12 +1,5 @@
-'use client'
-import React from "react";
-import Box from "@mui/material/Box"
-import VolunteerForm from "@/app/volunteerForm";
+import { redirect } from 'next/navigation';
 
-export default function Certificate() {
-    return (
-        <Box>
-            <VolunteerForm></VolunteerForm>
-        </Box>
-    );
+export default function Home() {
+    redirect('/org/echo');
 }

@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { isValidJwt } from "@/lib/server/auth";
+import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "@/lib/server/apiAuth";
 
 export const runtime = "edge";
 
-export async function GET(req: NextRequest) {
-    if (!isValidJwt(req.headers.get("authorization"))) {
-        return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-    }
+export async function GET(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
+    const auth = await requireOrgMemberBySlug(req, slug);
+    if (auth instanceof NextResponse) return auth;
 
     try {
         const data = await hasuraAdmin<{
@@ -17,11 +20,15 @@ export async function GET(req: NextRequest) {
                 extra_roles: Array<{ groupName: string; startDate: string; endDate: string; role: string }> | null;
             }>;
         }>(
-            `query GetVolunteers {
-                volunteers(order_by: { created_at: asc }) {
+            `query GetVolunteers($organizationId: uuid!) {
+                volunteers(
+                    where: { organization_id: { _eq: $organizationId } },
+                    order_by: { created_at: asc }
+                ) {
                     id person_name group_name start_date end_date role extra_roles
                 }
             }`,
+            { organizationId: auth.organizationId },
         );
         return NextResponse.json({ volunteers: data.volunteers });
     } catch (e) {
@@ -29,13 +36,22 @@ export async function GET(req: NextRequest) {
     }
 }
 
-export async function POST(req: NextRequest) {
-    const { id, organizationId, personName, groupName, startDate, endDate, role, extraRoles } = await req.json();
-    if (!id || !organizationId || !personName || !groupName || !startDate || !endDate || !role) {
+export async function POST(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
+    const { id, personName, groupName, startDate, endDate, role, extraRoles } = await req.json();
+    if (!id || !personName || !groupName || !startDate || !endDate || !role) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     try {
+        const organizationId = await resolveOrgIdBySlug(slug);
+        if (!organizationId) {
+            return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+        }
+
         const data = await hasuraAdmin<{ insert_volunteers_one: { id: string } }>(
             `mutation InsertVolunteer(
                 $id: uuid!, $organizationId: uuid!,
