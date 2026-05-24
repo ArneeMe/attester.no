@@ -10,15 +10,18 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
 
 ## Tech
 
-- Next.js 16 + React 19 (App Router)
+- Next.js + React (App Router)
 - TypeScript
 - Material UI
-- Firebase (Firestore + Auth)
+- Nhost (Postgres + Hasura + Auth)
 - pdfme for PDF-generering i nettleseren
+- Cloudflare Pages
 
 ## Struktur
+
 ```
 src/app/
+  api/       — server-side API-ruter (DB-tilgang via Hasura admin)
   login/     — admin-innlogging og dashboard
   verify/    — offentlig verifiseringsside
   pdfinfo/   — PDF-maler og logikk
@@ -27,24 +30,10 @@ src/app/
 
 ## Kjøre lokalt
 
-Lag et eget Firebase-prosjekt for utvikling (ikke bruk produksjon):
-
-1. Gå til [Firebase Console](https://console.firebase.google.com/) → **Add project**.
-2. Aktiver **Authentication** (Email/Password) og **Firestore Database**.
-3. Under **Project settings → General → Your apps**, registrer en web-app og kopier konfigurasjonen.
-
-Sett opp env-variabler:
+Krever Nhost-miljøvariabler i `.env.local` — kopier fra `.env.example`.
 
 ```bash
 cp .env.example .env.local
-# Fyll inn verdiene fra Firebase Console i .env.local
-```
-
-Start dev-serveren:
-
-```bash
 npm install
 npm run dev
 ```
-
-`.env.local` er gitignored. For produksjon settes de samme `NEXT_PUBLIC_FIREBASE_*`-variablene i deploy-miljøet.
