@@ -13,13 +13,13 @@ export async function POST(
     if (auth instanceof NextResponse) return auth;
 
     const { volunteerId, hash, templateId } = await req.json();
-    if (!volunteerId || !hash) {
+    if (!volunteerId || !hash || !templateId) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     try {
         const data = await hasuraAdmin<{ insert_certificates_one: { id: string } }>(
-            `mutation InsertCertificate($organizationId: uuid!, $volunteerId: String!, $hash: String!, $templateId: uuid) {
+            `mutation InsertCertificate($organizationId: uuid!, $volunteerId: String!, $hash: String!, $templateId: uuid!) {
                 insert_certificates_one(object: {
                     organization_id: $organizationId,
                     volunteer_id: $volunteerId,
@@ -27,7 +27,7 @@ export async function POST(
                     template_id: $templateId
                 }) { id }
             }`,
-            { organizationId: auth.organizationId, volunteerId, hash, templateId: templateId ?? null },
+            { organizationId: auth.organizationId, volunteerId, hash, templateId },
         );
         return NextResponse.json({ id: data.insert_certificates_one.id });
     } catch (e) {
