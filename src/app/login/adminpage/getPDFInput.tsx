@@ -1,8 +1,11 @@
 import {generateURL} from "./generateURL";
-import {fallbackValues, getGroupInfo, getOrganizationInfo, getSignatureInfo} from "@/util/databaseInteractions/fetchInfo";
+import {getGroupInfo, getOrganizationInfo, getSignatureInfo} from "@/util/databaseInteractions/fetchInfo";
 import {formatDate} from "@/util/formatDate";
 import {Volunteer} from '@/util/Volunteer'
 import {Certificate} from '@/app/login/adminpage/Certificate'
+import type {SignatureInfo} from '@/types/pdfTypes';
+
+const EMPTY_SIGNATURE: SignatureInfo = { photo: '', name: '', role: '', phone: '' };
 
 export const getPdfInput = async (orgSlug: string, templateId: string, volunteer: Volunteer): Promise<Certificate[]> => {
     const today = new Date();
@@ -13,10 +16,10 @@ export const getPdfInput = async (orgSlug: string, templateId: string, volunteer
     const fullURL = generateURL(orgSlug, templateId, volunteer);
     const basePageURL = window.location.origin;
 
-    let groupInfo = fallbackValues.groups[volunteer.groupName] || `Information about ${volunteer.groupName}`;
-    let generic_echo = fallbackValues.organization.generic_text;
-    let signaturePerson1 = fallbackValues.signatures[0];
-    let signaturePerson2 = fallbackValues.signatures[1];
+    let groupInfo = `Information about ${volunteer.groupName}`;
+    let generic_echo = '';
+    let signaturePerson1: SignatureInfo = EMPTY_SIGNATURE;
+    let signaturePerson2: SignatureInfo = EMPTY_SIGNATURE;
 
     try {
         const [groupDescriptions, organizationInfo, signatories] = await Promise.all([

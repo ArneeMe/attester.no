@@ -61,8 +61,9 @@ point to `/verify?<positional underscore-joined string>` and were already
 physically printed onto PDFs that are in the wild. We cannot change those
 QR codes — paper has been printed.
 
-So the legacy route stays, untouched, forever (or until echo decides no
-pre-migration certificate is still relevant — likely years from now).
+So the legacy route stays, untouched, **until approximately 2030** (when
+echo decides no pre-migration certificate is still relevant). Do not
+delete or refactor any of the files below before then.
 
 Files that exist solely for legacy back-compat:
 
@@ -70,7 +71,8 @@ Files that exist solely for legacy back-compat:
 - `src/app/api/certificates/verify/route.ts` — reads from the
   `legacy_certificates` table.
 - `src/app/login/adminpage/generateParams.ts` — old positional hash
-  input builder. Not used at issuance anymore.
+  input builder. Not used at issuance anymore, kept as a record of the
+  legacy URL contract.
 - `src/util/hashFunction.ts` — old SHA-512 over the positional string.
   Not used at issuance anymore.
 
