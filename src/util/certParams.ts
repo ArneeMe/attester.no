@@ -1,24 +1,22 @@
-import { Volunteer } from "@/util/Volunteer";
-
 /**
  * Canonical URLSearchParams for a certificate. Issuer, verifier, and seed
  * scripts MUST share this exact shape — drift here invalidates existing certs.
+ *
+ * `t` (template id) and `id` (submission id) are set explicitly. All other
+ * keys come from the submission data record. Empty values are dropped so that
+ * the canonical hash is stable across "field present-but-empty" vs "absent".
  */
-export const buildCertParams = (templateId: string, volunteer: Volunteer): URLSearchParams => {
+export const buildCertParams = (
+    templateId: string,
+    submissionId: string,
+    data: Record<string, string>,
+): URLSearchParams => {
     const params = new URLSearchParams();
     params.set("t", templateId);
-    params.set("id", volunteer.id);
-    params.set("name", volunteer.personName);
-    params.set("group", volunteer.groupName);
-    params.set("start", volunteer.startDate);
-    params.set("end", volunteer.endDate);
-    params.set("role", volunteer.role);
-    (volunteer.extraRole ?? []).forEach((r, i) => {
-        const n = i + 1;
-        if (r.groupName) params.set(`group${n}`, r.groupName);
-        if (r.startDate) params.set(`start${n}`, r.startDate);
-        if (r.endDate) params.set(`end${n}`, r.endDate);
-        if (r.role) params.set(`role${n}`, r.role);
-    });
+    params.set("id", submissionId);
+    for (const [key, value] of Object.entries(data)) {
+        if (key === "t" || key === "id") continue;
+        if (value) params.set(key, value);
+    }
     return params;
 };

@@ -13,15 +13,15 @@ export async function DELETE(
     if (auth instanceof NextResponse) return auth;
 
     try {
-        const data = await hasuraAdmin<{ delete_volunteers: { affected_rows: number } }>(
-            `mutation DeleteVolunteer($id: uuid!, $organizationId: uuid!) {
-                delete_volunteers(where: { id: { _eq: $id }, organization_id: { _eq: $organizationId } }) {
+        const data = await hasuraAdmin<{ delete_submissions: { affected_rows: number } }>(
+            `mutation DeleteSubmission($id: uuid!, $organizationId: uuid!) {
+                delete_submissions(where: { id: { _eq: $id }, organization_id: { _eq: $organizationId } }) {
                     affected_rows
                 }
             }`,
             { id, organizationId: auth.organizationId },
         );
-        if (data.delete_volunteers.affected_rows === 0) {
+        if (data.delete_submissions.affected_rows === 0) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
         return NextResponse.json({ ok: true });

@@ -12,22 +12,22 @@ export async function POST(
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
 
-    const { volunteerId, hash, templateId } = await req.json();
-    if (!volunteerId || !hash || !templateId) {
+    const { submissionId, hash, templateId } = await req.json();
+    if (!submissionId || !hash || !templateId) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     try {
         const data = await hasuraAdmin<{ insert_certificates_one: { id: string } }>(
-            `mutation InsertCertificate($organizationId: uuid!, $volunteerId: String!, $hash: String!, $templateId: uuid!) {
+            `mutation InsertCertificate($organizationId: uuid!, $submissionId: String!, $hash: String!, $templateId: uuid!) {
                 insert_certificates_one(object: {
                     organization_id: $organizationId,
-                    volunteer_id: $volunteerId,
+                    submission_id: $submissionId,
                     hash: $hash,
                     template_id: $templateId
                 }) { id }
             }`,
-            { organizationId: auth.organizationId, volunteerId, hash, templateId },
+            { organizationId: auth.organizationId, submissionId, hash, templateId },
         );
         return NextResponse.json({ id: data.insert_certificates_one.id });
     } catch (e) {

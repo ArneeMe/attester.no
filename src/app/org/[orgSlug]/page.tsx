@@ -1,4 +1,4 @@
-import VolunteerForm from "@/app/volunteerForm";
+import OrgSubmissionForm from "@/app/orgSubmissionForm";
 
 export const runtime = 'edge';
 
@@ -8,5 +8,5 @@ export default async function OrgFormPage({
     params: Promise<{ orgSlug: string }>;
 }) {
     const { orgSlug } = await params;
-    return <VolunteerForm orgSlug={orgSlug} />;
+    return <OrgSubmissionForm orgSlug={orgSlug} />;
 }

@@ -1,4 +1,3 @@
-import { Volunteer } from '@/util/Volunteer';
 import { barcodes, image, text } from '@pdfme/schemas';
 import { generate } from '@pdfme/generator';
 import { getPdfInput } from "@/app/login/adminpage/getPDFInput";
@@ -10,8 +9,13 @@ export type TemplateData = {
     schemas: unknown;
 };
 
-export const generatePDF = async (orgSlug: string, templateData: TemplateData, volunteer: Volunteer) => {
-    const pdfInput = await getPdfInput(orgSlug, templateData.id, volunteer);
+export const generatePDF = async (
+    orgSlug: string,
+    templateData: TemplateData,
+    submissionId: string,
+    data: Record<string, string>,
+) => {
+    const pdfInput = await getPdfInput(orgSlug, templateData.id, submissionId, data);
     const template: Template = {
         basePdf: templateData.base_pdf,
         schemas: templateData.schemas as Template['schemas'],
@@ -22,10 +26,11 @@ export const generatePDF = async (orgSlug: string, templateData: TemplateData, v
             inputs: pdfInput,
             plugins: { text, image, qrcode: barcodes.qrcode },
         });
+        const filename = data.name ? `${data.name}_attest.pdf` : `attest_${submissionId}.pdf`;
         const blob = new Blob([new Uint8Array(pdf.buffer)], { type: 'application/pdf' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', `${volunteer.personName}_attest.pdf`);
+        link.setAttribute('download', filename);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
