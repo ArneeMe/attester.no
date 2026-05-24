@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
+import type { FormSchema } from "@/types/formSchema";
 
 export const runtime = "edge";
 
@@ -11,6 +12,7 @@ type TemplateRow = {
     description: string | null;
     base_pdf: string;
     schemas: unknown;
+    form_schema: FormSchema;
     is_default: boolean;
     created_at: string;
     updated_at: string;
@@ -28,7 +30,7 @@ export async function GET(
         const data = await hasuraAdmin<{ templates: TemplateRow[] }>(
             `query GetTemplates($organizationId: uuid!) {
                 templates(where: { organization_id: { _eq: $organizationId } }, order_by: { created_at: asc }) {
-                    id organization_id name description base_pdf schemas is_default created_at updated_at
+                    id organization_id name description base_pdf schemas form_schema is_default created_at updated_at
                 }
             }`,
             { organizationId: auth.organizationId },
@@ -47,7 +49,7 @@ export async function POST(
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
 
-    const { name, description, basePdf, schemas, isDefault } = await req.json();
+    const { name, description, basePdf, schemas, formSchema, isDefault } = await req.json();
     if (!name || !basePdf || !schemas) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -70,14 +72,22 @@ export async function POST(
         }>(
             `mutation InsertTemplate(
                 $organizationId: uuid!, $name: String!, $description: String,
-                $basePdf: String!, $schemas: jsonb!, $isDefault: Boolean!
+                $basePdf: String!, $schemas: jsonb!, $formSchema: jsonb, $isDefault: Boolean!
             ) {
                 insert_templates_one(object: {
                     organization_id: $organizationId, name: $name, description: $description,
-                    base_pdf: $basePdf, schemas: $schemas, is_default: $isDefault
+                    base_pdf: $basePdf, schemas: $schemas, form_schema: $formSchema, is_default: $isDefault
                 }) { id created_at updated_at }
             }`,
-            { organizationId: auth.organizationId, name, description, basePdf, schemas, isDefault: isDefault ?? false },
+            {
+                organizationId: auth.organizationId,
+                name,
+                description,
+                basePdf,
+                schemas,
+                formSchema: formSchema ?? null,
+                isDefault: isDefault ?? false,
+            },
         );
         return NextResponse.json({ template: data.insert_templates_one });
     } catch (e) {

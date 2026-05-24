@@ -1,5 +1,6 @@
 import { authHeader } from '@/lib/nhost';
 import type { PDFTemplate } from '@/types/templateTypes';
+import type { FormSchema } from '@/types/formSchema';
 import type { Template } from '@pdfme/common';
 
 type TemplateRow = {
@@ -9,6 +10,7 @@ type TemplateRow = {
     description: string | null;
     base_pdf: string;
     schemas: Template['schemas'];
+    form_schema: FormSchema | null;
     is_default: boolean;
     created_at: string;
     updated_at: string;
@@ -26,6 +28,7 @@ export async function getTemplates(orgSlug: string): Promise<PDFTemplate[]> {
         description: row.description ?? undefined,
         basePdf: row.base_pdf,
         schemas: row.schemas,
+        formSchema: row.form_schema ?? undefined,
         isDefault: row.is_default,
         createdAt: new Date(row.created_at),
         updatedAt: new Date(row.updated_at),
@@ -44,6 +47,7 @@ export async function saveTemplate(
             description: template.description,
             basePdf: template.basePdf,
             schemas: template.schemas,
+            formSchema: template.formSchema,
             isDefault: template.isDefault,
         }),
     });

@@ -1,20 +1,10 @@
 'use client'
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Box, Grid, TextField, Typography } from '@mui/material';
+import { Box, CircularProgress, Grid, TextField, Typography } from '@mui/material';
 import { canonicalHash } from '@/util/canonicalHash';
-import { buildCertParams } from '@/util/certParams';
 import { customTheme } from '@/app/style/customTheme';
-
-type ExtraRole = { groupName: string; startDate: string; endDate: string; role: string };
-type FormData = {
-    personName: string;
-    groupName: string;
-    startDate: string;
-    endDate: string;
-    role: string;
-    extraRoles: ExtraRole[];
-};
+import type { FormSchema, FormFieldSchema } from '@/types/formSchema';
 
 const OrgVerifyClient: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -25,20 +15,28 @@ const OrgVerifyClient: React.FC = () => {
 
     const [storedHash, setStoredHash] = useState<string | null | undefined>(undefined);
     const [verificationResult, setVerificationResult] = useState<'verified' | 'invalid' | null>(null);
+    const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
+    const [schemaLoading, setSchemaLoading] = useState(!!templateId);
 
-    const [formData, setFormData] = useState<FormData>(() => ({
-        personName: searchParams.get('name') ?? '',
-        groupName: searchParams.get('group') ?? '',
-        startDate: searchParams.get('start') ?? '',
-        endDate: searchParams.get('end') ?? '',
-        role: searchParams.get('role') ?? '',
-        extraRoles: [1, 2, 3].map((i) => ({
-            groupName: searchParams.get(`group${i}`) ?? '',
-            startDate: searchParams.get(`start${i}`) ?? '',
-            endDate: searchParams.get(`end${i}`) ?? '',
-            role: searchParams.get(`role${i}`) ?? '',
-        })),
-    }));
+    // All URL params except 't' — includes 'id' (part of hash) and all cert fields
+    const [fields, setFields] = useState<Record<string, string>>(() => {
+        const result: Record<string, string> = {};
+        searchParams.forEach((value, key) => {
+            if (key !== 't') result[key] = value;
+        });
+        return result;
+    });
+
+    useEffect(() => {
+        if (!templateId) { setSchemaLoading(false); return; }
+        fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`)
+            .then((r) => r.json())
+            .then((json: { template?: { form_schema: FormSchema } }) => {
+                if (json.template?.form_schema) setFormSchema(json.template.form_schema);
+            })
+            .catch(() => {})
+            .finally(() => setSchemaLoading(false));
+    }, [orgSlug, templateId]);
 
     useEffect(() => {
         if (!volunteerId) { setStoredHash(null); return; }
@@ -51,21 +49,10 @@ const OrgVerifyClient: React.FC = () => {
     useEffect(() => {
         if (storedHash === undefined) return;
         if (!storedHash) { setVerificationResult('invalid'); return; }
-
-        const params = buildCertParams(templateId, {
-            id: volunteerId,
-            personName: formData.personName,
-            groupName: formData.groupName,
-            startDate: formData.startDate,
-            endDate: formData.endDate,
-            role: formData.role,
-            extraRole: formData.extraRoles,
-        });
-
-        canonicalHash(params).then((computed) => {
+        canonicalHash(new URLSearchParams(fields)).then((computed) => {
             setVerificationResult(computed === storedHash ? 'verified' : 'invalid');
         });
-    }, [formData, storedHash, templateId, volunteerId]);
+    }, [fields, storedHash]);
 
     const getColor = () => {
         if (verificationResult === 'verified') return colorTheme.primary.main;
@@ -73,26 +60,17 @@ const OrgVerifyClient: React.FC = () => {
         return colorTheme.secondary.main;
     };
 
-    const updateField = (key: keyof Omit<FormData, 'extraRoles'>, value: string) => {
-        setFormData((prev) => ({ ...prev, [key]: value }));
+    const updateField = (key: string, value: string) => {
+        setFields((prev) => ({ ...prev, [key]: value }));
     };
 
-    const updateExtraRole = (index: number, key: keyof ExtraRole, value: string) => {
-        setFormData((prev) => ({
-            ...prev,
-            extraRoles: prev.extraRoles.map((r, i) => (i === index ? { ...r, [key]: value } : r)),
-        }));
-    };
-
-    const visibleExtraRoles = useMemo(
-        () =>
-            formData.extraRoles
-                .map((r, i) => ({ r, i }))
-                .filter(({ i }) =>
-                    ['group', 'start', 'end', 'role'].some((k) => searchParams.has(`${k}${i + 1}`)),
-                ),
-        [formData.extraRoles, searchParams],
-    );
+    // Schema-driven: show only fields present in schema; hide optional ones absent from URL.
+    // Fallback (no template id or schema fetch failed): derive fields from URL params.
+    const visibleFields: FormFieldSchema[] = formSchema
+        ? formSchema.filter((f) => !f.optional || searchParams.has(f.key))
+        : Object.keys(fields)
+              .filter((k) => k !== 'id')
+              .map((k) => ({ key: k, label: k, type: 'text' as const }));
 
     return (
         <Box sx={{ border: `5px solid ${getColor()}`, padding: 1, borderRadius: 2, margin: 2 }}>
@@ -109,67 +87,25 @@ const OrgVerifyClient: React.FC = () => {
                     Endre feltene under for å verifisere mot lagret hash.
                 </Typography>
             </Grid>
-            <Box>
-                <Grid container spacing={2} paddingTop={2}>
-                    <Grid size={{ xs: 10, md: 12 }}>
-                        <TextField
-                            label="Navn"
-                            variant="outlined"
-                            fullWidth
-                            value={formData.personName}
-                            onChange={(e) => updateField('personName', e.target.value)}
-                        />
+            <Grid container spacing={2} paddingTop={2}>
+                {schemaLoading ? (
+                    <Grid size={{ xs: 12 }}>
+                        <CircularProgress size={24} />
                     </Grid>
-                </Grid>
-                <Grid container spacing={2} paddingTop={3}>
-                    <Grid size={{ xs: 5, md: 3 }}>
-                        <TextField label="Rolle" variant="outlined" fullWidth
-                            value={formData.role}
-                            onChange={(e) => updateField('role', e.target.value)} />
-                    </Grid>
-                    <Grid size={{ xs: 5, md: 3 }}>
-                        <TextField label="Gruppe" variant="outlined" fullWidth
-                            value={formData.groupName}
-                            onChange={(e) => updateField('groupName', e.target.value)} />
-                    </Grid>
-                    <Grid size={{ xs: 5, md: 3 }}>
-                        <TextField label="Startdato" variant="outlined" fullWidth
-                            value={formData.startDate}
-                            onChange={(e) => updateField('startDate', e.target.value)} />
-                    </Grid>
-                    <Grid size={{ xs: 5, md: 3 }}>
-                        <TextField label="Sluttdato" variant="outlined" fullWidth
-                            value={formData.endDate}
-                            onChange={(e) => updateField('endDate', e.target.value)} />
-                    </Grid>
-                </Grid>
-                {visibleExtraRoles.map(({ r, i }) => (
-                    <Box key={i} sx={{ marginTop: 2 }}>
-                        <Grid container spacing={2}>
-                            <Grid size={{ xs: 5, md: 3 }}>
-                                <TextField label={`Rolle ${i + 1}`} variant="outlined" fullWidth
-                                    value={r.role}
-                                    onChange={(e) => updateExtraRole(i, 'role', e.target.value)} />
-                            </Grid>
-                            <Grid size={{ xs: 5, md: 3 }}>
-                                <TextField label={`Gruppe ${i + 1}`} variant="outlined" fullWidth
-                                    value={r.groupName}
-                                    onChange={(e) => updateExtraRole(i, 'groupName', e.target.value)} />
-                            </Grid>
-                            <Grid size={{ xs: 5, md: 3 }}>
-                                <TextField label={`Startdato ${i + 1}`} variant="outlined" fullWidth
-                                    value={r.startDate}
-                                    onChange={(e) => updateExtraRole(i, 'startDate', e.target.value)} />
-                            </Grid>
-                            <Grid size={{ xs: 5, md: 3 }}>
-                                <TextField label={`Sluttdato ${i + 1}`} variant="outlined" fullWidth
-                                    value={r.endDate}
-                                    onChange={(e) => updateExtraRole(i, 'endDate', e.target.value)} />
-                            </Grid>
+                ) : (
+                    visibleFields.map((field) => (
+                        <Grid key={field.key} size={{ xs: 12, sm: 6, md: 3 }}>
+                            <TextField
+                                label={field.label}
+                                variant="outlined"
+                                fullWidth
+                                value={fields[field.key] ?? ''}
+                                onChange={(e) => updateField(field.key, e.target.value)}
+                            />
                         </Grid>
-                    </Box>
-                ))}
-            </Box>
+                    ))
+                )}
+            </Grid>
         </Box>
     );
 };
