@@ -8,15 +8,29 @@ export const nhost = createClient({ subdomain, region });
 type SessionUser = NonNullable<NonNullable<ReturnType<typeof nhost.getUserSession>>["user"]>;
 export type { SessionUser as NhostUser };
 
-let _defaultOrgId: string | null = null;
+export type OrgSummary = {
+    id: string;
+    slug: string;
+    name: string;
+};
 
-export async function getDefaultOrgId(): Promise<string> {
-    if (_defaultOrgId) return _defaultOrgId;
-    const res = await fetch("/api/organizations?slug=echo");
+const _orgCache = new Map<string, OrgSummary>();
+
+export async function getOrgBySlug(slug: string): Promise<OrgSummary> {
+    const cached = _orgCache.get(slug);
+    if (cached) return cached;
+    const res = await fetch(`/api/org/${encodeURIComponent(slug)}`);
     const json = await res.json();
-    if (!res.ok || !json.organization?.id) throw new Error("Default organization not found");
-    _defaultOrgId = json.organization.id;
-    return _defaultOrgId!;
+    if (!res.ok || !json.organization?.id) {
+        throw new Error(`Organization "${slug}" not found`);
+    }
+    const org: OrgSummary = {
+        id: json.organization.id,
+        slug: json.organization.slug,
+        name: json.organization.name,
+    };
+    _orgCache.set(slug, org);
+    return org;
 }
 
 export function authHeader(): Record<string, string> {

@@ -1,4 +1,4 @@
-import { getDefaultOrgId, authHeader } from '@/lib/nhost';
+import { authHeader } from '@/lib/nhost';
 import type { PDFTemplate } from '@/types/templateTypes';
 import type { Template } from '@pdfme/common';
 
@@ -14,16 +14,14 @@ type TemplateRow = {
     updated_at: string;
 };
 
-export async function getTemplates(): Promise<PDFTemplate[]> {
-    const organizationId = await getDefaultOrgId();
-    const res = await fetch(`/api/templates?organizationId=${encodeURIComponent(organizationId)}`, {
+export async function getTemplates(orgSlug: string): Promise<PDFTemplate[]> {
+    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, {
         headers: authHeader(),
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error ?? 'Failed to load templates');
     return (json.templates as TemplateRow[]).map((row) => ({
         id: row.id,
-        organizationId: row.organization_id,
         name: row.name,
         description: row.description ?? undefined,
         basePdf: row.base_pdf,
@@ -35,14 +33,13 @@ export async function getTemplates(): Promise<PDFTemplate[]> {
 }
 
 export async function saveTemplate(
-    template: Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'>
+    orgSlug: string,
+    template: Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<PDFTemplate> {
-    const organizationId = await getDefaultOrgId();
-    const res = await fetch('/api/templates', {
+    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...authHeader() },
         body: JSON.stringify({
-            organizationId,
             name: template.name,
             description: template.description,
             basePdf: template.basePdf,
@@ -64,10 +61,9 @@ export async function saveTemplate(
 export function fromPdfmeTemplate(
     pdfmeTemplate: Template,
     name: string,
-    options?: { description?: string; isDefault?: boolean }
+    options?: { description?: string; isDefault?: boolean },
 ): Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'> {
     return {
-        organizationId: 'echo',
         name,
         description: options?.description,
         basePdf: pdfmeTemplate.basePdf as string,

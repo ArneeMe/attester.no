@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { isValidJwt } from "@/lib/server/auth";
+import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
 
 export const runtime = "edge";
 
@@ -13,12 +13,11 @@ type OrgRow = {
     signatures: Array<{ photo: string; name: string; role: string; phone: string }> | null;
 };
 
-export async function GET(req: NextRequest) {
-    const slug = req.nextUrl.searchParams.get("slug");
-    if (!slug) {
-        return NextResponse.json({ error: "Missing slug" }, { status: 400 });
-    }
-
+export async function GET(
+    _req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
     try {
         const data = await hasuraAdmin<{ organizations: OrgRow[] }>(
             `query GetOrg($slug: String!) {
@@ -36,27 +35,26 @@ export async function GET(req: NextRequest) {
     }
 }
 
-export async function PATCH(req: NextRequest) {
-    if (!isValidJwt(req.headers.get("authorization"))) {
-        return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-    }
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> },
+) {
+    const { slug } = await params;
+    const auth = await requireOrgMemberBySlug(req, slug);
+    if (auth instanceof NextResponse) return auth;
 
-    const { slug, genericText, groups, signatures } = await req.json();
-    if (!slug) {
-        return NextResponse.json({ error: "Missing slug" }, { status: 400 });
-    }
-
-    const fields: Record<string, unknown> = {};
-    if (genericText !== undefined) fields.generic_text = genericText;
-    if (groups !== undefined) fields.groups = groups;
-    if (signatures !== undefined) fields.signatures = signatures;
-
+    const { genericText, groups, signatures } = await req.json();
     try {
+        const fields: Record<string, unknown> = {};
+        if (genericText !== undefined) fields.generic_text = genericText;
+        if (groups !== undefined) fields.groups = groups;
+        if (signatures !== undefined) fields.signatures = signatures;
+
         const data = await hasuraAdmin<{ update_organizations: { affected_rows: number } }>(
-            `mutation UpdateOrg($slug: String!, $set: organizations_set_input!) {
-                update_organizations(where: { slug: { _eq: $slug } }, _set: $set) { affected_rows }
+            `mutation UpdateOrg($organizationId: uuid!, $set: organizations_set_input!) {
+                update_organizations(where: { id: { _eq: $organizationId } }, _set: $set) { affected_rows }
             }`,
-            { slug, set: fields },
+            { organizationId: auth.organizationId, set: fields },
         );
         return NextResponse.json({ affectedRows: data.update_organizations.affected_rows });
     } catch (e) {

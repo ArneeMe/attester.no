@@ -1,23 +1,17 @@
-import { getDefaultOrgId, authHeader } from '@/lib/nhost';
+import { authHeader } from '@/lib/nhost';
 import { Volunteer } from '@/util/Volunteer';
-import { generateParams } from '@/app/login/adminpage/generateParams';
-import { hashFunction } from '@/util/hashFunction';
+import { buildCertParams } from '@/util/certParams';
+import { canonicalHash } from '@/util/canonicalHash';
 
-export const submitHash = async (volunteer: Volunteer): Promise<void> => {
-    try {
-        const toHash = generateParams(volunteer);
-        const hash = await hashFunction(toHash);
-        const organizationId = await getDefaultOrgId();
+export const submitHash = async (orgSlug: string, templateId: string, volunteer: Volunteer): Promise<void> => {
+    const params = buildCertParams(templateId, volunteer);
+    const hash = await canonicalHash(params);
 
-        const res = await fetch('/api/certificates', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json', ...authHeader() },
-            body: JSON.stringify({ organizationId, volunteerId: volunteer.id, hash }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? 'Server error');
-    } catch (error) {
-        alert('Feil ved lagring av hash');
-        console.error(error);
-    }
+    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/certificates`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ volunteerId: volunteer.id, hash, templateId }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? 'Server error');
 };

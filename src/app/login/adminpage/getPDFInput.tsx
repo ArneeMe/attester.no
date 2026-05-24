@@ -4,16 +4,15 @@ import {formatDate} from "@/util/formatDate";
 import {Volunteer} from '@/util/Volunteer'
 import {Certificate} from '@/app/login/adminpage/Certificate'
 
-export const getPdfInput = async (volunteer: Volunteer): Promise<Certificate[]> => {
+export const getPdfInput = async (orgSlug: string, templateId: string, volunteer: Volunteer): Promise<Certificate[]> => {
     const today = new Date();
     const dd = String(today.getDate()).padStart(2, '0');
-    const mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
     const yyyy = today.getFullYear();
     const name = volunteer.personName;
-    const fullURL = generateURL(volunteer);
+    const fullURL = generateURL(orgSlug, templateId, volunteer);
     const basePageURL = window.location.origin;
 
-    // Default values
     let groupInfo = fallbackValues.groups[volunteer.groupName] || `Information about ${volunteer.groupName}`;
     let generic_echo = fallbackValues.organization.generic_text;
     let signaturePerson1 = fallbackValues.signatures[0];
@@ -21,9 +20,9 @@ export const getPdfInput = async (volunteer: Volunteer): Promise<Certificate[]> 
 
     try {
         const [groupDescriptions, organizationInfo, signatories] = await Promise.all([
-            getGroupInfo(),
-            getOrganizationInfo(),
-            getSignatureInfo()
+            getGroupInfo(orgSlug),
+            getOrganizationInfo(orgSlug),
+            getSignatureInfo(orgSlug)
         ]);
 
         if (volunteer.groupName && groupDescriptions[volunteer.groupName]) {
