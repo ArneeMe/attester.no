@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { resolveOrgIdBySlug } from "@/lib/server/apiAuth";
+import { resolveOrgIdBySlug, requireOrgMemberBySlug } from "@/lib/server/apiAuth";
+import { templateBelongsToOrg } from "@/lib/server/ownership";
 import type { FormFieldSchema, FormSchema } from "@/types/formSchema";
 import type { LookupListContent } from "@/types/orgAssets";
 
@@ -53,6 +54,111 @@ export async function GET(
             : null;
 
         return NextResponse.json({ template: { id: tmpl.id, name: tmpl.name, form_schema } });
+    } catch (e) {
+        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    }
+}
+
+/**
+ * Toggle is_default on a template. Templates are otherwise immutable
+ * (editing creates a new row), but is_default is metadata about which one
+ * the admin UI auto-loads — not part of the cert rendering — so flipping it
+ * is safe and doesn't break previously-issued certs.
+ *
+ * Setting is_default=true clears it on all other templates in the same org,
+ * matching the POST route's behaviour.
+ */
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string; id: string }> },
+) {
+    const { slug, id } = await params;
+    const auth = await requireOrgMemberBySlug(req, slug);
+    if (auth instanceof NextResponse) return auth;
+
+    if (!(await templateBelongsToOrg(id, auth.organizationId))) {
+        return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    }
+
+    const body = await req.json();
+    if (typeof body.isDefault !== "boolean") {
+        return NextResponse.json({ error: "isDefault (boolean) is required" }, { status: 400 });
+    }
+
+    try {
+        if (body.isDefault) {
+            await hasuraAdmin(
+                `mutation ClearDefaults($organizationId: uuid!) {
+                    update_templates(
+                        where: { organization_id: { _eq: $organizationId } }
+                        _set: { is_default: false }
+                    ) { affected_rows }
+                }`,
+                { organizationId: auth.organizationId },
+            );
+        }
+        const data = await hasuraAdmin<{ update_templates_by_pk: { id: string; is_default: boolean } }>(
+            `mutation SetDefault($id: uuid!, $isDefault: Boolean!) {
+                update_templates_by_pk(pk_columns: { id: $id }, _set: { is_default: $isDefault }) {
+                    id is_default
+                }
+            }`,
+            { id, isDefault: body.isDefault },
+        );
+        return NextResponse.json({ template: data.update_templates_by_pk });
+    } catch (e) {
+        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    }
+}
+
+/**
+ * Delete a template. Refused if any certificate still references it, because
+ * the verify URL embeds template_id and a verifier might need to fetch the
+ * template for field labels (the hash itself doesn't depend on the template).
+ *
+ * Soft-delete (archive) is the future improvement here; for now we just
+ * surface the count so the admin knows why.
+ */
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string; id: string }> },
+) {
+    const { slug, id } = await params;
+    const auth = await requireOrgMemberBySlug(req, slug);
+    if (auth instanceof NextResponse) return auth;
+
+    if (!(await templateBelongsToOrg(id, auth.organizationId))) {
+        return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    }
+
+    try {
+        const certCount = await hasuraAdmin<{
+            certificates_aggregate: { aggregate: { count: number } };
+        }>(
+            `query CountCerts($templateId: uuid!) {
+                certificates_aggregate(where: { template_id: { _eq: $templateId } }) {
+                    aggregate { count }
+                }
+            }`,
+            { templateId: id },
+        );
+        const n = certCount.certificates_aggregate.aggregate.count;
+        if (n > 0) {
+            return NextResponse.json(
+                {
+                    error: `Kan ikke slette malen: ${n} sertifikat${n === 1 ? '' : 'er'} referer til den. Slett sertifikatene først eller arkiver malen.`,
+                    referencingCerts: n,
+                },
+                { status: 409 },
+            );
+        }
+        await hasuraAdmin(
+            `mutation DeleteTemplate($id: uuid!) {
+                delete_templates_by_pk(id: $id) { id }
+            }`,
+            { id },
+        );
+        return NextResponse.json({ ok: true });
     } catch (e) {
         return NextResponse.json({ error: (e as Error).message }, { status: 500 });
     }

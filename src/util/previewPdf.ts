@@ -9,18 +9,20 @@ import { buildSampleSubmission } from '@/util/sampleSubmission';
 import { listTemplateFieldNames } from '@/util/templateFields';
 
 /**
- * Render the designer's current template with placeholder data, so the admin
- * can sanity-check layout/bindings without going through the full submission
- * flow. Uses the same buildPdfInput pipeline as production cert generation.
+ * Render the designer's current template with placeholder data and return
+ * an object URL for inline embedding. Uses the same buildPdfInput pipeline
+ * as production cert generation so the preview matches reality.
+ *
+ * Caller is responsible for calling URL.revokeObjectURL when done (or when
+ * replacing the URL) — long-lived blob URLs leak memory.
  */
-export async function generatePreviewPdf(
+export async function buildPreviewPdfUrl(
     orgSlug: string,
     pdfmeTemplate: Template,
     bindings: FieldBindings,
     formSchema: FormSchema,
     assets: OrgAsset[],
-    filenameStem: string,
-): Promise<void> {
+): Promise<string> {
     const today = new Date();
     const dd = String(today.getDate()).padStart(2, '0');
     const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -44,10 +46,5 @@ export async function generatePreviewPdf(
     });
 
     const blob = new Blob([new Uint8Array(pdf.buffer)], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `forhandsvisning-${filenameStem || 'mal'}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    return URL.createObjectURL(blob);
 }

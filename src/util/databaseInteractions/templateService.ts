@@ -39,6 +39,32 @@ export async function getTemplates(orgSlug: string): Promise<PDFTemplate[]> {
     }));
 }
 
+export async function setTemplateDefault(orgSlug: string, templateId: string, isDefault: boolean): Promise<void> {
+    const res = await fetch(
+        `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`,
+        {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json', ...authHeader() },
+            body: JSON.stringify({ isDefault }),
+        },
+    );
+    if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? 'Failed to update template default');
+    }
+}
+
+export async function deleteTemplate(orgSlug: string, templateId: string): Promise<void> {
+    const res = await fetch(
+        `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`,
+        { method: 'DELETE', headers: authHeader() },
+    );
+    if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? 'Failed to delete template');
+    }
+}
+
 export async function saveTemplate(
     orgSlug: string,
     template: Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'>,

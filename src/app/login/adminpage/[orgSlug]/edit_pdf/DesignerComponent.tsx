@@ -1,5 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Button, Paper, CircularProgress, Typography } from '@mui/material';
+import {
+    Box,
+    Button,
+    Paper,
+    CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Typography,
+} from '@mui/material';
 import { Designer } from '@pdfme/ui';
 import { text, image, barcodes } from '@pdfme/schemas';
 import { Template, BLANK_PDF } from '@pdfme/common';
@@ -7,7 +17,7 @@ import { saveTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseIn
 import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
 import { deriveFormSchema } from '@/util/templateFields';
 import { validateTemplateForSave } from '@/util/validateTemplate';
-import { generatePreviewPdf } from '@/util/previewPdf';
+import { buildPreviewPdfUrl } from '@/util/previewPdf';
 import type { PDFTemplate } from '@/types/templateTypes';
 import type { FieldBindings } from '@/types/fieldBindings';
 import type { OrgAsset } from '@/types/orgAssets';
@@ -22,6 +32,7 @@ interface Props {
     templateName: string;
     templateDescription: string;
     isDefault: boolean;
+    initialTemplateId?: string | null;
     onError: (msg: string | null) => void;
     onSuccess: (msg: string | null) => void;
     onTemplateLoad: (name: string, desc: string, isDefault: boolean) => void;
@@ -32,6 +43,7 @@ export default function DesignerComponent({
                                               templateName,
                                               templateDescription,
                                               isDefault,
+                                              initialTemplateId,
                                               onError,
                                               onSuccess,
                                               onTemplateLoad,
@@ -44,8 +56,18 @@ export default function DesignerComponent({
     const [bindings, setBindings] = useState<FieldBindings>({});
     const [formSchema, setFormSchema] = useState<FormSchema>([]);
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [previewBusy, setPreviewBusy] = useState(false);
     // Bump this counter to force BindingsEditor to re-read the designer's schema.
     const [schemaRev, setSchemaRev] = useState(0);
+
+    // Revoke the previous preview URL when it's replaced or the page unmounts
+    // — otherwise the blob hangs around in memory.
+    useEffect(() => {
+        return () => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+        };
+    }, [previewUrl]);
 
     useEffect(() => {
         if (!containerRef.current || designerRef.current) return;
@@ -76,7 +98,31 @@ export default function DesignerComponent({
                 designerRef.current = null;
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orgSlug]);
+
+    // Deep-link: if the URL contains ?id=<template-id>, auto-load it once
+    // when both the designer and the templates list are ready. The ref
+    // guards against re-loading the same template if the templates list
+    // refreshes (e.g. after a Save).
+    const loadedDeepLinkRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (!initialTemplateId) return;
+        if (loadedDeepLinkRef.current === initialTemplateId) return;
+        if (!designerRef.current || existingTemplates.length === 0) return;
+        const found = existingTemplates.find((t) => t.id === initialTemplateId);
+        if (!found) return;
+        loadedDeepLinkRef.current = initialTemplateId;
+        designerRef.current.updateTemplate({
+            basePdf: found.basePdf,
+            schemas: found.schemas,
+        });
+        setBindings(found.fieldBindings ?? {});
+        setFormSchema(found.formSchema ?? []);
+        setSchemaRev((r) => r + 1);
+        onTemplateLoad(found.name, found.description || '', found.isDefault);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialTemplateId, existingTemplates]);
 
     const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -167,18 +213,26 @@ export default function DesignerComponent({
             onError('Designeren er ikke klar enda');
             return;
         }
+        setPreviewBusy(true);
         try {
-            await generatePreviewPdf(
+            const url = await buildPreviewPdfUrl(
                 orgSlug,
                 designerRef.current.getTemplate(),
                 bindings,
                 formSchema,
                 assets,
-                templateName || 'mal',
             );
+            setPreviewUrl(url);
         } catch (e) {
             onError(`Kunne ikke generere forhåndsvisning: ${(e as Error).message}`);
+        } finally {
+            setPreviewBusy(false);
         }
+    };
+
+    const closePreview = () => {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
     };
 
     // Read schemas from the live designer for the bindings editor. The
@@ -208,8 +262,8 @@ export default function DesignerComponent({
                         <input type="file" accept="application/pdf" hidden onChange={handlePdfUpload} />
                     </Button>
 
-                    <Button variant="outlined" onClick={handlePreview}>
-                        Forhåndsvis PDF
+                    <Button variant="outlined" onClick={handlePreview} disabled={previewBusy}>
+                        {previewBusy ? <CircularProgress size={20} /> : 'Forhåndsvis PDF'}
                     </Button>
 
                     <Button
@@ -284,6 +338,33 @@ export default function DesignerComponent({
                 onClose={() => setPickerOpen(false)}
                 onPick={handlePickStarter}
             />
+
+            <Dialog open={!!previewUrl} onClose={closePreview} maxWidth="lg" fullWidth>
+                <DialogTitle>Forhåndsvisning av PDF</DialogTitle>
+                <DialogContent dividers sx={{ p: 0, height: '80vh' }}>
+                    {previewUrl && (
+                        <iframe
+                            src={previewUrl}
+                            title="PDF-forhåndsvisning"
+                            style={{ width: '100%', height: '100%', border: 0 }}
+                        />
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    {previewUrl && (
+                        <Button
+                            component="a"
+                            href={previewUrl}
+                            download={`forhandsvisning-${templateName || 'mal'}.pdf`}
+                        >
+                            Last ned
+                        </Button>
+                    )}
+                    <Button onClick={closePreview} variant="contained">
+                        Lukk
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </>
     );
 }

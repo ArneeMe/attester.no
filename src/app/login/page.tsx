@@ -1,14 +1,17 @@
 'use client'
 import React, { useEffect, useState } from 'react';
 import { login, useAuth } from '@/util/auth';
-import { Box, Button, Container, TextField, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Container, TextField, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ToastProvider';
 
 const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [busy, setBusy] = useState(false);
     const currentUser = useAuth();
     const router = useRouter();
+    const toast = useToast();
 
     useEffect(() => {
         if (currentUser) {
@@ -18,11 +21,17 @@ const LoginPage: React.FC = () => {
 
     const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (busy) return;
+        setBusy(true);
         try {
             await login(email, password);
             router.push('/login/adminpage');
         } catch (error) {
             console.error('Login failed:', error);
+            const msg = (error as { message?: string }).message ?? 'Innlogging feilet';
+            toast.error(msg);
+        } finally {
+            setBusy(false);
         }
     };
 
@@ -39,7 +48,7 @@ const LoginPage: React.FC = () => {
                 <Typography component="h1" variant="h5">
                     Logg inn
                 </Typography>
-                <Box component="form" onSubmit={handleLogin} sx={{ mt: 1 }}>
+                <Box component="form" onSubmit={handleLogin} sx={{ mt: 1, width: '100%' }}>
                     <TextField
                         variant="outlined"
                         margin="normal"
@@ -50,6 +59,7 @@ const LoginPage: React.FC = () => {
                         autoFocus
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        disabled={busy}
                     />
                     <TextField
                         variant="outlined"
@@ -61,14 +71,16 @@ const LoginPage: React.FC = () => {
                         autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        disabled={busy}
                     />
                     <Button
                         type="submit"
                         fullWidth
                         variant="contained"
                         sx={{ mt: 3, mb: 2 }}
+                        disabled={busy || !email || !password}
                     >
-                        Logg Inn
+                        {busy ? <CircularProgress size={20} /> : 'Logg Inn'}
                     </Button>
                 </Box>
             </Box>
