@@ -1,11 +1,29 @@
 'use client'
 import React, {useEffect, useState} from 'react';
 import {useSearchParams} from 'next/navigation';
-import {ExtraRole, Volunteer} from '@/util/Volunteer';
 import {Box, Grid, Palette, TextField, Typography} from '@mui/material';
 import {hashFunction} from "@/util/hashFunction";
 import {customTheme} from "@/app/style/customTheme";
 import {formatDate} from "@/util/formatDate";
+
+// LEGACY — kept until ~2030 alongside the rest of the pre-multi-org verify
+// chain. Inlined from the deleted Volunteer.ts so this file is self-contained.
+// See CLAUDE.md "The legacy /verify route".
+type ExtraRole = {
+    groupName: string;
+    startDate: string;
+    endDate: string;
+    role: string;
+};
+type Volunteer = {
+    id: string;
+    personName: string;
+    groupName: string;
+    startDate: string;
+    endDate: string;
+    role: string;
+    extraRole?: ExtraRole[];
+};
 
 const Verify: React.FC = () => {
     const paramsString = useSearchParams().toString();

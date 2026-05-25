@@ -1,0 +1,119 @@
+import type {
+    FieldBinding,
+    FieldBindings,
+    SystemSlot,
+} from '@/types/fieldBindings';
+import type {
+    OrgAsset,
+    LookupListContent,
+    LookupItem,
+} from '@/types/orgAssets';
+import { formatDate } from '@/util/formatDate';
+
+export type SystemValues = Record<SystemSlot, string>;
+
+export type ResolveContext = {
+    submission: Record<string, string>;
+    assets: OrgAsset[];
+    system: SystemValues;
+};
+
+/**
+ * Reads a sub-field out of an asset. `name` is the asset row's name column
+ * (the human label); everything else lives in the content jsonb.
+ */
+function readAssetField(asset: OrgAsset, subField: string | undefined): string {
+    if (!subField || subField === 'name') return asset.name;
+    const content = asset.content as Record<string, unknown>;
+    const v = content[subField];
+    return typeof v === 'string' ? v : '';
+}
+
+/**
+ * Picks the Nth default asset of a given kind, ordered by sort_order then
+ * created_at. `position` is 0-indexed.
+ */
+function pickDefaultAsset(
+    assets: OrgAsset[],
+    kind: OrgAsset['kind'],
+    position: number,
+): OrgAsset | null {
+    const candidates = assets
+        .filter((a) => a.kind === kind && a.isDefault)
+        .sort((a, b) => {
+            if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+            return a.createdAt.localeCompare(b.createdAt);
+        });
+    return candidates[position] ?? null;
+}
+
+function interpolate(template: string, data: Record<string, string>): string {
+    return template.replace(/\{([^}]+)\}/g, (_, expr: string) => {
+        const [key, fmt] = expr.split(':');
+        const raw = data[key] ?? '';
+        if (!raw) return '';
+        if (fmt === 'date') return formatDate(raw);
+        return raw;
+    });
+}
+
+export function resolveBinding(binding: FieldBinding, ctx: ResolveContext): string {
+    switch (binding.source) {
+        case 'system':
+            return ctx.system[binding.system] ?? '';
+
+        case 'submission':
+            return ctx.submission[binding.key] ?? '';
+
+        case 'composite': {
+            if (binding.requireAll?.some((k) => !ctx.submission[k])) return '';
+            return interpolate(binding.template, ctx.submission);
+        }
+
+        case 'asset': {
+            const asset = ctx.assets.find((a) => a.id === binding.assetId);
+            if (!asset) return '';
+            return readAssetField(asset, binding.subField);
+        }
+
+        case 'asset_default': {
+            const asset = pickDefaultAsset(ctx.assets, binding.kind, binding.position ?? 0);
+            if (!asset) return '';
+            return readAssetField(asset, binding.subField);
+        }
+
+        case 'lookup': {
+            const list = ctx.assets.find((a) => a.id === binding.assetId);
+            if (!list || list.kind !== 'lookup_list') return '';
+            const items = (list.content as LookupListContent).items ?? [];
+            const lookupValue = ctx.submission[binding.byKey];
+            const item: LookupItem | undefined = items.find((i) => i.name === lookupValue);
+            if (!item) return '';
+            const v = item[binding.subField];
+            return typeof v === 'string' ? v : '';
+        }
+    }
+}
+
+/**
+ * Builds the flat input object pdfme.generate expects. Field names come from
+ * the template's pdfme schemas (every schema entry has a `name`). For each
+ * field name, we use the binding if one is defined, otherwise fall back to
+ * `submission.data[<field name>]` so simple templates don't need bindings.
+ */
+export function buildPdfInput(
+    fieldNames: string[],
+    bindings: FieldBindings,
+    ctx: ResolveContext,
+): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const name of fieldNames) {
+        const binding = bindings[name];
+        if (binding) {
+            out[name] = resolveBinding(binding, ctx);
+        } else {
+            out[name] = ctx.submission[name] ?? '';
+        }
+    }
+    return out;
+}

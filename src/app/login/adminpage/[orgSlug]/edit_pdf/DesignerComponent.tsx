@@ -1,10 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Button, Paper, CircularProgress } from '@mui/material';
+import { Box, Button, Paper, CircularProgress, Typography } from '@mui/material';
 import { Designer } from '@pdfme/ui';
 import { text, image, barcodes } from '@pdfme/schemas';
 import { Template, BLANK_PDF } from '@pdfme/common';
 import { saveTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseInteractions/templateService';
+import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
 import type { PDFTemplate } from '@/types/templateTypes';
+import type { FieldBindings } from '@/types/fieldBindings';
+import type { OrgAsset } from '@/types/orgAssets';
+import BindingsEditor from './BindingsEditor';
 
 interface Props {
     orgSlug: string;
@@ -29,6 +33,10 @@ export default function DesignerComponent({
     const designerRef = useRef<Designer | null>(null);
     const [saving, setSaving] = useState(false);
     const [existingTemplates, setExistingTemplates] = useState<PDFTemplate[]>([]);
+    const [assets, setAssets] = useState<OrgAsset[]>([]);
+    const [bindings, setBindings] = useState<FieldBindings>({});
+    // Bump this counter to force BindingsEditor to re-read the designer's schema.
+    const [schemaRev, setSchemaRev] = useState(0);
 
     useEffect(() => {
         if (!containerRef.current || designerRef.current) return;
@@ -48,9 +56,10 @@ export default function DesignerComponent({
             },
         });
 
-        getTemplates(orgSlug)
-            .then(setExistingTemplates)
-            .catch(() => {});
+        designerRef.current.onChangeTemplate(() => setSchemaRev((r) => r + 1));
+
+        getTemplates(orgSlug).then(setExistingTemplates).catch(() => {});
+        listOrgAssets(orgSlug).then(setAssets).catch(() => {});
 
         return () => {
             if (designerRef.current) {
@@ -71,6 +80,7 @@ export default function DesignerComponent({
                 basePdf: base64,
                 schemas: [[]],
             });
+            setSchemaRev((r) => r + 1);
         };
         reader.readAsDataURL(file);
     };
@@ -87,6 +97,7 @@ export default function DesignerComponent({
             const data = fromPdfmeTemplate(pdfmeTemplate, templateName.trim(), {
                 description: templateDescription || undefined,
                 isDefault,
+                fieldBindings: bindings,
             });
 
             await saveTemplate(orgSlug, data);
@@ -108,6 +119,8 @@ export default function DesignerComponent({
             basePdf: template.basePdf,
             schemas: template.schemas,
         });
+        setBindings(template.fieldBindings ?? {});
+        setSchemaRev((r) => r + 1);
 
         onTemplateLoad(template.name, template.description || '', template.isDefault);
     };
@@ -122,6 +135,20 @@ export default function DesignerComponent({
         a.download = `template-${templateName || 'export'}.json`;
         a.click();
     };
+
+    // Read schemas from the live designer for the bindings editor. The
+    // schemaRev counter forces re-renders when the designer mutates its state.
+    const currentSchemas: Template['schemas'] = (() => {
+        if (!designerRef.current) return [[]];
+        try {
+            return designerRef.current.getTemplate().schemas;
+        } catch {
+            return [[]];
+        }
+    })();
+    // schemaRev is read here so React re-renders when it changes; the value
+    // itself isn't used.
+    void schemaRev;
 
     return (
         <>
@@ -170,6 +197,18 @@ export default function DesignerComponent({
                         height: '70vh',
                         minHeight: 600,
                     }}
+                />
+            </Paper>
+
+            <Paper sx={{ p: 2, mt: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                    Felter
+                </Typography>
+                <BindingsEditor
+                    schemas={currentSchemas}
+                    bindings={bindings}
+                    assets={assets}
+                    onChange={setBindings}
                 />
             </Paper>
         </>

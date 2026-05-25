@@ -1,12 +1,14 @@
 /**
- * Seeds test volunteers + certificates across multiple orgs.
+ * Seeds test submissions + certificates across multiple orgs.
  * Auto-seeds a default template (from bundled customTemplate) if an org has none.
  *
  * Run from the repo root:
  *   npx tsx --env-file=.env.local scripts/seed-test-data.ts
  */
 import { customTemplate } from "../src/app/pdfinfo/customTemplate";
+import { echoFieldBindings } from "../src/app/pdfinfo/echoFieldBindings";
 import { buildCertParams } from "../src/util/certParams";
+import { VOLUNTEER_FORM_SCHEMA } from "../src/types/formSchema";
 
 const SUBDOMAIN = process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN;
 const REGION = process.env.NEXT_PUBLIC_NHOST_REGION;
@@ -19,7 +21,7 @@ if (!SUBDOMAIN || !REGION || !ADMIN_SECRET) {
 
 const HASURA = `https://${SUBDOMAIN}.hasura.${REGION}.nhost.run/v1/graphql`;
 const ORGS_TO_SEED = ["echo", "brodkokeri", "melbod"];
-const VOLUNTEERS_PER_ORG = 5;
+const SUBMISSIONS_PER_ORG = 5;
 
 async function gql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
     const res = await fetch(HASURA, {
@@ -31,16 +33,6 @@ async function gql<T>(query: string, variables?: Record<string, unknown>): Promi
     if (json.errors?.length) throw new Error(json.errors[0].message);
     return json.data as T;
 }
-
-type Volunteer = {
-    id: string;
-    personName: string;
-    groupName: string;
-    startDate: string;
-    endDate: string;
-    role: string;
-    extraRole: { groupName: string; startDate: string; endDate: string; role: string }[];
-};
 
 async function canonicalHash(params: URLSearchParams): Promise<string> {
     const copy = new URLSearchParams(params);
@@ -63,16 +55,14 @@ function rand(min: number, max: number): number { return Math.floor(Math.random(
 function pad(n: number): string { return n.toString().padStart(2, "0"); }
 function randomDate(year: number): string { return `${year}-${pad(rand(1, 12))}-${pad(rand(1, 28))}`; }
 
-function makeVolunteer(): Volunteer {
+function makeSubmissionData(): Record<string, string> {
     const startYear = rand(2018, 2022);
     return {
-        id: crypto.randomUUID(),
-        personName: `[TEST] ${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`,
-        groupName: pick(GROUPS),
-        startDate: randomDate(startYear),
-        endDate: randomDate(startYear + 1),
+        name: `[TEST] ${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`,
+        group: pick(GROUPS),
+        start: randomDate(startYear),
+        end: randomDate(startYear + 1),
         role: pick(ROLES),
-        extraRole: [],
     };
 }
 
@@ -87,13 +77,15 @@ async function ensureDefaultTemplate(organizationId: string, orgSlug: string): P
 
     console.log(`  no default template for ${orgSlug}, seeding one...`);
     const created = await gql<{ insert_templates_one: { id: string; name: string } }>(
-        `mutation Insert($organizationId: uuid!, $name: String!, $basePdf: String!, $schemas: jsonb!) {
+        `mutation Insert($organizationId: uuid!, $name: String!, $basePdf: String!, $schemas: jsonb!, $formSchema: jsonb!, $fieldBindings: jsonb!) {
             insert_templates_one(object: {
                 organization_id: $organizationId,
                 name: $name,
                 description: "Auto-seeded test template",
                 base_pdf: $basePdf,
                 schemas: $schemas,
+                form_schema: $formSchema,
+                field_bindings: $fieldBindings,
                 is_default: true
             }) { id name }
         }`,
@@ -102,6 +94,10 @@ async function ensureDefaultTemplate(organizationId: string, orgSlug: string): P
             name: `${orgSlug} attest v1`,
             basePdf: customTemplate.basePdf,
             schemas: customTemplate.schemas,
+            formSchema: VOLUNTEER_FORM_SCHEMA,
+            // The test template uses the echo pdfme schema. Bind by name only;
+            // missing group_info lookup is fine for test data (will be blank).
+            fieldBindings: echoFieldBindings,
         },
     );
     return created.insert_templates_one;
@@ -122,45 +118,36 @@ async function seedOrg(slug: string): Promise<void> {
     const tmpl = await ensureDefaultTemplate(org.id, slug);
     console.log(`  using template: ${tmpl.name} (${tmpl.id})`);
 
-    for (let i = 0; i < VOLUNTEERS_PER_ORG; i++) {
-        const v = makeVolunteer();
+    for (let i = 0; i < SUBMISSIONS_PER_ORG; i++) {
+        const data = makeSubmissionData();
 
-        await gql(
-            `mutation InsertVolunteer(
-                $id: uuid!, $organizationId: uuid!,
-                $personName: String!, $groupName: String!, $startDate: String!,
-                $endDate: String!, $role: String!, $extraRoles: jsonb!
-            ) {
-                insert_volunteers_one(object: {
-                    id: $id, organization_id: $organizationId,
-                    person_name: $personName, group_name: $groupName,
-                    start_date: $startDate, end_date: $endDate,
-                    role: $role, extra_roles: $extraRoles
+        const inserted = await gql<{ insert_submissions_one: { id: string } }>(
+            `mutation InsertSubmission($organizationId: uuid!, $templateId: uuid!, $data: jsonb!) {
+                insert_submissions_one(object: {
+                    organization_id: $organizationId,
+                    template_id: $templateId,
+                    data: $data
                 }) { id }
             }`,
-            {
-                id: v.id, organizationId: org.id,
-                personName: v.personName, groupName: v.groupName,
-                startDate: v.startDate, endDate: v.endDate,
-                role: v.role, extraRoles: v.extraRole,
-            },
+            { organizationId: org.id, templateId: tmpl.id, data },
         );
+        const submissionId = inserted.insert_submissions_one.id;
 
-        const params = buildCertParams(tmpl.id, v);
+        const params = buildCertParams(tmpl.id, submissionId, data);
         const hash = await canonicalHash(params);
         await gql(
-            `mutation InsertCert($organizationId: uuid!, $volunteerId: String!, $hash: String!, $templateId: uuid!) {
+            `mutation InsertCert($organizationId: uuid!, $submissionId: String!, $hash: String!, $templateId: uuid!) {
                 insert_certificates_one(object: {
                     organization_id: $organizationId,
-                    volunteer_id: $volunteerId,
+                    submission_id: $submissionId,
                     hash: $hash,
                     template_id: $templateId
                 }) { id }
             }`,
-            { organizationId: org.id, volunteerId: v.id, hash, templateId: tmpl.id },
+            { organizationId: org.id, submissionId, hash, templateId: tmpl.id },
         );
 
-        console.log(`  + ${v.personName.padEnd(28)} ${v.groupName.padEnd(18)} ${v.role}`);
+        console.log(`  + ${data.name.padEnd(28)} ${data.group.padEnd(18)} ${data.role}`);
         console.log(`      http://localhost:3000/org/${slug}/verify?${params.toString()}`);
     }
 }
