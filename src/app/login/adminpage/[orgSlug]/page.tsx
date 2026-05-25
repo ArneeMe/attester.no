@@ -13,6 +13,7 @@ import ConfirmDialog from "@/util/confirmDialog";
 import { generateURL } from "@/app/login/adminpage/generateURL";
 import { submitHash } from "@/app/login/adminpage/submitHash";
 import SchemaDetails from '@/components/SchemaDetails';
+import { useToast } from '@/components/ToastProvider';
 import type { Submission } from '@/types/submission';
 import type { FormSchema } from '@/types/formSchema';
 
@@ -32,6 +33,7 @@ type FullTemplate = TemplateData & {
 
 const AdminPage: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
+    const toast = useToast();
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [templates, setTemplates] = useState<FullTemplate[]>([]);
 
@@ -98,9 +100,10 @@ const AdminPage: React.FC = () => {
             await handleDelete(selected.id);
             setOpenDeleteDialog(false);
             setSelected(null);
+            toast.success('Innsendingen er slettet');
         } catch (error) {
-            console.log(error);
-            alert('Feil ved sletting av data');
+            console.error(error);
+            toast.error((error as Error).message ?? 'Feil ved sletting');
         }
     };
 
@@ -111,10 +114,12 @@ const AdminPage: React.FC = () => {
         try {
             for (const id of selectedIDs) await handleDelete(id);
             setOpenBatchDeleteDialog(false);
+            const n = selectedIDs.length;
             setSelectedIDs([]);
+            toast.success(`${n} innsending${n === 1 ? '' : 'er'} slettet`);
         } catch (error) {
-            console.log(error);
-            alert('Feil ved sletting av data');
+            console.error(error);
+            toast.error((error as Error).message ?? 'Feil ved sletting');
         }
     };
 
@@ -127,7 +132,7 @@ const AdminPage: React.FC = () => {
         if (!selected) return;
         const tmpl = templateById(selected.templateId);
         if (!tmpl) {
-            alert('Malen finnes ikke lenger');
+            toast.error('Malen finnes ikke lenger. Velg en annen mal eller opprett den på nytt.');
             return;
         }
         try {
@@ -137,8 +142,8 @@ const AdminPage: React.FC = () => {
             setOpenPDFDialog(true);
             setOpenDialog(false);
         } catch (error) {
-            console.log(error);
-            alert('Feil ved generering av PDF');
+            console.error(error);
+            toast.error('Feil ved generering av PDF: ' + ((error as Error).message ?? 'ukjent feil'));
         }
     };
 

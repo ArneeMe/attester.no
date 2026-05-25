@@ -7,6 +7,7 @@ import { getOrgBySlug } from '@/lib/nhost';
 import type { FormSchema } from '@/types/formSchema';
 import SchemaForm from '@/components/SchemaForm';
 import SchemaDetails from '@/components/SchemaDetails';
+import { useToast } from '@/components/ToastProvider';
 import ConfirmDialog from "@/util/confirmDialog";
 
 interface Props {
@@ -18,6 +19,7 @@ type TemplateForForm = { id: string; name: string; form_schema: FormSchema | nul
 const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
     const searchParams = useSearchParams();
     const templateIdOverride = searchParams.get('t');
+    const toast = useToast();
 
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
     const [openSummaryDialog, setOpenSummaryDialog] = useState(false);
@@ -74,7 +76,7 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
             setOpenSummaryDialog(true);
         } catch (e) {
             console.error('Error adding submission:', e);
-            alert('Feil ved lagring av data.');
+            toast.error('Feil ved lagring av data: ' + ((e as Error).message ?? 'ukjent feil'));
         }
     };
 

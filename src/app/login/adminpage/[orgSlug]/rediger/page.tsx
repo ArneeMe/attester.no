@@ -4,7 +4,6 @@ export const runtime = 'edge';
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
-    Alert,
     Box,
     Button,
     Checkbox,
@@ -21,6 +20,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import ImageUpload from '@/app/login/adminpage/[orgSlug]/rediger/ImageUpload';
+import { useToast } from '@/components/ToastProvider';
 import {
     createOrgAsset,
     deleteOrgAsset,
@@ -28,7 +28,6 @@ import {
     updateOrgAsset,
 } from '@/util/databaseInteractions/orgAssets';
 import type {
-    AssetKind,
     BodyTextContent,
     LogoContent,
     LookupItem,
@@ -51,19 +50,39 @@ function TabPanel({ children, value, index }: TabPanelProps) {
     );
 }
 
+/**
+ * Wraps an async save with consistent toast + saving-flag handling so each
+ * row component doesn't need its own try/catch/finally boilerplate.
+ */
+function useSaveHandler(label: string, fn: () => Promise<void>) {
+    const toast = useToast();
+    const [saving, setSaving] = useState(false);
+    const save = async () => {
+        setSaving(true);
+        try {
+            await fn();
+            toast.success(`${label} lagret`);
+        } catch (e) {
+            toast.error(`Kunne ikke lagre ${label}: ${(e as Error).message}`);
+        } finally {
+            setSaving(false);
+        }
+    };
+    return { saving, save };
+}
+
 const RedigerPage: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
+    const toast = useToast();
     const [tab, setTab] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [assets, setAssets] = useState<OrgAsset[]>([]);
 
     const reload = async () => {
-        setError(null);
         try {
             setAssets(await listOrgAssets(orgSlug));
         } catch (e) {
-            setError((e as Error).message);
+            toast.error('Kunne ikke laste innholdsbiblioteket: ' + (e as Error).message);
         }
     };
 
@@ -99,12 +118,6 @@ const RedigerPage: React.FC = () => {
                 «standard» for å bruke dem som default på nye attester.
             </Typography>
 
-            {error && (
-                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-                    {error}
-                </Alert>
-            )}
-
             <Tabs value={tab} onChange={(_, v) => setTab(v)}>
                 <Tab label={`Signaturer (${signatures.length})`} />
                 <Tab label={`Logoer (${logos.length})`} />
@@ -130,11 +143,40 @@ const RedigerPage: React.FC = () => {
 
 export default RedigerPage;
 
-// ───────────── Signatures ─────────────
-
 type PanelProps = { orgSlug: string; assets: OrgAsset[]; reload: () => Promise<void> };
 
+function useAdd(orgSlug: string, reload: () => Promise<void>, label: string) {
+    const toast = useToast();
+    return async (
+        body: { kind: OrgAsset['kind']; name: string; content: OrgAsset['content']; sortOrder?: number; isDefault?: boolean },
+    ) => {
+        try {
+            await createOrgAsset(orgSlug, body);
+            await reload();
+            toast.success(`${label} lagt til`);
+        } catch (e) {
+            toast.error(`Kunne ikke legge til: ${(e as Error).message}`);
+        }
+    };
+}
+
+function useDelete(orgSlug: string, reload: () => Promise<void>, label: string) {
+    const toast = useToast();
+    return async (id: string) => {
+        try {
+            await deleteOrgAsset(orgSlug, id);
+            await reload();
+            toast.success(`${label} slettet`);
+        } catch (e) {
+            toast.error(`Kunne ikke slette: ${(e as Error).message}`);
+        }
+    };
+}
+
+// ───────────── Signatures ─────────────
+
 const SignaturesPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload }) => {
+    const add = useAdd(orgSlug, reload, 'Signatur');
     return (
         <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -150,16 +192,15 @@ const SignaturesPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload }) => {
 
             <Button
                 startIcon={<AddIcon />}
-                onClick={async () => {
-                    await createOrgAsset(orgSlug, {
+                onClick={() =>
+                    add({
                         kind: 'signature',
                         name: 'Ny signatur',
                         content: { photo: '', role: '', phone: '' } as SignatureContent,
                         isDefault: true,
                         sortOrder: assets.length,
-                    });
-                    await reload();
-                }}
+                    })
+                }
             >
                 Legg til signatur
             </Button>
@@ -178,17 +219,10 @@ const SignatureRow: React.FC<{ orgSlug: string; asset: OrgAsset; reload: () => P
     const [phone, setPhone] = useState(c.phone ?? '');
     const [photo, setPhoto] = useState(c.photo ?? '');
     const [isDefault, setIsDefault] = useState(asset.isDefault);
-    const [saving, setSaving] = useState(false);
-
-    const save = async () => {
-        setSaving(true);
-        await updateOrgAsset(orgSlug, asset.id, {
-            name,
-            content: { photo, role, phone },
-            isDefault,
-        });
-        setSaving(false);
-    };
+    const remove = useDelete(orgSlug, reload, 'Signatur');
+    const { saving, save } = useSaveHandler('Signatur', () =>
+        updateOrgAsset(orgSlug, asset.id, { name, content: { photo, role, phone }, isDefault }).then(() => undefined),
+    );
 
     return (
         <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
@@ -206,10 +240,9 @@ const SignatureRow: React.FC<{ orgSlug: string; asset: OrgAsset; reload: () => P
                             </Button>
                             <IconButton
                                 color="error"
-                                onClick={async () => {
+                                onClick={() => {
                                     if (!confirm('Slette denne signaturen?')) return;
-                                    await deleteOrgAsset(orgSlug, asset.id);
-                                    await reload();
+                                    remove(asset.id);
                                 }}
                             >
                                 <DeleteIcon />
@@ -237,6 +270,7 @@ const SignatureRow: React.FC<{ orgSlug: string; asset: OrgAsset; reload: () => P
 // ───────────── Logos ─────────────
 
 const LogosPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload }) => {
+    const add = useAdd(orgSlug, reload, 'Logo');
     return (
         <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -252,16 +286,15 @@ const LogosPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload }) => {
 
             <Button
                 startIcon={<AddIcon />}
-                onClick={async () => {
-                    await createOrgAsset(orgSlug, {
+                onClick={() =>
+                    add({
                         kind: 'logo',
                         name: 'Ny logo',
                         content: { image: '' } as LogoContent,
                         isDefault: true,
                         sortOrder: assets.length,
-                    });
-                    await reload();
-                }}
+                    })
+                }
             >
                 Legg til logo
             </Button>
@@ -278,17 +311,10 @@ const LogoRow: React.FC<{ orgSlug: string; asset: OrgAsset; reload: () => Promis
     const [name, setName] = useState(asset.name);
     const [image, setImage] = useState(c.image ?? '');
     const [isDefault, setIsDefault] = useState(asset.isDefault);
-    const [saving, setSaving] = useState(false);
-
-    const save = async () => {
-        setSaving(true);
-        await updateOrgAsset(orgSlug, asset.id, {
-            name,
-            content: { image },
-            isDefault,
-        });
-        setSaving(false);
-    };
+    const remove = useDelete(orgSlug, reload, 'Logo');
+    const { saving, save } = useSaveHandler('Logo', () =>
+        updateOrgAsset(orgSlug, asset.id, { name, content: { image }, isDefault }).then(() => undefined),
+    );
 
     return (
         <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
@@ -306,10 +332,9 @@ const LogoRow: React.FC<{ orgSlug: string; asset: OrgAsset; reload: () => Promis
                             </Button>
                             <IconButton
                                 color="error"
-                                onClick={async () => {
+                                onClick={() => {
                                     if (!confirm('Slette denne logoen?')) return;
-                                    await deleteOrgAsset(orgSlug, asset.id);
-                                    await reload();
+                                    remove(asset.id);
                                 }}
                             >
                                 <DeleteIcon />
@@ -328,6 +353,7 @@ const LogoRow: React.FC<{ orgSlug: string; asset: OrgAsset; reload: () => Promis
 // ───────────── Body Texts ─────────────
 
 const BodyTextsPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload }) => {
+    const add = useAdd(orgSlug, reload, 'Tekstblokk');
     return (
         <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -343,16 +369,15 @@ const BodyTextsPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload }) => {
 
             <Button
                 startIcon={<AddIcon />}
-                onClick={async () => {
-                    await createOrgAsset(orgSlug, {
+                onClick={() =>
+                    add({
                         kind: 'body_text',
                         name: 'Ny tekstblokk',
                         content: { text: '' } as BodyTextContent,
                         isDefault: true,
                         sortOrder: assets.length,
-                    });
-                    await reload();
-                }}
+                    })
+                }
             >
                 Legg til tekstblokk
             </Button>
@@ -369,17 +394,10 @@ const BodyTextRow: React.FC<{ orgSlug: string; asset: OrgAsset; reload: () => Pr
     const [name, setName] = useState(asset.name);
     const [text, setText] = useState(c.text ?? '');
     const [isDefault, setIsDefault] = useState(asset.isDefault);
-    const [saving, setSaving] = useState(false);
-
-    const save = async () => {
-        setSaving(true);
-        await updateOrgAsset(orgSlug, asset.id, {
-            name,
-            content: { text },
-            isDefault,
-        });
-        setSaving(false);
-    };
+    const remove = useDelete(orgSlug, reload, 'Tekstblokk');
+    const { saving, save } = useSaveHandler('Tekstblokk', () =>
+        updateOrgAsset(orgSlug, asset.id, { name, content: { text }, isDefault }).then(() => undefined),
+    );
 
     return (
         <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
@@ -397,10 +415,9 @@ const BodyTextRow: React.FC<{ orgSlug: string; asset: OrgAsset; reload: () => Pr
                             </Button>
                             <IconButton
                                 color="error"
-                                onClick={async () => {
+                                onClick={() => {
                                     if (!confirm('Slette denne tekstblokken?')) return;
-                                    await deleteOrgAsset(orgSlug, asset.id);
-                                    await reload();
+                                    remove(asset.id);
                                 }}
                             >
                                 <DeleteIcon />
@@ -426,6 +443,7 @@ const BodyTextRow: React.FC<{ orgSlug: string; asset: OrgAsset; reload: () => Pr
 // ───────────── Lookup Lists ─────────────
 
 const LookupListsPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload }) => {
+    const add = useAdd(orgSlug, reload, 'Liste');
     return (
         <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -443,16 +461,15 @@ const LookupListsPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload }) => 
 
             <Button
                 startIcon={<AddIcon />}
-                onClick={async () => {
-                    await createOrgAsset(orgSlug, {
+                onClick={() =>
+                    add({
                         kind: 'lookup_list',
                         name: 'Ny liste',
                         content: { items: [] } as LookupListContent,
                         isDefault: true,
                         sortOrder: assets.length,
-                    });
-                    await reload();
-                }}
+                    })
+                }
             >
                 Legg til liste
             </Button>
@@ -469,17 +486,10 @@ const LookupListRow: React.FC<{ orgSlug: string; asset: OrgAsset; reload: () => 
     const [name, setName] = useState(asset.name);
     const [items, setItems] = useState<LookupItem[]>(initial.items ?? []);
     const [isDefault, setIsDefault] = useState(asset.isDefault);
-    const [saving, setSaving] = useState(false);
-
-    const save = async () => {
-        setSaving(true);
-        await updateOrgAsset(orgSlug, asset.id, {
-            name,
-            content: { items },
-            isDefault,
-        });
-        setSaving(false);
-    };
+    const remove = useDelete(orgSlug, reload, 'Liste');
+    const { saving, save } = useSaveHandler('Liste', () =>
+        updateOrgAsset(orgSlug, asset.id, { name, content: { items }, isDefault }).then(() => undefined),
+    );
 
     const setItem = (i: number, field: keyof LookupItem, value: string) => {
         const next = [...items];
@@ -501,10 +511,9 @@ const LookupListRow: React.FC<{ orgSlug: string; asset: OrgAsset; reload: () => 
                     </Button>
                     <IconButton
                         color="error"
-                        onClick={async () => {
+                        onClick={() => {
                             if (!confirm('Slette denne listen?')) return;
-                            await deleteOrgAsset(orgSlug, asset.id);
-                            await reload();
+                            remove(asset.id);
                         }}
                     >
                         <DeleteIcon />
