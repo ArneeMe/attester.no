@@ -157,9 +157,29 @@ const AdminPage: React.FC = () => {
                     <Typography variant="h4" gutterBottom>Oversikt</Typography>
                 </Grid>
                 <Grid size={{ sm: 2 }}>
-                    <Button onClick={openBatchDeleteClick}>Slett valgte</Button>
+                    <Button onClick={openBatchDeleteClick} disabled={selectedIDs.length === 0}>
+                        Slett valgte
+                    </Button>
                 </Grid>
             </Grid>
+
+            {submissions.length === 0 && (
+                <Paper elevation={1} sx={{ p: 3, mb: 2, bgcolor: 'grey.50' }}>
+                    <Typography variant="h6" gutterBottom>Ingen innsendinger enda</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Volontører fyller ut skjemaet på <code>/org/{orgSlug}</code>.
+                        Når de sender inn, dukker de opp her klare for godkjenning.
+                    </Typography>
+                    {templates.length === 0 && (
+                        <Typography variant="body2" color="warning.main">
+                            Du har ingen PDF-mal enda. Gå til «PDF-mal» og lag en
+                            (eller velg en ferdig fra galleriet) før du sender ut
+                            skjemalenken.
+                        </Typography>
+                    )}
+                </Paper>
+            )}
+
             <Grid container spacing={2}>
                 {submissions.map((sub) => {
                     const tmpl = templateById(sub.templateId);

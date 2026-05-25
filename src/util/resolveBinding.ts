@@ -58,6 +58,9 @@ function interpolate(template: string, data: Record<string, string>): string {
 }
 
 export function resolveBinding(binding: FieldBinding, ctx: ResolveContext): string {
+    // The DB stores bindings as opaque jsonb. If something we don't recognise
+    // slips through (older row, hand-edited, etc.) we'd rather render empty
+    // than throw mid-PDF — so an exhaustive switch with a safe default.
     switch (binding.source) {
         case 'system':
             return ctx.system[binding.system] ?? '';
@@ -92,6 +95,9 @@ export function resolveBinding(binding: FieldBinding, ctx: ResolveContext): stri
             const v = item[binding.subField];
             return typeof v === 'string' ? v : '';
         }
+
+        default:
+            return '';
     }
 }
 
