@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
+import { validateAssetContent } from "@/lib/server/validateAssetContent";
 import type { AssetRow, AssetKind } from "@/types/orgAssets";
 
 export const runtime = "edge";
 
 const VALID_KINDS: AssetKind[] = ['signature', 'logo', 'body_text', 'lookup_list'];
+const MAX_ASSET_NAME_LEN = 200;
 
 export async function GET(
     req: NextRequest,
@@ -49,9 +51,14 @@ export async function POST(
     if (typeof name !== "string" || !name.trim()) {
         return NextResponse.json({ error: "Missing name" }, { status: 400 });
     }
+    if (name.length > MAX_ASSET_NAME_LEN) {
+        return NextResponse.json({ error: "Name too long" }, { status: 400 });
+    }
     if (content === undefined || content === null || typeof content !== "object") {
         return NextResponse.json({ error: "Missing content" }, { status: 400 });
     }
+    const v = validateAssetContent(kind, content);
+    if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });
 
     try {
         const data = await hasuraAdmin<{ insert_org_assets_one: AssetRow }>(

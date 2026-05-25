@@ -43,6 +43,14 @@ export async function GET(
     }
 }
 
+// Base PDFs are stored inline as base64 data URLs. Cap at ~5MB to keep one
+// template row from filling the page. The pdfme designer typically produces
+// templates well below this.
+const MAX_BASE_PDF_LEN = 5 * 1024 * 1024;
+const MAX_TEMPLATE_NAME_LEN = 200;
+const MAX_TEMPLATE_DESC_LEN = 2000;
+const MAX_SCHEMAS_JSON_LEN = 2 * 1024 * 1024;
+
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ slug: string }> },
@@ -52,8 +60,39 @@ export async function POST(
     if (auth instanceof NextResponse) return auth;
 
     const { name, description, basePdf, schemas, formSchema, fieldBindings, isDefault } = await req.json();
-    if (!name || !basePdf || !schemas) {
-        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (typeof name !== "string" || !name.trim()) {
+        return NextResponse.json({ error: "Missing or invalid name" }, { status: 400 });
+    }
+    if (name.length > MAX_TEMPLATE_NAME_LEN) {
+        return NextResponse.json({ error: "Template name too long" }, { status: 400 });
+    }
+    if (description !== undefined && description !== null) {
+        if (typeof description !== "string") {
+            return NextResponse.json({ error: "description must be a string" }, { status: 400 });
+        }
+        if (description.length > MAX_TEMPLATE_DESC_LEN) {
+            return NextResponse.json({ error: "Description too long" }, { status: 400 });
+        }
+    }
+    if (typeof basePdf !== "string" || !basePdf) {
+        return NextResponse.json({ error: "Missing basePdf" }, { status: 400 });
+    }
+    if (basePdf.length > MAX_BASE_PDF_LEN) {
+        return NextResponse.json({ error: "Base PDF too large (max ~5MB)" }, { status: 413 });
+    }
+    if (!Array.isArray(schemas)) {
+        return NextResponse.json({ error: "schemas must be a 2D array" }, { status: 400 });
+    }
+    if (JSON.stringify(schemas).length > MAX_SCHEMAS_JSON_LEN) {
+        return NextResponse.json({ error: "schemas payload too large" }, { status: 413 });
+    }
+    if (formSchema !== undefined && formSchema !== null && !Array.isArray(formSchema)) {
+        return NextResponse.json({ error: "formSchema must be an array if provided" }, { status: 400 });
+    }
+    if (fieldBindings !== undefined && fieldBindings !== null) {
+        if (typeof fieldBindings !== "object" || Array.isArray(fieldBindings)) {
+            return NextResponse.json({ error: "fieldBindings must be an object" }, { status: 400 });
+        }
     }
 
     try {
