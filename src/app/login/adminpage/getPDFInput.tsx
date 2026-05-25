@@ -44,7 +44,7 @@ export const getPdfInput = async (
         console.error('Error loading org assets:', error);
     }
 
-    const input = buildPdfInput(schemas, fieldBindings, {
+    const input = buildPdfInput(schemas, fieldBindings ?? {}, {
         submission: data,
         assets,
         system,

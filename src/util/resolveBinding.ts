@@ -125,7 +125,7 @@ export function buildPdfInput(
         for (const field of page ?? []) {
             const name = field?.name;
             if (typeof name !== 'string' || name in out) continue;
-            const binding = bindings[name];
+            const binding = (bindings ?? {})[name];
             let value: string | undefined;
             if (binding) {
                 value = resolveBinding(binding, ctx);

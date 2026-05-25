@@ -144,6 +144,12 @@ const AdminPage: React.FC = () => {
         }
         try {
             await submitHash(orgSlug, tmpl.id, selected.id, selected.data);
+        } catch (error) {
+            console.error(error);
+            toast.error('Feil ved registrering av sertifikat: ' + ((error as Error).message ?? 'ukjent feil'));
+            return;
+        }
+        try {
             await generatePDF(orgSlug, tmpl, selected.id, selected.data);
             setPdfUrl(generateURL(orgSlug, tmpl.id, selected.id, selected.data));
             setOpenPDFDialog(true);
