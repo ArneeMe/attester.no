@@ -261,6 +261,7 @@ export default function DesignerComponent({
                     schemas={currentSchemas}
                     bindings={bindings}
                     assets={assets}
+                    formSchema={formSchema}
                     onChange={setBindings}
                 />
             </Paper>
