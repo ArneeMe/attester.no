@@ -25,14 +25,19 @@ export const generatePDF = async (
         templateData.schemas,
         templateData.field_bindings,
     );
+    // pdfme throws "input for X is required" when a field has `required:
+    // true` and no truthy input value — even empty string counts as
+    // missing. Legacy templates (saved before field_bindings existed) hit
+    // this for fields like `student_name_date` whose values used to come
+    // from hardcoded composite logic. We already validate templates at
+    // our level (QR + attester.no fingerprint), so drop the per-field
+    // required flag and let missing data render as empty.
     const template: Template = {
         basePdf: templateData.base_pdf,
-        schemas: templateData.schemas,
+        schemas: templateData.schemas.map((page) =>
+            page.map((field) => ({ ...field, required: false })),
+        ),
     };
-    // Do NOT swallow pdfme errors silently — the caller (admin page) needs
-    // to see them so the toast can surface a real reason. The most common
-    // failure mode is an unrenderable input value (e.g. an image field
-    // bound to a missing asset, before buildPdfInput's filtering kicked in).
     const pdf = await generate({
         template,
         inputs: pdfInput,

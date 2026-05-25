@@ -37,8 +37,17 @@ export async function buildPreviewPdfUrl(
     const submission = buildSampleSubmission(formSchema, assets);
     const input = buildPdfInput(pdfmeTemplate.schemas, bindings, { submission, assets, system });
 
+    // See generatePDF.ts for why we strip `required` — pdfme treats empty
+    // input as missing, which crashes legacy templates with no bindings.
+    const template: Template = {
+        ...pdfmeTemplate,
+        schemas: pdfmeTemplate.schemas.map((page) =>
+            page.map((field) => ({ ...field, required: false })),
+        ),
+    };
+
     const pdf = await generate({
-        template: pdfmeTemplate,
+        template,
         inputs: [input],
         plugins: { text, image, qrcode: barcodes.qrcode },
     });
