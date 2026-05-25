@@ -49,6 +49,7 @@ DECLARE
         {"name":"signature_name_2","type":"text","content":"","position":{"x":95,"y":240},"width":70,"height":5,"rotate":0,"alignment":"left","verticalAlignment":"top","fontSize":10,"lineHeight":1.3,"characterSpacing":0},
         {"name":"signature_role_2","type":"text","content":"","position":{"x":95,"y":246},"width":70,"height":4,"rotate":0,"alignment":"left","verticalAlignment":"top","fontSize":8,"lineHeight":1.3,"characterSpacing":0},
         {"name":"qr_code","type":"qrcode","content":"https://attester.no","position":{"x":160,"y":220},"width":28,"height":28,"rotate":0},
+        {"name":"qr_label","type":"text","content":"Verifiser på attester.no","position":{"x":156,"y":249},"width":36,"height":6,"rotate":0,"alignment":"center","verticalAlignment":"top","fontSize":7,"lineHeight":1.3,"characterSpacing":0},
         {"name":"brand","type":"text","content":"attester.no","position":{"x":20,"y":275},"width":170,"height":6,"rotate":0,"alignment":"center","verticalAlignment":"top","fontSize":9,"lineHeight":1.3,"characterSpacing":0}
     ]]'::jsonb;
 

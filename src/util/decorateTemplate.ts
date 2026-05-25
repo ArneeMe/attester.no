@@ -35,20 +35,26 @@ function makeVerifyLabel(field: Schema): Schema | null {
     const h = field.height;
     if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') return null;
     if (typeof w !== 'number' || typeof h !== 'number') return null;
+    // Mirror the field shape used by working text schemas in the seed +
+    // starter templates (notably the 'brand' field). Earlier this label
+    // omitted backgroundColor/opacity and used a 4mm-tall row, which made
+    // pdfme skip or clip the render.
     return {
         name: `__verify_label__${field.name ?? 'qr'}`,
         type: 'text',
         content: VERIFY_LABEL,
         position: { x: pos.x, y: pos.y + h + 1 },
         width: w,
-        height: 4,
+        height: 6,
         rotate: 0,
         alignment: 'center',
         verticalAlignment: 'top',
-        fontSize: 7,
-        lineHeight: 1.2,
+        fontSize: 8,
+        lineHeight: 1.3,
         characterSpacing: 0,
-        fontColor: '#666666',
+        fontColor: '#555555',
+        backgroundColor: '',
+        opacity: 1,
         required: false,
     } as Schema;
 }

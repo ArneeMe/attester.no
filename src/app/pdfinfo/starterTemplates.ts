@@ -80,6 +80,7 @@ const COURSE_COMPLETION: StarterTemplate = {
                 height: 32,
                 rotate: 0,
             } as Schema,
+            txt('qr_label', 'Verifiser på attester.no', { x: 151, y: 253 }, 40, 6, { fontSize: 7, alignment: 'center' }),
             txt('brand', 'attester.no', { x: 20, y: 275 }, 170, 6, { fontSize: 9, alignment: 'center' }),
         ]],
     },
@@ -94,6 +95,7 @@ const COURSE_COMPLETION: StarterTemplate = {
         signature_name: { source: 'asset_default', kind: 'signature', position: 0, subField: 'name' },
         signature_role: { source: 'asset_default', kind: 'signature', position: 0, subField: 'role' },
         qr_code: { source: 'system', system: 'qr_code' },
+        qr_label: { source: 'composite', template: 'Verifiser på attester.no' },
     },
     formSchema: [
         { key: 'name', label: 'Mottakers navn', type: 'text' },
@@ -134,6 +136,7 @@ const EVENT_ATTENDANCE: StarterTemplate = {
                 height: 32,
                 rotate: 0,
             } as Schema,
+            txt('qr_label', 'Verifiser på attester.no', { x: 151, y: 253 }, 40, 6, { fontSize: 7, alignment: 'center' }),
             txt('brand', 'attester.no', { x: 20, y: 275 }, 170, 6, { fontSize: 9, alignment: 'center' }),
         ]],
     },
@@ -147,6 +150,7 @@ const EVENT_ATTENDANCE: StarterTemplate = {
         signature_photo: { source: 'asset_default', kind: 'signature', position: 0, subField: 'photo' },
         signature_name: { source: 'asset_default', kind: 'signature', position: 0, subField: 'name' },
         qr_code: { source: 'system', system: 'qr_code' },
+        qr_label: { source: 'composite', template: 'Verifiser på attester.no' },
     },
     formSchema: [
         { key: 'name', label: 'Deltakers navn', type: 'text' },
@@ -199,6 +203,7 @@ const ROLE_ATTESTATION: StarterTemplate = {
                 height: 28,
                 rotate: 0,
             } as Schema,
+            txt('qr_label', 'Verifiser på attester.no', { x: 156, y: 249 }, 36, 6, { fontSize: 7, alignment: 'center' }),
             txt('brand', 'attester.no', { x: 20, y: 275 }, 170, 6, { fontSize: 9, alignment: 'center' }),
         ]],
     },
@@ -218,6 +223,7 @@ const ROLE_ATTESTATION: StarterTemplate = {
         signature_name_2: { source: 'asset_default', kind: 'signature', position: 1, subField: 'name' },
         signature_role_2: { source: 'asset_default', kind: 'signature', position: 1, subField: 'role' },
         qr_code: { source: 'system', system: 'qr_code' },
+        qr_label: { source: 'composite', template: 'Verifiser på attester.no' },
     },
     formSchema: [
         { key: 'name', label: 'Navn', type: 'text' },
