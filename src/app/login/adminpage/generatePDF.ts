@@ -2,6 +2,7 @@ import { barcodes, image, text } from '@pdfme/schemas';
 import { generate } from '@pdfme/generator';
 import { Template } from '@pdfme/common';
 import { getPdfInput } from '@/app/login/adminpage/getPDFInput';
+import { decorateTemplateForGenerate } from '@/util/decorateTemplate';
 import type { FieldBindings } from '@/types/fieldBindings';
 
 export type TemplateData = {
@@ -25,19 +26,10 @@ export const generatePDF = async (
         templateData.schemas,
         templateData.field_bindings,
     );
-    // pdfme throws "input for X is required" when a field has `required:
-    // true` and no truthy input value — even empty string counts as
-    // missing. Legacy templates (saved before field_bindings existed) hit
-    // this for fields like `student_name_date` whose values used to come
-    // from hardcoded composite logic. We already validate templates at
-    // our level (QR + attester.no fingerprint), so drop the per-field
-    // required flag and let missing data render as empty.
-    const template: Template = {
+    const template = decorateTemplateForGenerate({
         basePdf: templateData.base_pdf,
-        schemas: templateData.schemas.map((page) =>
-            page.map((field) => ({ ...field, required: false })),
-        ),
-    };
+        schemas: templateData.schemas,
+    });
     const pdf = await generate({
         template,
         inputs: pdfInput,

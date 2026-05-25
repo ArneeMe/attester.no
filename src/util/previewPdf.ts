@@ -6,6 +6,7 @@ import type { FormSchema } from '@/types/formSchema';
 import type { OrgAsset } from '@/types/orgAssets';
 import { buildPdfInput, type SystemValues } from '@/util/resolveBinding';
 import { buildSampleSubmission } from '@/util/sampleSubmission';
+import { decorateTemplateForGenerate } from '@/util/decorateTemplate';
 
 /**
  * Render the designer's current template with placeholder data and return
@@ -37,14 +38,7 @@ export async function buildPreviewPdfUrl(
     const submission = buildSampleSubmission(formSchema, assets);
     const input = buildPdfInput(pdfmeTemplate.schemas, bindings, { submission, assets, system });
 
-    // See generatePDF.ts for why we strip `required` — pdfme treats empty
-    // input as missing, which crashes legacy templates with no bindings.
-    const template: Template = {
-        ...pdfmeTemplate,
-        schemas: pdfmeTemplate.schemas.map((page) =>
-            page.map((field) => ({ ...field, required: false })),
-        ),
-    };
+    const template = decorateTemplateForGenerate(pdfmeTemplate);
 
     const pdf = await generate({
         template,
