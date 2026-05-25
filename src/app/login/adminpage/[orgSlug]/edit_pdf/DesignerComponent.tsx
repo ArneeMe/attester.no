@@ -7,12 +7,15 @@ import { saveTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseIn
 import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
 import { deriveFormSchema } from '@/util/templateFields';
 import { validateTemplateForSave } from '@/util/validateTemplate';
+import { generatePreviewPdf } from '@/util/previewPdf';
 import type { PDFTemplate } from '@/types/templateTypes';
 import type { FieldBindings } from '@/types/fieldBindings';
 import type { OrgAsset } from '@/types/orgAssets';
 import type { FormSchema } from '@/types/formSchema';
 import BindingsEditor from './BindingsEditor';
 import SchemaEditor from './SchemaEditor';
+import StarterTemplatePicker from './StarterTemplatePicker';
+import type { StarterTemplate } from '@/app/pdfinfo/starterTemplates';
 
 interface Props {
     orgSlug: string;
@@ -40,6 +43,7 @@ export default function DesignerComponent({
     const [assets, setAssets] = useState<OrgAsset[]>([]);
     const [bindings, setBindings] = useState<FieldBindings>({});
     const [formSchema, setFormSchema] = useState<FormSchema>([]);
+    const [pickerOpen, setPickerOpen] = useState(false);
     // Bump this counter to force BindingsEditor to re-read the designer's schema.
     const [schemaRev, setSchemaRev] = useState(0);
 
@@ -138,6 +142,15 @@ export default function DesignerComponent({
         onTemplateLoad(template.name, template.description || '', template.isDefault);
     };
 
+    const handlePickStarter = (starter: StarterTemplate) => {
+        if (!designerRef.current) return;
+        designerRef.current.updateTemplate(starter.template);
+        setBindings(starter.fieldBindings);
+        setFormSchema(starter.formSchema);
+        setSchemaRev((r) => r + 1);
+        onTemplateLoad(starter.name, starter.description, false);
+    };
+
     const handleExport = () => {
         if (!designerRef.current) return;
 
@@ -147,6 +160,25 @@ export default function DesignerComponent({
         a.href = URL.createObjectURL(blob);
         a.download = `template-${templateName || 'export'}.json`;
         a.click();
+    };
+
+    const handlePreview = async () => {
+        if (!designerRef.current) {
+            onError('Designeren er ikke klar enda');
+            return;
+        }
+        try {
+            await generatePreviewPdf(
+                orgSlug,
+                designerRef.current.getTemplate(),
+                bindings,
+                formSchema,
+                assets,
+                templateName || 'mal',
+            );
+        } catch (e) {
+            onError(`Kunne ikke generere forhåndsvisning: ${(e as Error).message}`);
+        }
     };
 
     // Read schemas from the live designer for the bindings editor. The
@@ -167,9 +199,17 @@ export default function DesignerComponent({
         <>
             <Paper sx={{ p: 2, mb: 2 }}>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+                    <Button variant="outlined" onClick={() => setPickerOpen(true)}>
+                        Start fra mal
+                    </Button>
+
                     <Button variant="outlined" component="label">
                         Last opp PDF
                         <input type="file" accept="application/pdf" hidden onChange={handlePdfUpload} />
+                    </Button>
+
+                    <Button variant="outlined" onClick={handlePreview}>
+                        Forhåndsvis PDF
                     </Button>
 
                     <Button
@@ -237,6 +277,12 @@ export default function DesignerComponent({
                 </Box>
                 <SchemaEditor schema={formSchema} assets={assets} onChange={setFormSchema} />
             </Paper>
+
+            <StarterTemplatePicker
+                open={pickerOpen}
+                onClose={() => setPickerOpen(false)}
+                onPick={handlePickStarter}
+            />
         </>
     );
 }
