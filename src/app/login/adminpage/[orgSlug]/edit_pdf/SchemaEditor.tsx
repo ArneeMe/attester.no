@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
     Box,
     Button,
@@ -19,7 +20,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import type { FormFieldSchema, FormFieldType, FormSchema } from '@/types/formSchema';
-import type { OrgAsset } from '@/types/orgAssets';
+import type { OrgAsset, LookupListContent } from '@/types/orgAssets';
 
 const TYPE_OPTIONS: { value: FormFieldType; label: string }[] = [
     { value: 'text', label: 'Tekst' },
@@ -30,12 +31,13 @@ const TYPE_OPTIONS: { value: FormFieldType; label: string }[] = [
 ];
 
 type Props = {
+    orgSlug: string;
     schema: FormSchema;
     assets: OrgAsset[];
     onChange: (next: FormSchema) => void;
 };
 
-export default function SchemaEditor({ schema, assets, onChange }: Props) {
+export default function SchemaEditor({ orgSlug, schema, assets, onChange }: Props) {
     const lookupLists = assets.filter((a) => a.kind === 'lookup_list');
 
     const updateField = (i: number, patch: Partial<FormFieldSchema>) => {
@@ -157,10 +159,9 @@ export default function SchemaEditor({ schema, assets, onChange }: Props) {
                                 />
                             )}
                             {field.optionsFromAsset && (
-                                <Chip
-                                    label={`${
-                                        lookupLists.find((l) => l.id === field.optionsFromAsset)?.name ?? 'Ukjent liste'
-                                    } – valgene oppdateres automatisk når listen endres`}
+                                <LookupListPreview
+                                    list={lookupLists.find((l) => l.id === field.optionsFromAsset)}
+                                    orgSlug={orgSlug}
                                 />
                             )}
                         </Box>
@@ -171,6 +172,39 @@ export default function SchemaEditor({ schema, assets, onChange }: Props) {
             <Button startIcon={<AddIcon />} onClick={addField} size="small">
                 Legg til felt
             </Button>
+        </Box>
+    );
+}
+
+const MAX_PREVIEW = 8;
+
+function LookupListPreview({ list, orgSlug }: { list: OrgAsset | undefined; orgSlug: string }) {
+    const items = (list?.content as LookupListContent | undefined)?.items ?? [];
+    const shown = items.slice(0, MAX_PREVIEW).map((it) => it.name).join(', ');
+    const overflow = items.length > MAX_PREVIEW ? ` …+${items.length - MAX_PREVIEW} til` : '';
+    return (
+        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Chip label={list?.name ?? 'Ukjent liste'} size="small" color="primary" />
+                <Button
+                    size="small"
+                    component={Link}
+                    href={`/login/adminpage/${orgSlug}/rediger?tab=lookup_list`}
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    Rediger liste ↗
+                </Button>
+            </Box>
+            {items.length > 0 ? (
+                <Typography variant="caption" color="text.secondary">
+                    {items.length} valg: {shown}{overflow}
+                </Typography>
+            ) : (
+                <Typography variant="caption" color="warning.main">
+                    Listen er tom — legg til oppføringer i Innhold.
+                </Typography>
+            )}
         </Box>
     );
 }

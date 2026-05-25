@@ -2,7 +2,7 @@
 export const runtime = 'edge';
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
     Box,
     Button,
@@ -74,10 +74,21 @@ function useSaveHandler(label: string, fn: () => Promise<void>) {
     return { saving, save };
 }
 
+// Maps `?tab=<kind>` query param to the tab index, so deep-links from
+// elsewhere (e.g. the schema editor's "Rediger liste" button) can land
+// the admin directly on the right panel.
+const TAB_BY_KIND: Record<string, number> = {
+    signature: 0,
+    logo: 1,
+    body_text: 2,
+    lookup_list: 3,
+};
+
 const RedigerPage: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
+    const searchParams = useSearchParams();
     const toast = useToast();
-    const [tab, setTab] = useState(0);
+    const [tab, setTab] = useState(() => TAB_BY_KIND[searchParams.get('tab') ?? ''] ?? 0);
     const [loading, setLoading] = useState(true);
     const [assets, setAssets] = useState<OrgAsset[]>([]);
     const [templates, setTemplates] = useState<PDFTemplate[]>([]);

@@ -334,7 +334,7 @@ export default function DesignerComponent({
                         Auto-utled fra PDF
                     </Button>
                 </Box>
-                <SchemaEditor schema={formSchema} assets={assets} onChange={setFormSchema} />
+                <SchemaEditor orgSlug={orgSlug} schema={formSchema} assets={assets} onChange={setFormSchema} />
             </Paper>
 
             <StarterTemplatePicker
