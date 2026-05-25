@@ -109,7 +109,35 @@ SET field_bindings = jsonb_build_object(
 FROM organizations o
 WHERE t.organization_id = o.id AND o.slug = 'echo';
 
--- 7. Drop the legacy columns. From now on, all per-org content lives in org_assets.
+-- 7. Promote echo's `group` form field from free text to a dropdown sourced
+--    from the Undergrupper lookup-list, so volontøren picks from the known
+--    set instead of free-typing (and the lookup binding actually matches).
+UPDATE templates t
+SET form_schema = (
+    SELECT jsonb_agg(
+        CASE
+            WHEN elem->>'key' = 'group' AND (elem->>'optional')::boolean IS NOT TRUE
+                THEN jsonb_build_object(
+                    'key', 'group',
+                    'label', 'Gruppe',
+                    'type', 'dropdown',
+                    'optionsFromAsset', (
+                        SELECT id::text FROM org_assets
+                        WHERE organization_id = t.organization_id
+                          AND kind = 'lookup_list'
+                          AND name = 'Undergrupper'
+                        LIMIT 1
+                    )
+                )
+            ELSE elem
+        END
+    )
+    FROM jsonb_array_elements(t.form_schema) AS elem
+)
+FROM organizations o
+WHERE t.organization_id = o.id AND o.slug = 'echo' AND t.form_schema IS NOT NULL;
+
+-- 8. Drop the legacy columns. From now on, all per-org content lives in org_assets.
 ALTER TABLE organizations DROP COLUMN signatures;
 ALTER TABLE organizations DROP COLUMN groups;
 ALTER TABLE organizations DROP COLUMN generic_text;

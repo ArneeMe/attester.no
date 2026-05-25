@@ -1,7 +1,15 @@
 'use client'
 import React, { useState } from 'react';
-import { Button, Grid, TextField } from '@mui/material';
-import type { FormSchema } from '@/types/formSchema';
+import {
+    Button,
+    FormControl,
+    Grid,
+    InputLabel,
+    MenuItem,
+    Select,
+    TextField,
+} from '@mui/material';
+import type { FormSchema, FormFieldSchema } from '@/types/formSchema';
 
 interface Props {
     schema: FormSchema;
@@ -27,17 +35,7 @@ const SchemaForm: React.FC<Props> = ({ schema, onSubmit, submitLabel = 'Send inn
             <Grid container spacing={2}>
                 {schema.map((field) => (
                     <Grid size={{ xs: 12, sm: 6 }} key={field.key}>
-                        <TextField
-                            fullWidth
-                            required={!field.optional}
-                            label={field.label}
-                            name={field.key}
-                            type={field.type === 'date' ? 'date' : 'text'}
-                            value={data[field.key] ?? ''}
-                            onChange={(e) => handleChange(field.key, e.target.value)}
-                            slotProps={field.type === 'date' ? { inputLabel: { shrink: true } } : undefined}
-                            margin="normal"
-                        />
+                        <FieldInput field={field} value={data[field.key] ?? ''} onChange={(v) => handleChange(field.key, v)} />
                     </Grid>
                 ))}
                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -49,5 +47,95 @@ const SchemaForm: React.FC<Props> = ({ schema, onSubmit, submitLabel = 'Send inn
         </form>
     );
 };
+
+function FieldInput({
+    field,
+    value,
+    onChange,
+}: {
+    field: FormFieldSchema;
+    value: string;
+    onChange: (v: string) => void;
+}) {
+    switch (field.type) {
+        case 'dropdown': {
+            const options = field.options ?? [];
+            return (
+                <FormControl fullWidth required={!field.optional} margin="normal">
+                    <InputLabel>{field.label}</InputLabel>
+                    <Select
+                        label={field.label}
+                        value={value}
+                        onChange={(e) => onChange(String(e.target.value))}
+                    >
+                        {options.map((o) => (
+                            <MenuItem key={o} value={o}>
+                                {o}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            );
+        }
+
+        case 'long_text':
+            return (
+                <TextField
+                    fullWidth
+                    required={!field.optional}
+                    label={field.label}
+                    name={field.key}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    margin="normal"
+                    multiline
+                    rows={4}
+                />
+            );
+
+        case 'number':
+            return (
+                <TextField
+                    fullWidth
+                    required={!field.optional}
+                    label={field.label}
+                    name={field.key}
+                    type="number"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    margin="normal"
+                />
+            );
+
+        case 'date':
+            return (
+                <TextField
+                    fullWidth
+                    required={!field.optional}
+                    label={field.label}
+                    name={field.key}
+                    type="date"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    margin="normal"
+                />
+            );
+
+        case 'text':
+        default:
+            return (
+                <TextField
+                    fullWidth
+                    required={!field.optional}
+                    label={field.label}
+                    name={field.key}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    margin="normal"
+                />
+            );
+    }
+}
 
 export default SchemaForm;

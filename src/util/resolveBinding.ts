@@ -96,10 +96,13 @@ export function resolveBinding(binding: FieldBinding, ctx: ResolveContext): stri
 }
 
 /**
- * Builds the flat input object pdfme.generate expects. Field names come from
- * the template's pdfme schemas (every schema entry has a `name`). For each
- * field name, we use the binding if one is defined, otherwise fall back to
- * `submission.data[<field name>]` so simple templates don't need bindings.
+ * Builds the flat input object pdfme.generate expects.
+ *
+ *  - Bound fields always get their resolved value (even empty string).
+ *  - Unbound fields get the matching submission key if it exists, otherwise
+ *    are *omitted* so pdfme falls back to the schema's `content` default.
+ *    This lets admins place purely-static text (e.g. the "attester.no"
+ *    brand mark) without needing to wire a binding.
  */
 export function buildPdfInput(
     fieldNames: string[],
@@ -111,8 +114,8 @@ export function buildPdfInput(
         const binding = bindings[name];
         if (binding) {
             out[name] = resolveBinding(binding, ctx);
-        } else {
-            out[name] = ctx.submission[name] ?? '';
+        } else if (ctx.submission[name] !== undefined) {
+            out[name] = ctx.submission[name];
         }
     }
     return out;

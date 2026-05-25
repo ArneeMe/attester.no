@@ -5,10 +5,14 @@ import { text, image, barcodes } from '@pdfme/schemas';
 import { Template, BLANK_PDF } from '@pdfme/common';
 import { saveTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseInteractions/templateService';
 import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
+import { deriveFormSchema } from '@/util/templateFields';
+import { validateTemplateForSave } from '@/util/validateTemplate';
 import type { PDFTemplate } from '@/types/templateTypes';
 import type { FieldBindings } from '@/types/fieldBindings';
 import type { OrgAsset } from '@/types/orgAssets';
+import type { FormSchema } from '@/types/formSchema';
 import BindingsEditor from './BindingsEditor';
+import SchemaEditor from './SchemaEditor';
 
 interface Props {
     orgSlug: string;
@@ -35,6 +39,7 @@ export default function DesignerComponent({
     const [existingTemplates, setExistingTemplates] = useState<PDFTemplate[]>([]);
     const [assets, setAssets] = useState<OrgAsset[]>([]);
     const [bindings, setBindings] = useState<FieldBindings>({});
+    const [formSchema, setFormSchema] = useState<FormSchema>([]);
     // Bump this counter to force BindingsEditor to re-read the designer's schema.
     const [schemaRev, setSchemaRev] = useState(0);
 
@@ -94,10 +99,17 @@ export default function DesignerComponent({
         setSaving(true);
         try {
             const pdfmeTemplate = designerRef.current.getTemplate();
+            const validationErrors = validateTemplateForSave(pdfmeTemplate);
+            if (validationErrors.length > 0) {
+                onError(validationErrors.join(' '));
+                setSaving(false);
+                return;
+            }
             const data = fromPdfmeTemplate(pdfmeTemplate, templateName.trim(), {
                 description: templateDescription || undefined,
                 isDefault,
                 fieldBindings: bindings,
+                formSchema: formSchema.length > 0 ? formSchema : undefined,
             });
 
             await saveTemplate(orgSlug, data);
@@ -120,6 +132,7 @@ export default function DesignerComponent({
             schemas: template.schemas,
         });
         setBindings(template.fieldBindings ?? {});
+        setFormSchema(template.formSchema ?? []);
         setSchemaRev((r) => r + 1);
 
         onTemplateLoad(template.name, template.description || '', template.isDefault);
@@ -202,7 +215,7 @@ export default function DesignerComponent({
 
             <Paper sx={{ p: 2, mt: 2 }}>
                 <Typography variant="h6" gutterBottom>
-                    Felter
+                    Felter (PDF → data)
                 </Typography>
                 <BindingsEditor
                     schemas={currentSchemas}
@@ -210,6 +223,19 @@ export default function DesignerComponent({
                     assets={assets}
                     onChange={setBindings}
                 />
+            </Paper>
+
+            <Paper sx={{ p: 2, mt: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="h6">Skjema (volontør → data)</Typography>
+                    <Button
+                        size="small"
+                        onClick={() => setFormSchema(deriveFormSchema(currentSchemas, bindings))}
+                    >
+                        Auto-utled fra PDF
+                    </Button>
+                </Box>
+                <SchemaEditor schema={formSchema} assets={assets} onChange={setFormSchema} />
             </Paper>
         </>
     );
