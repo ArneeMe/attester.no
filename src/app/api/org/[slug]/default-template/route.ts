@@ -59,18 +59,24 @@ async function resolveSchemaOptions(
     ];
     if (assetIds.length === 0) return schema;
 
-    const data = await hasuraAdmin<{
-        org_assets: Array<{ id: string; content: LookupListContent }>;
-    }>(
-        `query GetLookupLists($ids: [uuid!]!, $organizationId: uuid!) {
-            org_assets(where: {
-                id: { _in: $ids },
-                organization_id: { _eq: $organizationId },
-                kind: { _eq: "lookup_list" }
-            }) { id content }
-        }`,
-        { ids: assetIds, organizationId },
-    );
+    let data: { org_assets: Array<{ id: string; content: LookupListContent }> };
+    try {
+        data = await hasuraAdmin<{
+            org_assets: Array<{ id: string; content: LookupListContent }>;
+        }>(
+            `query GetLookupLists($ids: [uuid!]!, $organizationId: uuid!) {
+                org_assets(where: {
+                    id: { _in: $ids },
+                    organization_id: { _eq: $organizationId },
+                    kind: { _eq: "lookup_list" }
+                }) { id content }
+            }`,
+            { ids: assetIds, organizationId },
+        );
+    } catch (e) {
+        console.warn("resolveSchemaOptions: failed to fetch lookup lists, leaving dropdowns unresolved:", (e as Error).message);
+        return schema;
+    }
 
     const byId = new Map(data.org_assets.map((a) => [a.id, a.content.items?.map((i) => i.name) ?? []]));
 

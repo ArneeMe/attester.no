@@ -2,7 +2,6 @@ import type { Template } from '@pdfme/common';
 import { generateURL } from './generateURL';
 import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
 import { buildPdfInput, type SystemValues } from '@/util/resolveBinding';
-import { listTemplateFieldNames } from '@/util/templateFields';
 import type { FieldBindings } from '@/types/fieldBindings';
 
 /**
@@ -45,8 +44,7 @@ export const getPdfInput = async (
         console.error('Error loading org assets:', error);
     }
 
-    const names = listTemplateFieldNames(schemas);
-    const input = buildPdfInput(names, fieldBindings, {
+    const input = buildPdfInput(schemas, fieldBindings, {
         submission: data,
         assets,
         system,

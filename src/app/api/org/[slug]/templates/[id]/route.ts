@@ -177,18 +177,30 @@ async function resolveSchemaOptions(
     ];
     if (assetIds.length === 0) return schema;
 
-    const data = await hasuraAdmin<{
-        org_assets: Array<{ id: string; content: LookupListContent }>;
-    }>(
-        `query GetLookupLists($ids: [uuid!]!, $organizationId: uuid!) {
-            org_assets(where: {
-                id: { _in: $ids },
-                organization_id: { _eq: $organizationId },
-                kind: { _eq: "lookup_list" }
-            }) { id content }
-        }`,
-        { ids: assetIds, organizationId },
-    );
+    // If `org_assets` isn't tracked in Hasura yet, this query throws. We
+    // deliberately swallow the error and return the schema unchanged
+    // (each dropdown keeps its static `options` if it has any, otherwise
+    // it'll render with no options — the form is still usable for every
+    // OTHER field, and the public form shouldn't 500 because the
+    // admin's content library isn't fully tracked yet.
+    let data: { org_assets: Array<{ id: string; content: LookupListContent }> };
+    try {
+        data = await hasuraAdmin<{
+            org_assets: Array<{ id: string; content: LookupListContent }>;
+        }>(
+            `query GetLookupLists($ids: [uuid!]!, $organizationId: uuid!) {
+                org_assets(where: {
+                    id: { _in: $ids },
+                    organization_id: { _eq: $organizationId },
+                    kind: { _eq: "lookup_list" }
+                }) { id content }
+            }`,
+            { ids: assetIds, organizationId },
+        );
+    } catch (e) {
+        console.warn("resolveSchemaOptions: failed to fetch lookup lists, leaving dropdowns unresolved:", (e as Error).message);
+        return schema;
+    }
 
     const byId = new Map(data.org_assets.map((a) => [a.id, a.content.items?.map((i) => i.name) ?? []]));
 

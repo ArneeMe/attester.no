@@ -6,7 +6,6 @@ import type { FormSchema } from '@/types/formSchema';
 import type { OrgAsset } from '@/types/orgAssets';
 import { buildPdfInput, type SystemValues } from '@/util/resolveBinding';
 import { buildSampleSubmission } from '@/util/sampleSubmission';
-import { listTemplateFieldNames } from '@/util/templateFields';
 
 /**
  * Render the designer's current template with placeholder data and return
@@ -36,8 +35,7 @@ export async function buildPreviewPdfUrl(
     };
 
     const submission = buildSampleSubmission(formSchema, assets);
-    const fieldNames = listTemplateFieldNames(pdfmeTemplate.schemas);
-    const input = buildPdfInput(fieldNames, bindings, { submission, assets, system });
+    const input = buildPdfInput(pdfmeTemplate.schemas, bindings, { submission, assets, system });
 
     const pdf = await generate({
         template: pdfmeTemplate,

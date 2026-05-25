@@ -89,8 +89,12 @@ export default function DesignerComponent({
 
         designerRef.current.onChangeTemplate(() => setSchemaRev((r) => r + 1));
 
-        getTemplates(orgSlug).then(setExistingTemplates).catch(() => {});
-        listOrgAssets(orgSlug).then(setAssets).catch(() => {});
+        getTemplates(orgSlug).then(setExistingTemplates).catch((e) => {
+            onError(`Kunne ikke laste maler: ${(e as Error).message}`);
+        });
+        listOrgAssets(orgSlug).then(setAssets).catch((e) => {
+            onError(`Kunne ikke laste innhold (signaturer/logoer/…): ${(e as Error).message}`);
+        });
 
         return () => {
             if (designerRef.current) {

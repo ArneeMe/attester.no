@@ -8,6 +8,7 @@ import type {
     LookupListContent,
     LookupItem,
 } from '@/types/orgAssets';
+import type { Template } from '@pdfme/common';
 import { formatDate } from '@/util/formatDate';
 
 export type SystemValues = Record<SystemSlot, string>;
@@ -109,19 +110,31 @@ export function resolveBinding(binding: FieldBinding, ctx: ResolveContext): stri
  *    are *omitted* so pdfme falls back to the schema's `content` default.
  *    This lets admins place purely-static text (e.g. the "attester.no"
  *    brand mark) without needing to wire a binding.
+ *  - Image-type fields are omitted unless their value is a valid data:
+ *    URL. pdfme's image plugin throws on empty / non-image strings, so an
+ *    org without a default signature would otherwise blow up the whole
+ *    generate() call (rather than rendering an empty image slot).
  */
 export function buildPdfInput(
-    fieldNames: string[],
+    schemas: Template['schemas'],
     bindings: FieldBindings,
     ctx: ResolveContext,
 ): Record<string, string> {
     const out: Record<string, string> = {};
-    for (const name of fieldNames) {
-        const binding = bindings[name];
-        if (binding) {
-            out[name] = resolveBinding(binding, ctx);
-        } else if (ctx.submission[name] !== undefined) {
-            out[name] = ctx.submission[name];
+    for (const page of schemas ?? []) {
+        for (const field of page ?? []) {
+            const name = field?.name;
+            if (typeof name !== 'string' || name in out) continue;
+            const binding = bindings[name];
+            let value: string | undefined;
+            if (binding) {
+                value = resolveBinding(binding, ctx);
+            } else if (ctx.submission[name] !== undefined) {
+                value = ctx.submission[name];
+            }
+            if (value === undefined) continue;
+            if (field.type === 'image' && !value.startsWith('data:image/')) continue;
+            out[name] = value;
         }
     }
     return out;

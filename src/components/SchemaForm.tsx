@@ -60,6 +60,24 @@ function FieldInput({
     switch (field.type) {
         case 'dropdown': {
             const options = field.options ?? [];
+            // Fallback: if the admin chose dropdown but no options resolved
+            // (lookup-list missing, server couldn't fetch, list is empty),
+            // render a text field so the volunteer can still submit. Better
+            // than a stuck required-but-unselectable dropdown.
+            if (options.length === 0) {
+                return (
+                    <TextField
+                        fullWidth
+                        required={!field.optional}
+                        label={field.label}
+                        name={field.key}
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        margin="normal"
+                        helperText="Skriv inn fritekst — det er ingen forhåndsdefinerte valg satt opp."
+                    />
+                );
+            }
             return (
                 <FormControl fullWidth required={!field.optional} margin="normal">
                     <InputLabel>{field.label}</InputLabel>

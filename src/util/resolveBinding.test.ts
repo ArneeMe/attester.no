@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { Schema } from '@pdfme/common';
 import { resolveBinding, buildPdfInput, type ResolveContext } from './resolveBinding';
 import type { FieldBinding } from '@/types/fieldBindings';
 import type { OrgAsset } from '@/types/orgAssets';
@@ -190,19 +191,32 @@ describe('resolveBinding', () => {
     });
 });
 
+// Helper for the buildPdfInput tests: synthesise a pdfme schemas array
+// from a list of (name, type) pairs. Saves boilerplate.
+function schemasOf(...fields: Array<{ name: string; type?: string }>): Schema[][] {
+    return [fields.map((f) => ({
+        name: f.name,
+        type: f.type ?? 'text',
+        content: '',
+        position: { x: 0, y: 0 },
+        width: 0,
+        height: 0,
+    } as Schema))];
+}
+
 describe('buildPdfInput', () => {
     it('uses the binding when one is set', () => {
         const bindings = {
             greeting: { source: 'composite', template: 'Hei {name}' } as FieldBinding,
         };
         const ctx = makeCtx({ submission: { name: 'Ola' } });
-        const out = buildPdfInput(['greeting'], bindings, ctx);
+        const out = buildPdfInput(schemasOf({ name: 'greeting' }), bindings, ctx);
         expect(out.greeting).toBe('Hei Ola');
     });
 
     it('falls back to submission data when no binding exists', () => {
         const ctx = makeCtx({ submission: { name: 'Ola' } });
-        const out = buildPdfInput(['name'], {}, ctx);
+        const out = buildPdfInput(schemasOf({ name: 'name' }), {}, ctx);
         expect(out.name).toBe('Ola');
     });
 
@@ -210,7 +224,7 @@ describe('buildPdfInput', () => {
         // pdfme then uses the schema field's `content` default, which is
         // what lets static branding text actually render.
         const ctx = makeCtx({ submission: {} });
-        const out = buildPdfInput(['brand'], {}, ctx);
+        const out = buildPdfInput(schemasOf({ name: 'brand' }), {}, ctx);
         expect('brand' in out).toBe(false);
     });
 
@@ -225,7 +239,34 @@ describe('buildPdfInput', () => {
             } as FieldBinding,
         };
         const ctx = makeCtx({ submission: {} });
-        const out = buildPdfInput(['optional_field'], bindings, ctx);
+        const out = buildPdfInput(schemasOf({ name: 'optional_field' }), bindings, ctx);
         expect(out.optional_field).toBe('');
+    });
+
+    it('omits image fields when the value is not a data:image/ URL', () => {
+        // pdfme's image plugin throws on empty/garbage input; by omitting
+        // the key we let pdfme fall back to the schema default (also empty)
+        // and render no image instead of crashing.
+        const bindings = {
+            signature_photo_1: {
+                source: 'asset_default',
+                kind: 'signature',
+                position: 0,
+                subField: 'photo',
+            } as FieldBinding,
+        };
+        const ctx = makeCtx({ assets: [] }); // no default signature → resolver returns ''
+        const out = buildPdfInput(
+            schemasOf({ name: 'signature_photo_1', type: 'image' }),
+            bindings,
+            ctx,
+        );
+        expect('signature_photo_1' in out).toBe(false);
+    });
+
+    it('keeps image fields when the value IS a data:image/ URL', () => {
+        const ctx = makeCtx({ submission: { logo: 'data:image/png;base64,abc' } });
+        const out = buildPdfInput(schemasOf({ name: 'logo', type: 'image' }), {}, ctx);
+        expect(out.logo).toBe('data:image/png;base64,abc');
     });
 });

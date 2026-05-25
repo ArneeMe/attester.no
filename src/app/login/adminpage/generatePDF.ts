@@ -29,21 +29,21 @@ export const generatePDF = async (
         basePdf: templateData.base_pdf,
         schemas: templateData.schemas,
     };
-    try {
-        const pdf = await generate({
-            template,
-            inputs: pdfInput,
-            plugins: { text, image, qrcode: barcodes.qrcode },
-        });
-        const filename = data.name ? `${data.name}_attest.pdf` : `attest_${submissionId}.pdf`;
-        const blob = new Blob([new Uint8Array(pdf.buffer)], { type: 'application/pdf' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', filename);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    } catch (error) {
-        console.error('Feil ved generering av PDF:', error);
-    }
+    // Do NOT swallow pdfme errors silently — the caller (admin page) needs
+    // to see them so the toast can surface a real reason. The most common
+    // failure mode is an unrenderable input value (e.g. an image field
+    // bound to a missing asset, before buildPdfInput's filtering kicked in).
+    const pdf = await generate({
+        template,
+        inputs: pdfInput,
+        plugins: { text, image, qrcode: barcodes.qrcode },
+    });
+    const filename = data.name ? `${data.name}_attest.pdf` : `attest_${submissionId}.pdf`;
+    const blob = new Blob([new Uint8Array(pdf.buffer)], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };

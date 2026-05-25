@@ -63,17 +63,24 @@ const AdminPage: React.FC = () => {
                         data: row.data,
                         createdAt: new Date(row.created_at),
                     })));
+                } else {
+                    const json = await subRes.json().catch(() => ({} as { error?: string }));
+                    toast.error(`Kunne ikke laste innsendinger: ${json.error ?? `HTTP ${subRes.status}`}`);
                 }
 
                 if (tmplRes.ok) {
                     const json = await tmplRes.json() as { templates: FullTemplate[] };
                     setTemplates(json.templates ?? []);
+                } else {
+                    const json = await tmplRes.json().catch(() => ({} as { error?: string }));
+                    toast.error(`Kunne ikke laste maler: ${json.error ?? `HTTP ${tmplRes.status}`}`);
                 }
             } catch (error) {
-                console.error('Failed to load data:', error);
+                toast.error(`Kunne ikke laste data: ${(error as Error).message ?? 'nettverksfeil'}`);
             }
         };
         fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orgSlug]);
 
     const templateById = (id: string) => templates.find((t) => t.id === id) ?? null;
