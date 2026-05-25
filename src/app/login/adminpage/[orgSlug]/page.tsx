@@ -172,8 +172,8 @@ const AdminPage: React.FC = () => {
                 <Paper elevation={1} sx={{ p: 3, mb: 2, bgcolor: 'grey.50' }}>
                     <Typography variant="h6" gutterBottom>Ingen innsendinger enda</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Volontører fyller ut skjemaet på <code>/org/{orgSlug}</code>.
-                        Når de sender inn, dukker de opp her klare for godkjenning.
+                        Folk fyller ut skjemaet på <code>/org/{orgSlug}</code>.
+                        Når de sender inn, dukker innsendingene opp her klare for godkjenning.
                     </Typography>
                     {templates.length === 0 && (
                         <Typography variant="body2" color="warning.main">

@@ -105,7 +105,7 @@ export default function MalerPage() {
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                 Alle PDF-malene i organisasjonen din. Standardmalen er den
-                volontører får når de besøker det offentlige skjemaet uten å
+                innsendere får når de besøker det offentlige skjemaet uten å
                 spesifisere en mal i URL-en.
             </Typography>
 

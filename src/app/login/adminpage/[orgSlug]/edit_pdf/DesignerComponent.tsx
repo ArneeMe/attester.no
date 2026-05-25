@@ -322,7 +322,7 @@ export default function DesignerComponent({
 
             <Paper sx={{ p: 2, mt: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="h6">Skjema (volontør → data)</Typography>
+                    <Typography variant="h6">Skjema (innsender → data)</Typography>
                     <Button
                         size="small"
                         onClick={() => setFormSchema(deriveFormSchema(currentSchemas, bindings))}

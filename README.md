@@ -24,7 +24,7 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
   tekstblokker, oppslagslister). Default-flagget styrer hva som
   hentes inn automatisk på nye attester.
 - `templates` — uforanderlige PDF-maler. Hver mal har en pdfme-layout,
-  et `form_schema` (skjemaet volontøren ser), og `field_bindings`
+  et `form_schema` (skjemaet innsenderen ser), og `field_bindings`
   (hvor hvert PDF-felt henter sin verdi: skjema, system, asset,
   oppslag, sammensatt tekst, …).
 - `submissions` — innsendte data, slettes manuelt etter PDF-generering.

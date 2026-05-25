@@ -55,9 +55,9 @@ export default function SchemaEditor({ schema, assets, onChange }: Props) {
     return (
         <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Skjemaet volontøren ser. Nøkkelen er det interne navnet som binder
+                Skjemaet innsenderen ser. Nøkkelen er det interne navnet som binder
                 feltet sammen med PDF-malen og verifisering. Etiketten er det
-                volontøren ser.
+                innsenderen ser.
             </Typography>
 
             {schema.length === 0 && (

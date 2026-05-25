@@ -84,7 +84,7 @@ export default function BindingsEditor({ schemas, bindings, assets, formSchema, 
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 For hvert felt i PDF-en, bestem hvor verdien skal komme fra. Lar du
                 den stå på «Skjemafelt (samme navn)» blir verdien hentet fra
-                volontøren sitt skjema med samme nøkkel. Forhåndsvisningen viser
+                innsenderens skjema med samme nøkkel. Forhåndsvisningen viser
                 hva som ville stått der med eksempeldata.
             </Typography>
             {fieldNames.map((name) => (
