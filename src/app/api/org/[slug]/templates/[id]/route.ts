@@ -132,21 +132,30 @@ export async function DELETE(
     }
 
     try {
+        // Count only certs belonging to *this* org. template_id alone would
+        // be sufficient today (UUIDs are unique and the cert-insert path
+        // already binds cert.organization_id to the issuer's org), but
+        // scoping by both is defence in depth — a future bug that lets a
+        // cert land with a stale org_id won't block this org from cleaning
+        // up its templates.
         const certCount = await hasuraAdmin<{
             certificates_aggregate: { aggregate: { count: number } };
         }>(
-            `query CountCerts($templateId: uuid!) {
-                certificates_aggregate(where: { template_id: { _eq: $templateId } }) {
+            `query CountCerts($templateId: uuid!, $organizationId: uuid!) {
+                certificates_aggregate(where: {
+                    template_id: { _eq: $templateId },
+                    organization_id: { _eq: $organizationId }
+                }) {
                     aggregate { count }
                 }
             }`,
-            { templateId: id },
+            { templateId: id, organizationId: auth.organizationId },
         );
         const n = certCount.certificates_aggregate.aggregate.count;
         if (n > 0) {
             return NextResponse.json(
                 {
-                    error: `Kan ikke slette malen: ${n} sertifikat${n === 1 ? '' : 'er'} referer til den. Slett sertifikatene først eller arkiver malen.`,
+                    error: `Kan ikke slette malen: ${n} sertifikat${n === 1 ? '' : 'er'} referer til den. Disse er fra tidligere "Generer PDF"-handlinger og blir værende selv om innsendingen er slettet (det er hele poenget — vi tar vare på hash-en, ikke dataen). Du må arkivere malen i stedet, eller slette sertifikatene først.`,
                     referencingCerts: n,
                 },
                 { status: 409 },

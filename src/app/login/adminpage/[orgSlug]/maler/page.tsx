@@ -9,19 +9,16 @@ import {
     Button,
     Chip,
     CircularProgress,
-    IconButton,
     Paper,
     Stack,
     Typography,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import EditIcon from '@mui/icons-material/Edit';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useToast } from '@/components/ToastProvider';
 import {
-    deleteTemplate,
     getTemplates,
     saveTemplate,
     setTemplateDefault,
@@ -70,20 +67,6 @@ export default function MalerPage() {
                 isDefault: false,
             });
             toast.success(`Kopi av «${t.name}» opprettet`);
-            await reload();
-        } catch (e) {
-            toast.error((e as Error).message);
-        }
-    };
-
-    const handleDelete = async (t: PDFTemplate) => {
-        if (!t.id) return;
-        if (!confirm(`Slette malen «${t.name}»?\n\nNB: Maler med eksisterende sertifikater kan ikke slettes.`)) {
-            return;
-        }
-        try {
-            await deleteTemplate(orgSlug, t.id);
-            toast.success(`«${t.name}» slettet`);
             await reload();
         } catch (e) {
             toast.error((e as Error).message);
@@ -178,13 +161,6 @@ export default function MalerPage() {
                                             Sett som standard
                                         </Button>
                                     )}
-                                    <IconButton
-                                        color="error"
-                                        onClick={() => handleDelete(t)}
-                                        aria-label={`Slett ${t.name}`}
-                                    >
-                                        <DeleteIcon />
-                                    </IconButton>
                                 </Box>
                             </Box>
                         </Paper>
