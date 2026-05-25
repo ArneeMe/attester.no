@@ -129,6 +129,23 @@ Issuer (`submitHash`), verifier (`OrgVerifyClient`), and seed scripts
 all import from these utilities. Do NOT inline the algorithm anywhere
 else — drift will silently invalidate certificates.
 
+### Future idea: version-tag the hash
+
+Today every cert is bound to v1 of the algorithm above — we cannot
+change the param shape, the encoding, or the digest without invalidating
+every cert in the wild. If a future change becomes necessary (add a
+field that participates in the hash, change canonicalisation, swap
+SHA-512 for something else), the escape hatch is to include a `v=2`
+slot in the cert URL **and** in the hash inputs. The verifier reads
+`v`, dispatches to the right algorithm. Old certs (no `v`) keep using
+v1 forever; new certs get the new algorithm. Storing the `v` on the
+certificates row (alongside the hash) lets the verifier route without
+trusting the URL.
+
+NOT implemented today and deliberately not added preemptively — the
+dispatch costs nothing once we actually need v2, and adding it before
+we need it is dead code. Captured here so the door stays visible.
+
 ## Org assets are the per-org content library
 
 The `organizations` row carries identity only (id, slug, name). All

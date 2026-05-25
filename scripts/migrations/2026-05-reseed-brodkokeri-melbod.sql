@@ -10,10 +10,16 @@
 -- the form's submission keys (name/role/start/end), so PDFs render with
 -- real data instead of blank.
 --
--- A placeholder body_text asset and a placeholder signature asset are
--- inserted so org_text and signature_* fields render with content.
--- The signature image is a small inlined PNG (stylized scribble) -- swap
--- in a real one via Innhold afterwards.
+-- A placeholder body_text asset, a placeholder signature asset, and a
+-- subgroup lookup_list (Undergrupper) are inserted per org. The form's
+-- `group` field is a dropdown sourced from the lookup_list so volunteers
+-- pick from canonical names instead of free-typing. The signature image
+-- is a small inlined PNG (stylized scribble) — swap in a real one via
+-- Innhold afterwards.
+--
+-- Also runs an idempotent NOT-EXISTS insert for echo's Undergrupper list
+-- (in case the org_assets migration step 5 was missed), without touching
+-- any of echo's real data.
 --
 -- After running, click "Generer PDF" on each submission in the admin UI to
 -- mint the cert hash + download the PDF.
@@ -49,7 +55,7 @@ DECLARE
     field_bindings_json jsonb := '{
         "title":             {"source":"composite","template":"Attest"},
         "recipient":         {"source":"composite","template":"{name}"},
-        "body":              {"source":"composite","template":"{name} har hatt vervet {role} fra {start:date} til {end:date}.","requireAll":["name","role","start","end"]},
+        "body":              {"source":"composite","template":"{name} har hatt vervet {role} i {group} fra {start:date} til {end:date}.","requireAll":["name","role","group","start","end"]},
         "org_text":          {"source":"asset_default","kind":"body_text","subField":"text"},
         "signature_photo_1": {"source":"asset_default","kind":"signature","position":0,"subField":"photo"},
         "signature_name_1":  {"source":"asset_default","kind":"signature","position":0,"subField":"name"},
@@ -60,30 +66,50 @@ DECLARE
         "qr_code":           {"source":"system","system":"qr_code"}
     }'::jsonb;
 
-    form_schema_json jsonb := '[
-        {"key":"name",  "label":"Navn",        "type":"text"},
-        {"key":"role",  "label":"Rolle / verv","type":"text"},
-        {"key":"start", "label":"Startdato",   "type":"date"},
-        {"key":"end",   "label":"Sluttdato",   "type":"date"}
-    ]'::jsonb;
+    -- Subgroups per org. Stored as a lookup_list asset (`Undergrupper`) so
+    -- the public form can render them as a dropdown — keeps the values
+    -- canonical (no "Webkom" vs "Webcom" typo drift). The volunteer picks
+    -- one; the {group} placeholder in the body binding resolves to it.
+    groups_by_slug jsonb := '{
+        "brodkokeri": {
+            "items": [
+                {"name":"Surdeigsgruppa",   "description":"Lager surdeigsbrød"},
+                {"name":"Loffgruppa",        "description":"Hvitt brød og loff"},
+                {"name":"Kakekomiteen",      "description":"Kaker og søtsaker"},
+                {"name":"Rugbrødslauget",    "description":"Rugbrød og grovbrød"},
+                {"name":"Hovedstyret",       "description":"Styret for Brødkokeriet"}
+            ]
+        },
+        "melbod": {
+            "items": [
+                {"name":"Mølleriet",         "description":"Mølle- og kornarbeid"},
+                {"name":"Bakekomiteen",      "description":"Daglig baking"},
+                {"name":"Frokostvakta",      "description":"Morgenvakt og frokost"},
+                {"name":"Innkjøp",           "description":"Innkjøp av mel og råvarer"},
+                {"name":"Hovedstyret",       "description":"Styret for Melboden"}
+            ]
+        }
+    }'::jsonb;
 
     submissions_by_slug jsonb := '{
         "brodkokeri": [
-            {"name":"[TEST] Ola Nordmann",    "role":"Leder",        "start":"2022-08-01","end":"2023-05-31"},
-            {"name":"[TEST] Kari Hansen",     "role":"Nestleder",    "start":"2022-09-15","end":"2023-06-30"},
-            {"name":"[TEST] Per Olsen",       "role":"Kasserer",     "start":"2023-01-10","end":"2023-12-20"},
-            {"name":"[TEST] Liv Berg",        "role":"Webansvarlig", "start":"2023-02-01","end":"2024-01-31"},
-            {"name":"[TEST] Sondre Pedersen", "role":"PR-ansvarlig", "start":"2023-03-15","end":"2024-02-28"}
+            {"name":"[TEST] Ola Nordmann",    "role":"Leder",        "group":"Surdeigsgruppa",  "start":"2022-08-01","end":"2023-05-31"},
+            {"name":"[TEST] Kari Hansen",     "role":"Nestleder",    "group":"Kakekomiteen",    "start":"2022-09-15","end":"2023-06-30"},
+            {"name":"[TEST] Per Olsen",       "role":"Kasserer",     "group":"Rugbrødslauget",  "start":"2023-01-10","end":"2023-12-20"},
+            {"name":"[TEST] Liv Berg",        "role":"Webansvarlig", "group":"Hovedstyret",     "start":"2023-02-01","end":"2024-01-31"},
+            {"name":"[TEST] Sondre Pedersen", "role":"PR-ansvarlig", "group":"Loffgruppa",      "start":"2023-03-15","end":"2024-02-28"}
         ],
         "melbod": [
-            {"name":"[TEST] Henrik Hansen",   "role":"Brygger",      "start":"2022-03-01","end":"2023-02-28"},
-            {"name":"[TEST] Anne Larsen",     "role":"Leder",        "start":"2023-01-15","end":"2023-12-15"},
-            {"name":"[TEST] Erik Andersen",   "role":"Smaksdommer",  "start":"2022-06-01","end":"2023-05-31"},
-            {"name":"[TEST] Maria Johansen",  "role":"PR-ansvarlig", "start":"2023-04-01","end":"2024-03-31"},
-            {"name":"[TEST] Astrid Eriksen",  "role":"Nestleder",    "start":"2023-05-10","end":"2024-04-30"}
+            {"name":"[TEST] Henrik Hansen",   "role":"Brygger",      "group":"Mølleriet",       "start":"2022-03-01","end":"2023-02-28"},
+            {"name":"[TEST] Anne Larsen",     "role":"Leder",        "group":"Hovedstyret",     "start":"2023-01-15","end":"2023-12-15"},
+            {"name":"[TEST] Erik Andersen",   "role":"Smaksdommer",  "group":"Bakekomiteen",    "start":"2022-06-01","end":"2023-05-31"},
+            {"name":"[TEST] Maria Johansen",  "role":"PR-ansvarlig", "group":"Frokostvakta",    "start":"2023-04-01","end":"2024-03-31"},
+            {"name":"[TEST] Astrid Eriksen",  "role":"Nestleder",    "group":"Innkjøp",         "start":"2023-05-10","end":"2024-04-30"}
         ]
     }'::jsonb;
 
+    lookup_id uuid;
+    form_schema_json jsonb;
     sub jsonb;
 BEGIN
     FOREACH target_slug IN ARRAY target_slugs LOOP
@@ -100,6 +126,28 @@ BEGIN
         DELETE FROM submissions  WHERE organization_id = org_id;
         DELETE FROM templates    WHERE organization_id = org_id;
         DELETE FROM org_assets   WHERE organization_id = org_id;
+
+        -- Subgroup lookup list first — the template's form_schema references
+        -- its id so the public form can render groups as a dropdown.
+        INSERT INTO org_assets (organization_id, kind, name, content, is_default, sort_order)
+        VALUES (
+            org_id,
+            'lookup_list',
+            'Undergrupper',
+            groups_by_slug->target_slug,
+            true,
+            0
+        ) RETURNING id INTO lookup_id;
+
+        -- Form schema with `group` as a dropdown sourced from the list above.
+        form_schema_json := jsonb_build_array(
+            jsonb_build_object('key','name', 'label','Navn',         'type','text'),
+            jsonb_build_object('key','role', 'label','Rolle / verv', 'type','text'),
+            jsonb_build_object('key','group','label','Gruppe',       'type','dropdown',
+                               'optionsFromAsset', lookup_id::text),
+            jsonb_build_object('key','start','label','Startdato',    'type','date'),
+            jsonb_build_object('key','end',  'label','Sluttdato',    'type','date')
+        );
 
         -- Fresh default template.
         INSERT INTO templates (
@@ -157,3 +205,33 @@ BEGIN
         RAISE NOTICE 'org "%": reseeded — template % + 5 submissions', target_slug, tmpl_id;
     END LOOP;
 END$reseed$;
+
+-- Echo's Undergrupper list is set up by 2026-05-org-assets.sql (step 5).
+-- If it's somehow missing (migration not yet run, manually deleted, etc.),
+-- create it with the canonical echo subgroups. Idempotent: NOT-EXISTS gate
+-- means re-running this block doesn't touch echo's real data.
+INSERT INTO org_assets (organization_id, kind, name, content, is_default, sort_order)
+SELECT
+    o.id,
+    'lookup_list',
+    'Undergrupper',
+    '{
+        "items": [
+            {"name":"Webkom",         "description":"Webgruppa"},
+            {"name":"Bedkom",         "description":"Bedriftskontakten"},
+            {"name":"Hovedstyret",    "description":"Hovedstyret"},
+            {"name":"Sosialkom",      "description":"Sosialkomiteen"},
+            {"name":"Bokkom",         "description":"Bokkomiteen"},
+            {"name":"Tilflyttingskom","description":"Tilflytterkomiteen"}
+        ]
+    }'::jsonb,
+    true,
+    0
+FROM organizations o
+WHERE o.slug = 'echo'
+  AND NOT EXISTS (
+      SELECT 1 FROM org_assets a
+      WHERE a.organization_id = o.id
+        AND a.kind = 'lookup_list'
+        AND a.name = 'Undergrupper'
+  );
