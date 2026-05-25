@@ -10,6 +10,14 @@ interface ConfirmDialogProps {
     onClose: () => void;
     confirmButtonText?: string;
     showCancelButton?: boolean;
+    // Optional second action button rendered alongside the primary confirm.
+    // Useful for "Lukk" + "Slett innsendingen" style dialogs where neither
+    // action is destructive enough to be the cancel button.
+    secondaryAction?: {
+        label: string;
+        onClick: () => void;
+        color?: 'primary' | 'error' | 'warning' | 'info';
+    };
 }
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -21,6 +29,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                                                          onClose,
                                                          confirmButtonText,
                                                          showCancelButton = true,
+                                                         secondaryAction,
                                                      }: ConfirmDialogProps) => {
     return (
         <Dialog open={open} onClose={onClose}>
@@ -34,6 +43,14 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                     <Button onClick={onClose} color="primary">
                         Avbryt
                     </Button>}
+                {secondaryAction && (
+                    <Button
+                        onClick={secondaryAction.onClick}
+                        color={secondaryAction.color ?? 'primary'}
+                    >
+                        {secondaryAction.label}
+                    </Button>
+                )}
                 <Button variant="contained" onClick={onConfirm} color="primary">
                     {confirmButtonText || 'Bekreft'}
                 </Button>

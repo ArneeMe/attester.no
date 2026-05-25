@@ -269,16 +269,34 @@ const AdminPage: React.FC = () => {
 
             <ConfirmDialog
                 open={openPDFDialog}
-                title="PDF-en er Generert"
-                message="Husk å les over og sørg for at alt er riktig, så slett innsendingen fra databasen."
+                title="PDF-en er generert"
+                message="Sjekk at alt ser riktig ut, og slett deretter innsendingen for å fjerne personinformasjonen fra databasen."
                 details={<Typography variant="body1">
-                    Her er verifiserings URL-en:
-                    <Link href={pdfUrl} target="_blank" rel="">{pdfUrl}</Link>
+                    Her er verifiserings-URL-en:{' '}
+                    <Link href={pdfUrl} target="_blank" rel="noreferrer">{pdfUrl}</Link>
                 </Typography>}
                 onConfirm={() => setOpenPDFDialog(false)}
                 onClose={() => setOpenPDFDialog(false)}
-                confirmButtonText="OK"
+                confirmButtonText="Lukk"
                 showCancelButton={false}
+                secondaryAction={
+                    selected
+                        ? {
+                              label: 'Slett innsendingen nå',
+                              color: 'error',
+                              onClick: async () => {
+                                  try {
+                                      await handleDelete(selected.id);
+                                      setOpenPDFDialog(false);
+                                      setSelected(null);
+                                      toast.success('Innsendingen er slettet');
+                                  } catch (e) {
+                                      toast.error((e as Error).message);
+                                  }
+                              },
+                          }
+                        : undefined
+                }
             />
         </>
     );
