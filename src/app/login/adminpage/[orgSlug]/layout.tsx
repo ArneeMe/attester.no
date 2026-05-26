@@ -33,7 +33,7 @@ export default function OrgAdminLayout({ children }: { children: React.ReactNode
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                     {currentOrg.name}
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                     <Button
                         component={Link}
                         href={`/login/adminpage/${orgSlug}`}
@@ -48,7 +48,7 @@ export default function OrgAdminLayout({ children }: { children: React.ReactNode
                         variant="outlined"
                         size="small"
                     >
-                        Rediger innhold
+                        Innhold
                     </Button>
                     <Button
                         component={Link}
@@ -57,6 +57,24 @@ export default function OrgAdminLayout({ children }: { children: React.ReactNode
                         size="small"
                     >
                         PDF-mal
+                    </Button>
+                    <Button
+                        component={Link}
+                        href={`/login/adminpage/${orgSlug}/maler`}
+                        variant="outlined"
+                        size="small"
+                    >
+                        Maler
+                    </Button>
+                    <Button
+                        component={Link}
+                        href={`/org/${orgSlug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        variant="text"
+                        size="small"
+                    >
+                        Se offentlig skjema ↗
                     </Button>
                 </Box>
             </Box>

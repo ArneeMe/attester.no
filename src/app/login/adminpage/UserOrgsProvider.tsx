@@ -1,6 +1,6 @@
 'use client'
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { authHeader } from '@/lib/nhost';
+import { authHeader, nhost } from '@/lib/nhost';
 
 export type UserOrg = { id: string; slug: string; name: string; role: string };
 
@@ -30,6 +30,14 @@ export function UserOrgsProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         refresh();
+        // Re-fetch when the session changes — on first login the access
+        // token may not be in storage yet at mount time, so without this
+        // the initial refresh() sends no auth header, gets 401, and the
+        // user sees "no orgs" until they log out and back in.
+        return nhost.sessionStorage.onChange((session) => {
+            if (session) refresh();
+            else setOrgs([]);
+        });
     }, [refresh]);
 
     return <UserOrgsContext.Provider value={{ orgs, refresh }}>{children}</UserOrgsContext.Provider>;

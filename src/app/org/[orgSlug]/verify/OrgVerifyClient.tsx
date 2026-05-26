@@ -10,7 +10,7 @@ const OrgVerifyClient: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
     const searchParams = useSearchParams();
     const colorTheme = customTheme.palette;
-    const volunteerId = searchParams.get('id') ?? '';
+    const submissionId = searchParams.get('id') ?? '';
     const templateId = searchParams.get('t') ?? '';
 
     const [storedHash, setStoredHash] = useState<string | null | undefined>(undefined);
@@ -39,12 +39,12 @@ const OrgVerifyClient: React.FC = () => {
     }, [orgSlug, templateId]);
 
     useEffect(() => {
-        if (!volunteerId) { setStoredHash(null); return; }
-        fetch(`/api/org/${encodeURIComponent(orgSlug)}/certificates/verify?volunteerId=${encodeURIComponent(volunteerId)}`)
+        if (!submissionId) { setStoredHash(null); return; }
+        fetch(`/api/org/${encodeURIComponent(orgSlug)}/certificates/verify?submissionId=${encodeURIComponent(submissionId)}`)
             .then((r) => r.json())
             .then((json: { hash: string | null }) => setStoredHash(json.hash))
             .catch(() => setStoredHash(null));
-    }, [orgSlug, volunteerId]);
+    }, [orgSlug, submissionId]);
 
     useEffect(() => {
         if (storedHash === undefined) return;

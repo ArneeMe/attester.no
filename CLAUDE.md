@@ -128,3 +128,103 @@ Algorithm:
 Issuer (`submitHash`), verifier (`OrgVerifyClient`), and seed scripts
 all import from these utilities. Do NOT inline the algorithm anywhere
 else — drift will silently invalidate certificates.
+
+### Future idea: version-tag the hash
+
+Today every cert is bound to v1 of the algorithm above — we cannot
+change the param shape, the encoding, or the digest without invalidating
+every cert in the wild. If a future change becomes necessary (add a
+field that participates in the hash, change canonicalisation, swap
+SHA-512 for something else), the escape hatch is to include a `v=2`
+slot in the cert URL **and** in the hash inputs. The verifier reads
+`v`, dispatches to the right algorithm. Old certs (no `v`) keep using
+v1 forever; new certs get the new algorithm. Storing the `v` on the
+certificates row (alongside the hash) lets the verifier route without
+trusting the URL.
+
+NOT implemented today and deliberately not added preemptively — the
+dispatch costs nothing once we actually need v2, and adding it before
+we need it is dead code. Captured here so the door stays visible.
+
+## Org assets are the per-org content library
+
+The `organizations` row carries identity only (id, slug, name). All
+per-org content — signatures, logos, body-text blocks, lookup lists —
+lives in `org_assets` keyed by `(organization_id, kind)`.
+
+Kinds and their `content` jsonb shapes:
+
+- `signature` — `{ photo, role, phone }` (the row's `name` column holds the
+  person's name).
+- `logo` — `{ image }` (row's `name` holds a human label).
+- `body_text` — `{ text }` (row's `name` holds a block title).
+- `lookup_list` — `{ items: [{ name, description, ... }] }` (row's `name`
+  holds the list title).
+
+`is_default` marks which assets are auto-picked when a template binding
+asks for the "default" of a kind (e.g. "first default signature").
+`sort_order` orders the defaults.
+
+### Do NOT re-add per-org columns
+
+The migration in `scripts/migrations/2026-05-org-assets.sql` deleted
+the old columns `signatures`, `groups`, `generic_text` from
+`organizations`. Adding a new echo-specific column is a regression —
+put it in the asset library as a new kind, or extend an existing
+kind's content jsonb.
+
+## Templates' field_bindings drive PDF rendering
+
+Every template carries a `field_bindings` jsonb column mapping pdfme
+schema field names to a data source:
+
+- `system` — qr_code, qr_info, qr_page, today
+- `submission` — a key in the volunteer's submission data
+- `composite` — a string template with `{key}` placeholders; `{key:date}`
+  formats dates; optional `requireAll` blanks the field if any listed
+  submission key is missing
+- `asset` — a specific asset by id (+ optional `subField` to pick a
+  jsonb path like `photo`, `text`, `image`)
+- `asset_default` — the Nth default asset of a given kind (so an admin
+  swap of "current Leder" propagates automatically)
+- `lookup` — find an item in a lookup_list by matching its `name`
+  against a submission key, return the named sub-field
+
+The resolver is `src/util/resolveBinding.ts`. The single PDF-input
+builder is `buildPdfInput` in the same file.
+
+### Implicit fallback
+
+If a pdfme field has NO binding, the resolver looks for a submission key
+of the same name. This is what lets simple templates ("PDF field name =
+form field name") work without any binding configuration.
+
+### Do NOT inline per-template rendering logic
+
+The old `getPDFInput.tsx` had hardcoded echo-specific composite logic
+(`student_role`, `verv_1`, `group_info`, …). All of that is gone. New
+per-org PDF rules go into `field_bindings` (data in the DB), not code.
+
+## Form fields
+
+`FormFieldSchema` types: `text | date | dropdown | long_text | number`.
+Dropdowns can specify static `options` or `optionsFromAsset` (a
+`lookup_list` id). The public template API (`templates/[id]` and
+`default-template`) resolves `optionsFromAsset` → `options` so the
+volunteer sees a static dropdown without ever seeing the asset id.
+
+The Designer page's `SchemaEditor` lets admins edit the form_schema; the
+`fromPdfmeTemplate` helper auto-derives a starter schema from the
+pdfme placeholder names when the admin hasn't set one.
+
+## Mandatory PDF elements
+
+`validateTemplateForSave` (`src/util/validateTemplate.ts`) is run by the
+designer before save and refuses templates without:
+
+- A `qrcode` field (so certs are verifiable).
+- A text field whose default `content` includes "attester.no" (the
+  platform fingerprint, by user request).
+
+Placement is the admin's choice. Removing this validation defeats the
+constraint the user explicitly asked for.

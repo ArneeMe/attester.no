@@ -1,7 +1,9 @@
 import { authHeader } from '@/lib/nhost';
 import type { PDFTemplate } from '@/types/templateTypes';
 import type { FormSchema } from '@/types/formSchema';
+import type { FieldBindings } from '@/types/fieldBindings';
 import type { Template } from '@pdfme/common';
+import { deriveFormSchema } from '@/util/templateFields';
 
 type TemplateRow = {
     id: string;
@@ -11,6 +13,7 @@ type TemplateRow = {
     base_pdf: string;
     schemas: Template['schemas'];
     form_schema: FormSchema | null;
+    field_bindings: FieldBindings | null;
     is_default: boolean;
     created_at: string;
     updated_at: string;
@@ -29,10 +32,37 @@ export async function getTemplates(orgSlug: string): Promise<PDFTemplate[]> {
         basePdf: row.base_pdf,
         schemas: row.schemas,
         formSchema: row.form_schema ?? undefined,
+        fieldBindings: row.field_bindings ?? undefined,
         isDefault: row.is_default,
         createdAt: new Date(row.created_at),
         updatedAt: new Date(row.updated_at),
     }));
+}
+
+export async function setTemplateDefault(orgSlug: string, templateId: string, isDefault: boolean): Promise<void> {
+    const res = await fetch(
+        `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`,
+        {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json', ...authHeader() },
+            body: JSON.stringify({ isDefault }),
+        },
+    );
+    if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? 'Failed to update template default');
+    }
+}
+
+export async function deleteTemplate(orgSlug: string, templateId: string): Promise<void> {
+    const res = await fetch(
+        `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`,
+        { method: 'DELETE', headers: authHeader() },
+    );
+    if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? 'Failed to delete template');
+    }
 }
 
 export async function saveTemplate(
@@ -48,6 +78,7 @@ export async function saveTemplate(
             basePdf: template.basePdf,
             schemas: template.schemas,
             formSchema: template.formSchema,
+            fieldBindings: template.fieldBindings ?? {},
             isDefault: template.isDefault,
         }),
     });
@@ -62,16 +93,31 @@ export async function saveTemplate(
     };
 }
 
+/**
+ * Convert a pdfme Designer template into our PDFTemplate shape. The designer
+ * doesn't know about field bindings or the public form schema, so we auto-
+ * derive a sensible default form_schema from the placeholder names (admin can
+ * later customise labels / types).
+ */
 export function fromPdfmeTemplate(
     pdfmeTemplate: Template,
     name: string,
-    options?: { description?: string; isDefault?: boolean },
+    options?: {
+        description?: string;
+        isDefault?: boolean;
+        fieldBindings?: FieldBindings;
+        formSchema?: FormSchema;
+    },
 ): Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'> {
+    const fieldBindings = options?.fieldBindings ?? {};
+    const formSchema = options?.formSchema ?? deriveFormSchema(pdfmeTemplate.schemas, fieldBindings);
     return {
         name,
         description: options?.description,
         basePdf: pdfmeTemplate.basePdf as string,
         schemas: pdfmeTemplate.schemas,
+        formSchema,
+        fieldBindings,
         isDefault: options?.isDefault ?? false,
     };
 }

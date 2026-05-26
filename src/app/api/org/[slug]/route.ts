@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
-import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
 
 export const runtime = "edge";
 
@@ -8,9 +7,6 @@ type OrgRow = {
     id: string;
     slug: string;
     name: string;
-    generic_text: string | null;
-    groups: Record<string, string> | null;
-    signatures: Array<{ photo: string; name: string; role: string; phone: string }> | null;
 };
 
 export async function GET(
@@ -22,7 +18,7 @@ export async function GET(
         const data = await hasuraAdmin<{ organizations: OrgRow[] }>(
             `query GetOrg($slug: String!) {
                 organizations(where: { slug: { _eq: $slug } }, limit: 1) {
-                    id slug name generic_text groups signatures
+                    id slug name
                 }
             }`,
             { slug },
@@ -30,33 +26,6 @@ export async function GET(
         const org = data.organizations[0];
         if (!org) return NextResponse.json({ error: "Not found" }, { status: 404 });
         return NextResponse.json({ organization: org });
-    } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
-    }
-}
-
-export async function PATCH(
-    req: NextRequest,
-    { params }: { params: Promise<{ slug: string }> },
-) {
-    const { slug } = await params;
-    const auth = await requireOrgMemberBySlug(req, slug);
-    if (auth instanceof NextResponse) return auth;
-
-    const { genericText, groups, signatures } = await req.json();
-    try {
-        const fields: Record<string, unknown> = {};
-        if (genericText !== undefined) fields.generic_text = genericText;
-        if (groups !== undefined) fields.groups = groups;
-        if (signatures !== undefined) fields.signatures = signatures;
-
-        const data = await hasuraAdmin<{ update_organizations: { affected_rows: number } }>(
-            `mutation UpdateOrg($organizationId: uuid!, $set: organizations_set_input!) {
-                update_organizations(where: { id: { _eq: $organizationId } }, _set: $set) { affected_rows }
-            }`,
-            { organizationId: auth.organizationId, set: fields },
-        );
-        return NextResponse.json({ affectedRows: data.update_organizations.affected_rows });
     } catch (e) {
         return NextResponse.json({ error: (e as Error).message }, { status: 500 });
     }

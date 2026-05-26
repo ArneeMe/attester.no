@@ -1,8 +1,17 @@
+export type FormFieldType = 'text' | 'date' | 'dropdown' | 'long_text' | 'number';
+
 export type FormFieldSchema = {
     key: string;
     label: string;
-    type: 'text' | 'date';
+    type: FormFieldType;
     optional?: boolean;
+    /**
+     * For type='dropdown'. Either provide a static `options` array, or set
+     * `optionsFromAsset` to a lookup_list asset id — the public form API
+     * resolves it into `options` before sending to the volunteer.
+     */
+    options?: string[];
+    optionsFromAsset?: string;
 };
 
 export type FormSchema = FormFieldSchema[];

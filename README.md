@@ -17,16 +17,40 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
 - pdfme for PDF-generering i nettleseren
 - Cloudflare Pages
 
+## Datamodell i grove trekk
+
+- `organizations` — identitet (slug, navn). Ingenting personlig.
+- `org_assets` — per-org innholdsbibliotek (signaturer, logoer,
+  tekstblokker, oppslagslister). Default-flagget styrer hva som
+  hentes inn automatisk på nye attester.
+- `templates` — uforanderlige PDF-maler. Hver mal har en pdfme-layout,
+  et `form_schema` (skjemaet innsenderen ser), og `field_bindings`
+  (hvor hvert PDF-felt henter sin verdi: skjema, system, asset,
+  oppslag, sammensatt tekst, …).
+- `submissions` — innsendte data, slettes manuelt etter PDF-generering.
+- `certificates` — kun id, hash, template-id, org-id, tidsstempel.
+  Ingen personalia.
+
+Se [CLAUDE.md](CLAUDE.md) for personvernsmodellen og hvorfor det er
+viktig at strukturen forblir slik.
+
 ## Struktur
 
 ```
 src/app/
   api/       — server-side API-ruter (DB-tilgang via Hasura admin)
   login/     — admin-innlogging og dashboard
-  verify/    — offentlig verifiseringsside
-  pdfinfo/   — PDF-maler og logikk
-  util/      — hjelpefunksjoner (hashing, db, formatering)
+  verify/    — gamle offentlige verifiseringssiden (legacy)
+  org/       — per-org offentlig form og verifisering
+  pdfinfo/   — bundlede pdfme-maler og startermaler
+util/        — resolveBinding, validateTemplate, hashing, …
+types/       — formSchema, fieldBindings, orgAssets, templateTypes
 ```
+
+## Migrasjoner
+
+SQL-filer i `scripts/migrations/` kjøres i Hasura SQL-konsollen, så
+sporer du de nye/endrede tabellene i Hasura-grafQL-skjemaet.
 
 ## Kjøre lokalt
 

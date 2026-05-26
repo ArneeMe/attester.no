@@ -2,7 +2,7 @@
 export const runtime = 'edge';
 
 import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
     Box,
     Container,
@@ -28,6 +28,8 @@ const DesignerComponent = dynamic(() => import('./DesignerComponent'), {
 
 export default function TemplateEditorPage() {
     const { orgSlug } = useParams<{ orgSlug: string }>();
+    const searchParams = useSearchParams();
+    const loadTemplateId = searchParams.get('id');
     const [templateName, setTemplateName] = useState('');
     const [templateDescription, setTemplateDescription] = useState('');
     const [isDefault, setIsDefault] = useState(false);
@@ -88,6 +90,7 @@ export default function TemplateEditorPage() {
                 templateName={templateName}
                 templateDescription={templateDescription}
                 isDefault={isDefault}
+                initialTemplateId={loadTemplateId}
                 onError={setError}
                 onSuccess={setSuccessMessage}
                 onTemplateLoad={(name, desc, def) => {
@@ -99,17 +102,13 @@ export default function TemplateEditorPage() {
 
             <Paper sx={{ p: 2, mt: 2, bgcolor: 'info.light' }}>
                 <Typography variant="subtitle2" gutterBottom>
-                    Tips for feltnavn:
+                    Slik kobler du PDF-felter til data:
                 </Typography>
-                <Typography variant="body2" component="ul" sx={{ mt: 1 }}>
-                    <li><code>student_name_date</code> - Tittel med studentens navn</li>
-                    <li><code>student_role</code> - Rolle-beskrivelse</li>
-                    <li><code>signature_date</code> - Dagens dato</li>
-                    <li><code>group_info</code> - Beskrivelse av gruppen</li>
-                    <li><code>echo_info</code> - Generell organisasjonstekst</li>
-                    <li><code>signature_name_1</code>, <code>signature_role_1</code>, <code>signature_photo_1</code> - Signatur 1</li>
-                    <li><code>signature_name_2</code>, <code>signature_role_2</code>, <code>signature_photo_2</code> - Signatur 2</li>
-                    <li><code>qr_code</code> - QR-kode for verifisering</li>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                    Gi PDF-feltet samme navn som et skjemafelt (f.eks. <code>name</code>,{' '}
+                    <code>role</code>), så fylles det automatisk inn. For mer avansert
+                    oppførsel (sammensatte tekster, signaturer fra biblioteket,
+                    oppslagslister) – bruk «Felter»-panelet under designeren.
                 </Typography>
             </Paper>
 

@@ -1,81 +1,53 @@
-import {generateURL} from "./generateURL";
-import {getGroupInfo, getOrganizationInfo, getSignatureInfo} from "@/util/databaseInteractions/fetchInfo";
-import {formatDate} from "@/util/formatDate";
-import {Volunteer} from '@/util/Volunteer'
-import {Certificate} from '@/app/login/adminpage/Certificate'
-import type {SignatureInfo} from '@/types/pdfTypes';
+import type { Template } from '@pdfme/common';
+import { generateURL } from './generateURL';
+import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
+import { buildPdfInput, type SystemValues } from '@/util/resolveBinding';
+import type { FieldBindings } from '@/types/fieldBindings';
 
-const EMPTY_SIGNATURE: SignatureInfo = { photo: '', name: '', role: '', phone: '' };
-
-export const getPdfInput = async (orgSlug: string, templateId: string, volunteer: Volunteer): Promise<Certificate[]> => {
+/**
+ * Build the flat `Record<string, string>` that pdfme.generate expects.
+ *
+ * Each field name in the template's pdfme schema resolves via:
+ *   1. The template's field_bindings, if a binding exists for that name.
+ *   2. Otherwise, submission.data[<field name>] directly.
+ *
+ * Field bindings cover system slots (qr_code, today, …), composite strings,
+ * and references into the per-org asset library.
+ */
+export const getPdfInput = async (
+    orgSlug: string,
+    templateId: string,
+    submissionId: string,
+    data: Record<string, string>,
+    schemas: Template['schemas'],
+    fieldBindings: FieldBindings,
+): Promise<Record<string, string>[]> => {
     const today = new Date();
     const dd = String(today.getDate()).padStart(2, '0');
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const yyyy = today.getFullYear();
-    const name = volunteer.personName;
-    const fullURL = generateURL(orgSlug, templateId, volunteer);
+
+    const fullURL = generateURL(orgSlug, templateId, submissionId, data);
     const basePageURL = window.location.origin;
 
-    let groupInfo = `Information about ${volunteer.groupName}`;
-    let generic_echo = '';
-    let signaturePerson1: SignatureInfo = EMPTY_SIGNATURE;
-    let signaturePerson2: SignatureInfo = EMPTY_SIGNATURE;
-
-    try {
-        const [groupDescriptions, organizationInfo, signatories] = await Promise.all([
-            getGroupInfo(orgSlug),
-            getOrganizationInfo(orgSlug),
-            getSignatureInfo(orgSlug)
-        ]);
-
-        if (volunteer.groupName && groupDescriptions[volunteer.groupName]) {
-            groupInfo = groupDescriptions[volunteer.groupName];
-        }
-
-        if (organizationInfo.generic_text) {
-            generic_echo = organizationInfo.generic_text;
-        }
-
-        if (signatories.length >= 1) {
-            signaturePerson1 = signatories[0];
-        }
-
-        if (signatories.length >= 2) {
-            signaturePerson2 = signatories[1];
-        }
-    } catch (error) {
-        console.error('Error fetching content for certificate:', error);
-    }
-
-    const getVervText = (index: number) => {
-        if (volunteer.extraRole && volunteer.extraRole.length > index) {
-            const role = volunteer.extraRole[index];
-            if (role.role && role.groupName && role.startDate && role.endDate) {
-                return `${name} har og hatt en stilling som ${role.role} i ${role.groupName} fra ${formatDate(role.startDate)} til ${formatDate(role.endDate)}`;
-            }
-        }
-        return '';
+    const system: SystemValues = {
+        today: `${dd}.${mm}.${yyyy}`,
+        qr_code: fullURL,
+        qr_info: 'Scan for å verifisere',
+        qr_page: basePageURL,
     };
 
-    return [{
-        signature_date: dd + '.' + mm + '.' + yyyy,
-        student_name_date: `Attest til ${name}`,
-        student_role: `${name} har vært ${volunteer.role} i ${volunteer.groupName} fra ${formatDate(volunteer.startDate)} til ${formatDate(volunteer.endDate)}`,
-        group_info: groupInfo,
-        echo_info: generic_echo,
-        verv_1: getVervText(0),
-        verv_2: getVervText(1),
-        verv_3: getVervText(2),
-        signature_photo_1: signaturePerson1.photo,
-        signature_photo_2: signaturePerson2.photo,
-        signature_name_1: signaturePerson1.name,
-        signature_name_2: signaturePerson2.name,
-        signature_role_1: signaturePerson1.role,
-        signature_role_2: signaturePerson2.role,
-        signature_phone_1: signaturePerson1.phone,
-        signature_phone_2: signaturePerson2.phone,
-        qr_code: `${fullURL}`,
-        qr_info: `Scan for å verifisere`,
-        qr_page: `${basePageURL}`,
-    }];
+    let assets = [] as Awaited<ReturnType<typeof listOrgAssets>>;
+    try {
+        assets = await listOrgAssets(orgSlug);
+    } catch (error) {
+        console.error('Error loading org assets:', error);
+    }
+
+    const input = buildPdfInput(schemas, fieldBindings ?? {}, {
+        submission: data,
+        assets,
+        system,
+    });
+    return [input];
 };
