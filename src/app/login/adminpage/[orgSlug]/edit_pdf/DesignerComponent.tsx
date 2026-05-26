@@ -19,6 +19,14 @@ import { deriveFormSchema } from '@/util/templateFields';
 import { validateTemplateForSave } from '@/util/validateTemplate';
 import { buildPreviewPdfUrl } from '@/util/previewPdf';
 import { applyBackground, readBackgroundColor, BACKGROUNDS } from '@/util/templateBackground';
+import {
+    quickAddBodyText,
+    quickAddBrand,
+    quickAddLogo,
+    quickAddQrCode,
+    quickAddSignature,
+    type QuickAddResult,
+} from '@/util/quickAddFields';
 import type { PDFTemplate } from '@/types/templateTypes';
 import type { FieldBindings } from '@/types/fieldBindings';
 import type { OrgAsset } from '@/types/orgAssets';
@@ -271,6 +279,18 @@ export default function DesignerComponent({
         setSchemaRev((r) => r + 1);
     };
 
+    const handleQuickAdd = (factory: (schemas: Template['schemas']) => QuickAddResult) => {
+        if (!designerRef.current) return;
+        const current = designerRef.current.getTemplate();
+        const { fields, bindings: newBindings } = factory(current.schemas);
+        if (fields.length === 0) return; // idempotent factories may return empty
+        const firstPage = [...(current.schemas[0] ?? []), ...fields];
+        const nextSchemas = [firstPage, ...current.schemas.slice(1)];
+        designerRef.current.updateTemplate({ ...current, schemas: nextSchemas });
+        setBindings((prev) => ({ ...prev, ...newBindings }));
+        setSchemaRev((r) => r + 1);
+    };
+
     return (
         <>
             <Paper sx={{ p: 2, mb: 2 }}>
@@ -316,6 +336,27 @@ export default function DesignerComponent({
                         ))}
                     </Box>
                 )}
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                        Hurtig-felter:
+                    </Typography>
+                    <Button size="small" variant="outlined" onClick={() => handleQuickAdd(quickAddQrCode)}>
+                        + QR-kode
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={() => handleQuickAdd(quickAddSignature)}>
+                        + Signatur
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={() => handleQuickAdd(quickAddLogo)}>
+                        + Logo
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={() => handleQuickAdd(quickAddBodyText)}>
+                        + Tekstblokk
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={() => handleQuickAdd(quickAddBrand)}>
+                        + attester.no-merke
+                    </Button>
+                </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, flexWrap: 'wrap' }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
