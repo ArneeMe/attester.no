@@ -46,12 +46,25 @@ export default function SchemaEditor({ orgSlug, schema, assets, onChange }: Prop
         onChange(next);
     };
 
+    // When the admin types a label, slugify it into the key automatically
+    // — as long as they haven't already hand-edited the key (`autoKey` is
+    // true). Drops the cognitive load of "what should I name this field"
+    // and keeps key + label in sync for new fields.
+    const updateLabel = (i: number, label: string) => {
+        const field = schema[i];
+        const patch: Partial<FormFieldSchema> = { label };
+        if (field.autoKey !== false) {
+            patch.key = slugifyKey(label) || field.key;
+        }
+        updateField(i, patch);
+    };
+
     const removeField = (i: number) => onChange(schema.filter((_, idx) => idx !== i));
 
     const addField = () =>
         onChange([
             ...schema,
-            { key: `field_${schema.length + 1}`, label: 'Nytt felt', type: 'text' },
+            { key: `field_${schema.length + 1}`, label: 'Nytt felt', type: 'text', autoKey: true },
         ]);
 
     return (
@@ -74,17 +87,22 @@ export default function SchemaEditor({ orgSlug, schema, assets, onChange }: Prop
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
                         <TextField
                             size="small"
-                            label="Nøkkel"
-                            value={field.key}
-                            onChange={(e) => updateField(i, { key: e.target.value.trim() })}
-                            sx={{ minWidth: 140 }}
+                            label="Etikett"
+                            value={field.label}
+                            onChange={(e) => updateLabel(i, e.target.value)}
+                            sx={{ minWidth: 180 }}
                         />
                         <TextField
                             size="small"
-                            label="Etikett"
-                            value={field.label}
-                            onChange={(e) => updateField(i, { label: e.target.value })}
-                            sx={{ minWidth: 180 }}
+                            label="Nøkkel"
+                            value={field.key}
+                            onChange={(e) =>
+                                updateField(i, {
+                                    key: slugifyKey(e.target.value),
+                                    autoKey: false,
+                                })
+                            }
+                            sx={{ minWidth: 140 }}
                         />
                         <FormControl size="small" sx={{ minWidth: 160 }}>
                             <InputLabel>Type</InputLabel>
@@ -177,6 +195,24 @@ export default function SchemaEditor({ orgSlug, schema, assets, onChange }: Prop
 }
 
 const MAX_PREVIEW = 8;
+
+/**
+ * Turn an admin-typed label ("Mottakers navn") into a safe key
+ * ("mottakers_navn"): lowercase, ASCII-only, underscores for runs of
+ * non-word chars. Used by the schema editor to keep key + label in sync
+ * for newly added fields without making admins think about it.
+ */
+function slugifyKey(label: string): string {
+    return label
+        .toLowerCase()
+        .replace(/[æå]/g, 'a')
+        .replace(/[ø]/g, 'o')
+        .replace(/[éè]/g, 'e')
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
 
 function LookupListPreview({ list, orgSlug }: { list: OrgAsset | undefined; orgSlug: string }) {
     const items = (list?.content as LookupListContent | undefined)?.items ?? [];

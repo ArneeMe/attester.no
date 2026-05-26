@@ -12,6 +12,13 @@ export type FormFieldSchema = {
      */
     options?: string[];
     optionsFromAsset?: string;
+    /**
+     * UX-only flag: when true (default for new fields), the schema editor
+     * slugifies the label into the key automatically as the admin types.
+     * Setting `key` directly flips this off so subsequent label edits
+     * don't clobber the admin's chosen key.
+     */
+    autoKey?: boolean;
 };
 
 export type FormSchema = FormFieldSchema[];
