@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
     Box,
     Button,
+    Chip,
     Paper,
     CircularProgress,
     Dialog,
@@ -10,6 +11,8 @@ import {
     DialogTitle,
     Typography,
 } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { Designer } from '@pdfme/ui';
 import { text, image, barcodes, rectangle } from '@pdfme/schemas';
 import { Template, BLANK_PDF } from '@pdfme/common';
@@ -17,6 +20,21 @@ import { saveTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseIn
 import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
 import { deriveFormSchema } from '@/util/templateFields';
 import { validateTemplateForSave } from '@/util/validateTemplate';
+
+/**
+ * Boil the (often verbose) validateTemplateForSave error sentences down to
+ * a short chip label. Falls back to the count of missing items for
+ * anything we don't have a shorter phrasing for.
+ */
+function summariseValidationErrors(errors: string[]): string {
+    const short: string[] = [];
+    for (const e of errors) {
+        if (/QR-kode/i.test(e)) short.push('Mangler QR-kode');
+        else if (/attester\.no/i.test(e)) short.push('Mangler attester.no-tekst');
+        else short.push('Ufullstendig mal');
+    }
+    return short.join(' · ');
+}
 import { buildPreviewPdfUrl } from '@/util/previewPdf';
 import { applyBackground, readBackgroundColor, BACKGROUNDS } from '@/util/templateBackground';
 import {
@@ -69,6 +87,21 @@ export default function DesignerComponent({
     const [previewBusy, setPreviewBusy] = useState(false);
     // Bump this counter to force BindingsEditor to re-read the designer's schema.
     const [schemaRev, setSchemaRev] = useState(0);
+    // True whenever the in-memory template has been edited since the last save.
+    // Drives the beforeunload prompt + a soft visual cue on the Lagre button.
+    const [dirty, setDirty] = useState(false);
+
+    useEffect(() => {
+        if (!dirty) return;
+        const handler = (e: BeforeUnloadEvent) => {
+            // Modern browsers ignore the custom message and show their own.
+            // Returning a string is enough to trigger the prompt.
+            e.preventDefault();
+            e.returnValue = '';
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [dirty]);
 
     // Revoke the previous preview URL when it's replaced or the page unmounts
     // — otherwise the blob hangs around in memory.
@@ -97,7 +130,10 @@ export default function DesignerComponent({
             },
         });
 
-        designerRef.current.onChangeTemplate(() => setSchemaRev((r) => r + 1));
+        designerRef.current.onChangeTemplate(() => {
+            setSchemaRev((r) => r + 1);
+            setDirty(true);
+        });
 
         getTemplates(orgSlug).then(setExistingTemplates).catch((e) => {
             onError(`Kunne ikke laste maler: ${(e as Error).message}`);
@@ -150,6 +186,7 @@ export default function DesignerComponent({
                 schemas: [[]],
             });
             setSchemaRev((r) => r + 1);
+            setDirty(true);
         };
         reader.readAsDataURL(file);
     };
@@ -178,6 +215,7 @@ export default function DesignerComponent({
 
             await saveTemplate(orgSlug, data);
             onSuccess(`Mal "${templateName}" lagret!`);
+            setDirty(false);
 
             const templates = await getTemplates(orgSlug);
             setExistingTemplates(templates);
@@ -200,6 +238,8 @@ export default function DesignerComponent({
         setSchemaRev((r) => r + 1);
 
         onTemplateLoad(template.name, template.description || '', template.isDefault);
+        // Loading isn't editing — reset the unsaved-changes flag.
+        setDirty(false);
     };
 
     const handlePickStarter = (starter: StarterTemplate) => {
@@ -209,6 +249,9 @@ export default function DesignerComponent({
         setFormSchema(starter.formSchema);
         setSchemaRev((r) => r + 1);
         onTemplateLoad(starter.name, starter.description, false);
+        // Starting from a starter is a load, not an edit — admin hasn't
+        // changed anything yet. Mark fresh.
+        setDirty(false);
     };
 
     const handleExport = () => {
@@ -263,6 +306,29 @@ export default function DesignerComponent({
     // itself isn't used.
     void schemaRev;
 
+    // Which of the asset kinds the quick-add buttons assume a default for
+    // are NOT yet set up in this org's Innhold. Drives the small hint
+    // below the toolbar so admins know upfront why a slot may render
+    // empty after they click "+ Signatur".
+    const missingDefaults: string[] = (() => {
+        const haveDefault = (kind: OrgAsset['kind']) =>
+            assets.some((a) => a.kind === kind && a.isDefault);
+        const out: string[] = [];
+        if (!haveDefault('signature')) out.push('signatur');
+        if (!haveDefault('logo')) out.push('logo');
+        if (!haveDefault('body_text')) out.push('tekstblokk');
+        return out;
+    })();
+
+    const currentValidationErrors = (() => {
+        if (!designerRef.current) return ['Designeren laster …'];
+        try {
+            return validateTemplateForSave(designerRef.current.getTemplate());
+        } catch {
+            return [];
+        }
+    })();
+
     const currentBackground = (() => {
         if (!designerRef.current) return null;
         try {
@@ -277,6 +343,19 @@ export default function DesignerComponent({
         const patched = applyBackground(designerRef.current.getTemplate(), color);
         designerRef.current.updateTemplate(patched);
         setSchemaRev((r) => r + 1);
+        setDirty(true);
+    };
+
+    // Wrappers passed to BindingsEditor / SchemaEditor so admin edits in
+    // those panels also flip the unsaved-changes flag. Internal places
+    // (load, quick-add) bypass these and manage `dirty` explicitly.
+    const handleBindingsChange = (next: FieldBindings) => {
+        setBindings(next);
+        setDirty(true);
+    };
+    const handleFormSchemaChange = (next: FormSchema) => {
+        setFormSchema(next);
+        setDirty(true);
     };
 
     const handleQuickAdd = (factory: (schemas: Template['schemas']) => QuickAddResult) => {
@@ -289,6 +368,7 @@ export default function DesignerComponent({
         designerRef.current.updateTemplate({ ...current, schemas: nextSchemas });
         setBindings((prev) => ({ ...prev, ...newBindings }));
         setSchemaRev((r) => r + 1);
+        setDirty(true);
     };
 
     return (
@@ -313,8 +393,26 @@ export default function DesignerComponent({
                         onClick={handleSave}
                         disabled={saving || !templateName.trim()}
                     >
-                        {saving ? <CircularProgress size={20} /> : 'Lagre mal'}
+                        {saving ? <CircularProgress size={20} /> : (dirty ? 'Lagre mal *' : 'Lagre mal')}
                     </Button>
+
+                    {currentValidationErrors.length === 0 ? (
+                        <Chip
+                            icon={<CheckCircleIcon />}
+                            label="Klar til lagring"
+                            color="success"
+                            variant="outlined"
+                            size="small"
+                        />
+                    ) : (
+                        <Chip
+                            icon={<WarningAmberIcon />}
+                            label={summariseValidationErrors(currentValidationErrors)}
+                            color="warning"
+                            variant="outlined"
+                            size="small"
+                        />
+                    )}
 
                     <Button variant="outlined" color="secondary" onClick={handleExport}>
                         Eksporter JSON
@@ -357,6 +455,20 @@ export default function DesignerComponent({
                         + attester.no-merke
                     </Button>
                 </Box>
+
+                {missingDefaults.length > 0 && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                        Ingen standard {missingDefaults.join(' / ')} satt opp enda — feltet rendres tomt før du legger til en i{' '}
+                        <a
+                            href={`/login/adminpage/${orgSlug}/rediger`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: 'inherit' }}
+                        >
+                            Innhold ↗
+                        </a>.
+                    </Typography>
+                )}
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, flexWrap: 'wrap' }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
@@ -411,7 +523,7 @@ export default function DesignerComponent({
                     bindings={bindings}
                     assets={assets}
                     formSchema={formSchema}
-                    onChange={setBindings}
+                    onChange={handleBindingsChange}
                 />
             </Paper>
 
@@ -420,12 +532,12 @@ export default function DesignerComponent({
                     <Typography variant="h6">Skjema (innsender → data)</Typography>
                     <Button
                         size="small"
-                        onClick={() => setFormSchema(deriveFormSchema(currentSchemas, bindings))}
+                        onClick={() => handleFormSchemaChange(deriveFormSchema(currentSchemas, bindings))}
                     >
                         Auto-utled fra PDF
                     </Button>
                 </Box>
-                <SchemaEditor orgSlug={orgSlug} schema={formSchema} assets={assets} onChange={setFormSchema} />
+                <SchemaEditor orgSlug={orgSlug} schema={formSchema} assets={assets} onChange={handleFormSchemaChange} />
             </Paper>
 
             <StarterTemplatePicker

@@ -19,6 +19,8 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import type { FormFieldSchema, FormFieldType, FormSchema } from '@/types/formSchema';
 import type { OrgAsset, LookupListContent } from '@/types/orgAssets';
 
@@ -60,6 +62,14 @@ export default function SchemaEditor({ orgSlug, schema, assets, onChange }: Prop
     };
 
     const removeField = (i: number) => onChange(schema.filter((_, idx) => idx !== i));
+
+    const moveField = (i: number, dir: -1 | 1) => {
+        const j = i + dir;
+        if (j < 0 || j >= schema.length) return;
+        const next = [...schema];
+        [next[i], next[j]] = [next[j], next[i]];
+        onChange(next);
+    };
 
     const addField = () =>
         onChange([
@@ -129,6 +139,22 @@ export default function SchemaEditor({ orgSlug, schema, assets, onChange }: Prop
                             }
                             label="Valgfritt"
                         />
+                        <IconButton
+                            size="small"
+                            onClick={() => moveField(i, -1)}
+                            disabled={i === 0}
+                            aria-label="Flytt opp"
+                        >
+                            <ArrowUpwardIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                            size="small"
+                            onClick={() => moveField(i, 1)}
+                            disabled={i === schema.length - 1}
+                            aria-label="Flytt ned"
+                        >
+                            <ArrowDownwardIcon fontSize="small" />
+                        </IconButton>
                         <IconButton color="error" onClick={() => removeField(i)}>
                             <DeleteIcon />
                         </IconButton>
