@@ -109,7 +109,10 @@ export function fromPdfmeTemplate(
         formSchema?: FormSchema;
     },
 ): Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'> {
-    const fieldBindings = options?.fieldBindings ?? {};
+    const fieldBindings = autoBindSystemSlots(
+        pdfmeTemplate.schemas,
+        options?.fieldBindings ?? {},
+    );
     const formSchema = options?.formSchema ?? deriveFormSchema(pdfmeTemplate.schemas, fieldBindings);
     return {
         name,
@@ -120,4 +123,36 @@ export function fromPdfmeTemplate(
         fieldBindings,
         isDefault: options?.isDefault ?? false,
     };
+}
+
+/**
+ * Pdfme field names that, by convention, map directly to a system slot
+ * (resolveBinding's `system` source). Auto-wire these on save so admins
+ * don't have to open the bindings editor for the obvious ones — placing
+ * a qr_code field is signal enough that it should hold the verify URL.
+ */
+const SYSTEM_SLOT_BY_NAME: Record<string, 'qr_code' | 'qr_info' | 'qr_page' | 'today'> = {
+    qr_code: 'qr_code',
+    qr_info: 'qr_info',
+    qr_page: 'qr_page',
+    today: 'today',
+    signature_date: 'today',
+};
+
+function autoBindSystemSlots(
+    schemas: Template['schemas'],
+    existing: FieldBindings,
+): FieldBindings {
+    const next: FieldBindings = { ...existing };
+    for (const page of schemas ?? []) {
+        for (const field of page ?? []) {
+            const name = field?.name;
+            if (typeof name !== 'string') continue;
+            if (next[name]) continue;
+            const slot = SYSTEM_SLOT_BY_NAME[name];
+            if (!slot) continue;
+            next[name] = { source: 'system', system: slot };
+        }
+    }
+    return next;
 }
