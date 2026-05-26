@@ -11,13 +11,14 @@ import {
     Typography,
 } from '@mui/material';
 import { Designer } from '@pdfme/ui';
-import { text, image, barcodes } from '@pdfme/schemas';
+import { text, image, barcodes, rectangle } from '@pdfme/schemas';
 import { Template, BLANK_PDF } from '@pdfme/common';
 import { saveTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseInteractions/templateService';
 import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
 import { deriveFormSchema } from '@/util/templateFields';
 import { validateTemplateForSave } from '@/util/validateTemplate';
 import { buildPreviewPdfUrl } from '@/util/previewPdf';
+import { applyBackground, readBackgroundColor, BACKGROUNDS } from '@/util/templateBackground';
 import type { PDFTemplate } from '@/types/templateTypes';
 import type { FieldBindings } from '@/types/fieldBindings';
 import type { OrgAsset } from '@/types/orgAssets';
@@ -84,6 +85,7 @@ export default function DesignerComponent({
                 Text: text,
                 Image: image,
                 QR: barcodes.qrcode,
+                Rectangle: rectangle,
             },
         });
 
@@ -253,6 +255,22 @@ export default function DesignerComponent({
     // itself isn't used.
     void schemaRev;
 
+    const currentBackground = (() => {
+        if (!designerRef.current) return null;
+        try {
+            return readBackgroundColor(designerRef.current.getTemplate());
+        } catch {
+            return null;
+        }
+    })();
+
+    const handlePickBackground = (color: string | null) => {
+        if (!designerRef.current) return;
+        const patched = applyBackground(designerRef.current.getTemplate(), color);
+        designerRef.current.updateTemplate(patched);
+        setSchemaRev((r) => r + 1);
+    };
+
     return (
         <>
             <Paper sx={{ p: 2, mb: 2 }}>
@@ -298,6 +316,38 @@ export default function DesignerComponent({
                         ))}
                     </Box>
                 )}
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                        Bakgrunn:
+                    </Typography>
+                    <Box
+                        onClick={() => handlePickBackground(null)}
+                        title="Ingen"
+                        sx={{
+                            width: 28, height: 28, borderRadius: '50%', cursor: 'pointer',
+                            border: currentBackground === null ? '2px solid' : '1px dashed',
+                            borderColor: currentBackground === null ? 'primary.main' : 'grey.400',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            bgcolor: 'transparent', fontSize: 18, color: 'grey.500',
+                        }}
+                    >
+                        ✕
+                    </Box>
+                    {BACKGROUNDS.map((b) => (
+                        <Box
+                            key={b.id}
+                            onClick={() => handlePickBackground(b.color)}
+                            title={b.name}
+                            sx={{
+                                width: 28, height: 28, borderRadius: '50%', cursor: 'pointer',
+                                bgcolor: b.color,
+                                border: currentBackground === b.color ? '2px solid' : '1px solid',
+                                borderColor: currentBackground === b.color ? 'primary.main' : 'grey.400',
+                            }}
+                        />
+                    ))}
+                </Box>
             </Paper>
 
             <Paper sx={{ p: 2 }}>

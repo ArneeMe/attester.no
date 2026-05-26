@@ -1,4 +1,4 @@
-import { barcodes, image, text } from '@pdfme/schemas';
+import { barcodes, image, text, rectangle } from '@pdfme/schemas';
 import { generate } from '@pdfme/generator';
 import { Template } from '@pdfme/common';
 import { getPdfInput } from '@/app/login/adminpage/getPDFInput';
@@ -33,7 +33,7 @@ export const generatePDF = async (
     const pdf = await generate({
         template,
         inputs: pdfInput,
-        plugins: { text, image, qrcode: barcodes.qrcode },
+        plugins: { text, image, qrcode: barcodes.qrcode, rectangle },
     });
     const filename = data.name ? `${data.name}_attest.pdf` : `attest_${submissionId}.pdf`;
     const blob = new Blob([new Uint8Array(pdf.buffer)], { type: 'application/pdf' });

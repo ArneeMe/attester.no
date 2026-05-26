@@ -1,5 +1,5 @@
 import { generate } from '@pdfme/generator';
-import { barcodes, image, text } from '@pdfme/schemas';
+import { barcodes, image, text, rectangle } from '@pdfme/schemas';
 import type { Template } from '@pdfme/common';
 import type { FieldBindings } from '@/types/fieldBindings';
 import type { FormSchema } from '@/types/formSchema';
