@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { login, useAuth } from '@/util/auth';
 import { Box, Button, CircularProgress, Container, TextField, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
@@ -82,6 +83,9 @@ const LoginPage: React.FC = () => {
                     >
                         {busy ? <CircularProgress size={20} /> : 'Logg Inn'}
                     </Button>
+                    <Link href="/login/glemt" style={{ fontSize: '0.875rem' }}>
+                        Glemt passord?
+                    </Link>
                 </Box>
             </Box>
         </Container>

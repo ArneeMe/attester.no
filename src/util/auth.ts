@@ -10,6 +10,28 @@ export const logout = async (): Promise<void> => {
     await nhost.auth.signOut({ refreshToken: session?.refreshToken });
 };
 
+export const requestPasswordReset = async (email: string): Promise<void> => {
+    await nhost.auth.sendPasswordResetEmail({
+        email,
+        options: { redirectTo: `${window.location.origin}/login/reset` },
+    });
+};
+
+/**
+ * Completes the email reset flow: the link from Nhost redirects here with a
+ * refreshToken in the URL; exchanging it establishes a session, and the
+ * password change then revokes every session (including this one), so the
+ * user must sign in again with the new password.
+ */
+export const completePasswordReset = async (
+    refreshToken: string,
+    newPassword: string,
+): Promise<void> => {
+    await nhost.auth.refreshToken({ refreshToken });
+    await nhost.auth.changeUserPassword({ newPassword });
+    nhost.clearSession();
+};
+
 export const useAuth = (): NhostUser | null | undefined => {
     const [user, setUser] = useState<NhostUser | null | undefined>(undefined);
     useEffect(() => {
