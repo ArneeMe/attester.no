@@ -53,6 +53,10 @@ types/       — formSchema, fieldBindings, orgAssets, templateTypes
 SQL-filer i `scripts/migrations/` kjøres i Hasura SQL-konsollen, så
 sporer du de nye/endrede tabellene i Hasura-grafQL-skjemaet.
 
+Ny installasjon: kjør kun `0000-baseline-schema.sql` — den inneholder
+hele skjemaet. `2026-05-*`-filene er historiske migrasjoner av den gamle
+echo-databasen.
+
 ## Kjøre lokalt
 
 Krever Nhost-miljøvariabler i `.env.local` — kopier fra `.env.example`.
