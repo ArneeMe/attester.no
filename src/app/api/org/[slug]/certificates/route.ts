@@ -41,16 +41,26 @@ export async function POST(
     }
 
     try {
-        const data = await hasuraAdmin<{ insert_certificates_one: { id: string } }>(
-            `mutation InsertCertificate($organizationId: uuid!, $submissionId: String!, $hash: String!, $templateId: uuid!) {
+        // Insert the cert and delete the submission in ONE mutation. Hasura
+        // runs both root fields in a single transaction, so the volunteer's
+        // personal data is gone the moment the cert exists — the privacy
+        // guarantee no longer depends on an admin remembering to click delete.
+        // certificates.submission_id is a String column; submissions.id is
+        // uuid — same value, two GraphQL types.
+        const data = await hasuraAdmin<{
+            insert_certificates_one: { id: string };
+            delete_submissions_by_pk: { id: string } | null;
+        }>(
+            `mutation InsertCertificateDeleteSubmission($organizationId: uuid!, $submissionId: String!, $submissionUuid: uuid!, $hash: String!, $templateId: uuid!) {
                 insert_certificates_one(object: {
                     organization_id: $organizationId,
                     submission_id: $submissionId,
                     hash: $hash,
                     template_id: $templateId
                 }) { id }
+                delete_submissions_by_pk(id: $submissionUuid) { id }
             }`,
-            { organizationId: auth.organizationId, submissionId, hash, templateId },
+            { organizationId: auth.organizationId, submissionId, submissionUuid: submissionId, hash, templateId },
         );
         return NextResponse.json({ id: data.insert_certificates_one.id });
     } catch (e) {

@@ -1,7 +1,7 @@
 'use client'
 export const runtime = 'edge';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { authHeader } from '@/lib/nhost';
 import {
@@ -135,6 +135,13 @@ const AdminPage: React.FC = () => {
         setOpenDialog(true);
     };
 
+    // Submissions whose cert hash is already registered this session. The
+    // server deletes the submission row when the cert is inserted, so a
+    // PDF-generation retry must NOT call submitHash again (the row is gone
+    // and the ownership check would reject it) — but the data is still in
+    // memory here, so the PDF itself can be regenerated.
+    const issuedIds = useRef(new Set<string>());
+
     const handleConfirm = async () => {
         if (!selected) return;
         const tmpl = templateById(selected.templateId);
@@ -142,12 +149,16 @@ const AdminPage: React.FC = () => {
             toast.error('Malen finnes ikke lenger. Velg en annen mal eller opprett den på nytt.');
             return;
         }
-        try {
-            await submitHash(orgSlug, tmpl.id, selected.id, selected.data);
-        } catch (error) {
-            console.error(error);
-            toast.error('Feil ved registrering av sertifikat: ' + ((error as Error).message ?? 'ukjent feil'));
-            return;
+        if (!issuedIds.current.has(selected.id)) {
+            try {
+                await submitHash(orgSlug, tmpl.id, selected.id, selected.data);
+                issuedIds.current.add(selected.id);
+                setSubmissions((prev) => prev.filter((s) => s.id !== selected.id));
+            } catch (error) {
+                console.error(error);
+                toast.error('Feil ved registrering av sertifikat: ' + ((error as Error).message ?? 'ukjent feil'));
+                return;
+            }
         }
         try {
             await generatePDF(orgSlug, tmpl, selected.id, selected.data);
@@ -156,7 +167,8 @@ const AdminPage: React.FC = () => {
             setOpenDialog(false);
         } catch (error) {
             console.error(error);
-            toast.error('Feil ved generering av PDF: ' + ((error as Error).message ?? 'ukjent feil'));
+            toast.error('Feil ved generering av PDF: ' + ((error as Error).message ?? 'ukjent feil')
+                + '. Attesten er registrert og dataene er fortsatt i minnet – trykk «Generer PDF» for å prøve igjen. Ikke last siden på nytt.');
         }
     };
 
@@ -283,33 +295,15 @@ const AdminPage: React.FC = () => {
             <ConfirmDialog
                 open={openPDFDialog}
                 title="PDF-en er generert"
-                message="Sjekk at alt ser riktig ut, og slett deretter innsendingen for å fjerne personinformasjonen fra databasen."
+                message="Innsendingen er slettet automatisk – personinformasjonen er fjernet fra databasen. Sjekk at PDF-en ser riktig ut før du lukker."
                 details={<Typography variant="body1">
                     Her er verifiserings-URL-en:{' '}
                     <Link href={pdfUrl} target="_blank" rel="noreferrer">{pdfUrl}</Link>
                 </Typography>}
-                onConfirm={() => setOpenPDFDialog(false)}
-                onClose={() => setOpenPDFDialog(false)}
+                onConfirm={() => { setOpenPDFDialog(false); setSelected(null); }}
+                onClose={() => { setOpenPDFDialog(false); setSelected(null); }}
                 confirmButtonText="Lukk"
                 showCancelButton={false}
-                secondaryAction={
-                    selected
-                        ? {
-                              label: 'Slett innsendingen nå',
-                              color: 'error',
-                              onClick: async () => {
-                                  try {
-                                      await handleDelete(selected.id);
-                                      setOpenPDFDialog(false);
-                                      setSelected(null);
-                                      toast.success('Innsendingen er slettet');
-                                  } catch (e) {
-                                      toast.error((e as Error).message);
-                                  }
-                              },
-                          }
-                        : undefined
-                }
             />
         </>
     );
