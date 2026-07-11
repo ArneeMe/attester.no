@@ -1,6 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react';
-import { Button, CircularProgress, Container, Grid, Typography } from '@mui/material';
+import { Button, CircularProgress, Container, Grid, Paper, Typography } from '@mui/material';
 import Link from "next/link";
 import { useSearchParams } from 'next/navigation';
 import { getOrgBySlug } from '@/lib/nhost';
@@ -22,8 +22,8 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
     const toast = useToast();
 
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
-    const [openSummaryDialog, setOpenSummaryDialog] = useState(false);
     const [openHelpDialog, setOpenHelpDialog] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
 
     const [orgName, setOrgName] = useState<string>(orgSlug);
     const [template, setTemplate] = useState<TemplateForForm | null>(null);
@@ -73,7 +73,8 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error ?? 'Server error');
             setOpenConfirmDialog(false);
-            setOpenSummaryDialog(true);
+            setSubmitted(true);
+            window.scrollTo({ top: 0 });
         } catch (e) {
             console.error('Error adding submission:', e);
             toast.error('Feil ved lagring av data: ' + ((e as Error).message ?? 'ukjent feil'));
@@ -96,6 +97,29 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
                     Ingen mal funnet for denne organisasjonen
                     {templateIdOverride ? ` (id ${templateIdOverride})` : ''}.
                 </Typography>
+            </Container>
+        );
+    }
+
+    if (submitted) {
+        return (
+            <Container component="main" maxWidth="sm">
+                <Paper elevation={2} sx={{ p: 4, mt: 6, textAlign: 'center' }}>
+                    <Typography variant="h2" component="div" aria-hidden sx={{ mb: 1 }}>✅</Typography>
+                    <Typography variant="h5" gutterBottom>Innsendingen er mottatt</Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 2, textAlign: 'left' }}>
+                        Dette skjer videre:
+                    </Typography>
+                    <Typography component="ol" variant="body2" color="text.secondary" sx={{ textAlign: 'left', pl: 3, mb: 3 }}>
+                        <li>{orgName} kontrollerer opplysningene dine.</li>
+                        <li>Godkjennes de, lages attesten som PDF med QR-kode, og du får den fra {orgName}.</li>
+                        <li>I samme øyeblikk slettes opplysningene dine fra databasen — bare en
+                            kryptografisk hash blir igjen, så attesten kan verifiseres.</li>
+                    </Typography>
+                    <Button variant="outlined" onClick={() => { setFormData({}); setSubmitted(false); }}>
+                        Send inn en ny
+                    </Button>
+                </Paper>
             </Container>
         );
     }
@@ -131,17 +155,6 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
                 onClose={() => setOpenConfirmDialog(false)}
                 details={<SchemaDetails schema={schema} data={formData} />}
                 confirmButtonText="Ja, lagre"
-            />
-
-            <ConfirmDialog
-                open={openSummaryDialog}
-                title="Innsending mottatt"
-                message="Denne informasjonen ble sendt inn:"
-                onConfirm={() => setOpenSummaryDialog(false)}
-                details={<SchemaDetails schema={schema} data={formData} />}
-                onClose={() => setOpenSummaryDialog(false)}
-                confirmButtonText="OK"
-                showCancelButton={false}
             />
 
             <ConfirmDialog

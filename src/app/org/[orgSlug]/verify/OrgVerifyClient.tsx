@@ -73,20 +73,41 @@ const OrgVerifyClient: React.FC = () => {
               .map((k) => ({ key: k, label: k, type: 'text' as const }));
 
     return (
-        <Box sx={{ border: `5px solid ${getColor()}`, padding: 1, borderRadius: 2, margin: 2 }}>
-            <Typography variant="h3">Verifikasjon</Typography>
-            <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant="h6" color={getColor()}>
-                    {verificationResult === null
-                        ? 'Laster...'
-                        : verificationResult === 'verified'
-                            ? 'Attesten er gyldig!'
-                            : 'Attesten er ugyldig.'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                    Endre feltene under for å verifisere mot lagret hash.
-                </Typography>
-            </Grid>
+        <Box sx={{ border: `5px solid ${getColor()}`, padding: 3, borderRadius: 2, margin: 2 }}>
+            <Typography variant="h3" gutterBottom>Verifikasjon</Typography>
+
+            {verificationResult === null ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
+                    <CircularProgress size={28} />
+                    <Typography variant="h6" color="text.secondary">Kontrollerer attesten …</Typography>
+                </Box>
+            ) : verificationResult === 'verified' ? (
+                <Box sx={{ my: 2 }}>
+                    <Typography variant="h5" color={getColor()} sx={{ fontWeight: 700 }}>
+                        ✓ Attesten er gyldig
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
+                        Opplysningene under stemmer nøyaktig med attesten slik den ble
+                        utstedt. Endres så mye som ett tegn, blir den ugyldig.
+                    </Typography>
+                </Box>
+            ) : (
+                <Box sx={{ my: 2 }}>
+                    <Typography variant="h5" color={getColor()} sx={{ fontWeight: 700 }}>
+                        ✗ Attesten er ugyldig
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
+                        Opplysningene stemmer ikke med noen utstedt attest. Enten er
+                        lenken ufullstendig (skann QR-koden på nytt), et felt er endret,
+                        eller attesten er aldri utstedt av denne organisasjonen.
+                    </Typography>
+                </Box>
+            )}
+
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3 }}>
+                Attesterte opplysninger — du kan endre et felt for å se at
+                verifiseringen da slår feil:
+            </Typography>
             <Grid container spacing={2} paddingTop={2}>
                 {schemaLoading ? (
                     <Grid size={{ xs: 12 }}>

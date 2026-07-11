@@ -83,9 +83,14 @@ const LoginPage: React.FC = () => {
                     >
                         {busy ? <CircularProgress size={20} /> : 'Logg Inn'}
                     </Button>
-                    <Link href="/login/glemt" style={{ fontSize: '0.875rem' }}>
-                        Glemt passord?
-                    </Link>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Link href="/login/glemt" style={{ fontSize: '0.875rem' }}>
+                            Glemt passord?
+                        </Link>
+                        <Link href="/registrer" style={{ fontSize: '0.875rem' }}>
+                            Registrer ny konto
+                        </Link>
+                    </Box>
                 </Box>
             </Box>
         </Container>

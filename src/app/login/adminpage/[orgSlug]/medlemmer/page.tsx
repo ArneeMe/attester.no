@@ -97,7 +97,8 @@ const MembersPage: React.FC = () => {
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>Legg til medlem</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Personen må allerede ha en brukerkonto. Skriv inn e-postadressen
+                    Personen må ha en brukerkonto — nye brukere kan opprette en
+                    selv på attester.no/registrer. Skriv inn e-postadressen
                     kontoen er registrert med.
                 </Typography>
                 <Box component="form" onSubmit={handleAdd} sx={{ display: 'flex', gap: 2 }}>
