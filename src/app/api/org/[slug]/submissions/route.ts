@@ -3,6 +3,7 @@ import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "@/lib/server/apiAuth";
 import { templateBelongsToOrg } from "@/lib/server/ownership";
 import { checkRateLimit, clientIp } from "@/lib/server/rateLimit";
+import { sweepExpiredSubmissions } from "@/lib/server/retention";
 
 export const runtime = "edge";
 
@@ -33,6 +34,10 @@ export async function GET(
     const { slug } = await params;
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
+
+    // Enforce the retention TTL before reading, so the admin never sees
+    // (and the response never contains) rows that should already be gone.
+    await sweepExpiredSubmissions();
 
     try {
         const data = await hasuraAdmin<{ submissions: SubmissionRow[] }>(
@@ -91,6 +96,10 @@ export async function POST(
             return NextResponse.json({ error: `Field "${k}" is too long` }, { status: 413 });
         }
     }
+
+    // Piggyback the retention sweep on the anonymous write path too, so
+    // expired rows are purged even if no admin logs in for days.
+    await sweepExpiredSubmissions();
 
     try {
         const organizationId = await resolveOrgIdBySlug(slug);

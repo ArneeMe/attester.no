@@ -16,6 +16,7 @@ import SchemaDetails from '@/components/SchemaDetails';
 import { useToast } from '@/components/ToastProvider';
 import type { Submission } from '@/types/submission';
 import type { FormSchema } from '@/types/formSchema';
+import { hoursUntilDeletion } from '@/util/retention';
 
 type SubmissionRow = {
     id: string;
@@ -233,6 +234,9 @@ const AdminPage: React.FC = () => {
                                             Mal: {tmpl.name}
                                         </Typography>
                                     )}
+                                    <Typography variant="caption" color="warning.main" display="block">
+                                        Slettes automatisk om {hoursUntilDeletion(sub.createdAt)} t
+                                    </Typography>
                                     {schema ? (
                                         <SchemaDetails schema={schema} data={sub.data} />
                                     ) : (

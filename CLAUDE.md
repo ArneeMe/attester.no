@@ -58,6 +58,13 @@ row is gone; a second submitHash would fail the ownership check).
 Storing volunteer data indefinitely is NOT acceptable — do not remove the
 auto-delete.
 
+On top of that, unprocessed submissions expire: a lazy sweep
+(`src/lib/server/retention.ts`, TTL in `src/util/retention.ts`) deletes
+rows older than the TTL whenever the submissions API is touched. No
+scheduler exists on the edge runtime, and none is needed — if nothing
+triggers the sweep, nothing is reading the data either. Do not remove
+the sweep calls from the submissions GET/POST routes.
+
 ## The legacy `/verify` route
 
 Echo issued certificates before the multi-org migration. Their QR codes

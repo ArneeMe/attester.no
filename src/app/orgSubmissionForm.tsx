@@ -9,6 +9,7 @@ import SchemaForm from '@/components/SchemaForm';
 import SchemaDetails from '@/components/SchemaDetails';
 import { useToast } from '@/components/ToastProvider';
 import ConfirmDialog from "@/util/confirmDialog";
+import { SUBMISSION_TTL_HOURS } from '@/util/retention';
 
 interface Props {
     orgSlug: string;
@@ -115,6 +116,8 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
                         <li>Godkjennes de, lages attesten som PDF med QR-kode, og du får den fra {orgName}.</li>
                         <li>I samme øyeblikk slettes opplysningene dine fra databasen — bare en
                             kryptografisk hash blir igjen, så attesten kan verifiseres.</li>
+                        <li>Behandles ikke innsendingen innen {SUBMISSION_TTL_HOURS} timer,
+                            slettes den automatisk. Da må du sende inn på nytt.</li>
                     </Typography>
                     <Button variant="outlined" onClick={() => { setFormData({}); setSubmitted(false); }}>
                         Send inn en ny
