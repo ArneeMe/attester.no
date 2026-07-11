@@ -5,9 +5,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { authHeader } from '@/lib/nhost';
 import {
-    Button, Checkbox, FormControlLabel, Grid, Link, Paper, Typography
+    Button, Checkbox, FormControlLabel, Grid, Link, MenuItem, Paper, TextField, Typography
 } from '@mui/material';
-import { generatePDF, TemplateData } from '@/app/login/adminpage/generatePDF';
+import { generatePDF, previewPDF, TemplateData } from '@/app/login/adminpage/generatePDF';
 import { deleteSubmission } from "@/util/deleteSubmission";
 import ConfirmDialog from "@/util/confirmDialog";
 import { generateURL } from "@/app/login/adminpage/generateURL";
@@ -45,6 +45,10 @@ const AdminPage: React.FC = () => {
     const [openBatchDeleteDialog, setOpenBatchDeleteDialog] = useState(false);
     const [openPDFDialog, setOpenPDFDialog] = useState(false);
     const [pdfUrl, setPdfUrl] = useState('');
+
+    const [searchText, setSearchText] = useState('');
+    const [templateFilter, setTemplateFilter] = useState('');
+    const [newestFirst, setNewestFirst] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -180,6 +184,15 @@ const AdminPage: React.FC = () => {
     const selectedTemplate = selected ? templateById(selected.templateId) : null;
     const selectedSchema = selectedTemplate?.form_schema ?? null;
 
+    const query = searchText.trim().toLowerCase();
+    const visibleSubmissions = submissions
+        .filter((s) => !templateFilter || s.templateId === templateFilter)
+        .filter((s) => !query
+            || Object.values(s.data).some((v) => v.toLowerCase().includes(query)))
+        .sort((a, b) => newestFirst
+            ? b.createdAt.getTime() - a.createdAt.getTime()
+            : a.createdAt.getTime() - b.createdAt.getTime());
+
     return (
         <>
             <Grid container alignItems="center" spacing={2} sx={{ mb: 2 }}>
@@ -192,6 +205,47 @@ const AdminPage: React.FC = () => {
                     </Button>
                 </Grid>
             </Grid>
+
+            {submissions.length > 0 && (
+                <Grid container spacing={2} alignItems="center" sx={{ mb: 1 }}>
+                    <Grid size={{ xs: 12, sm: 5 }}>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            label="Søk i innsendinger"
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                        />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                        <TextField
+                            fullWidth
+                            select
+                            size="small"
+                            label="Mal"
+                            value={templateFilter}
+                            onChange={(e) => setTemplateFilter(e.target.value)}
+                        >
+                            <MenuItem value="">Alle maler</MenuItem>
+                            {templates.map((t) => (
+                                <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
+                            ))}
+                        </TextField>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 3 }}>
+                        <Button size="small" onClick={() => setNewestFirst((v) => !v)}>
+                            {newestFirst ? 'Nyeste først ↓' : 'Eldste først ↑'}
+                        </Button>
+                    </Grid>
+                    {visibleSubmissions.length !== submissions.length && (
+                        <Grid size={{ xs: 12 }}>
+                            <Typography variant="caption" color="text.secondary">
+                                Viser {visibleSubmissions.length} av {submissions.length} innsendinger
+                            </Typography>
+                        </Grid>
+                    )}
+                </Grid>
+            )}
 
             {submissions.length === 0 && (
                 <Paper elevation={1} sx={{ p: 3, mb: 2, bgcolor: 'grey.50' }}>
@@ -211,7 +265,7 @@ const AdminPage: React.FC = () => {
             )}
 
             <Grid container spacing={2}>
-                {submissions.map((sub) => {
+                {visibleSubmissions.map((sub) => {
                     const tmpl = templateById(sub.templateId);
                     const schema = tmpl?.form_schema ?? null;
                     return (
@@ -265,13 +319,28 @@ const AdminPage: React.FC = () => {
             <ConfirmDialog
                 open={openDialog}
                 title="Bekreft generering av PDF"
-                message="Er du sikker på at du vil generere PDF?"
+                message="Når du genererer PDF-en, registreres attesten og innsendingen slettes automatisk. Bruk forhåndsvisningen hvis du vil se resultatet først."
                 details={selected && selectedSchema ? (
                     <SchemaDetails schema={selectedSchema} data={selected.data} />
                 ) : null}
                 onConfirm={handleConfirm}
                 onClose={handleClose}
                 confirmButtonText="Generer PDF"
+                secondaryAction={
+                    selected && selectedTemplate
+                        ? {
+                              label: 'Forhåndsvis',
+                              onClick: async () => {
+                                  try {
+                                      await previewPDF(orgSlug, selectedTemplate, selected.id, selected.data);
+                                  } catch (e) {
+                                      console.error(e);
+                                      toast.error('Feil ved forhåndsvisning: ' + ((e as Error).message ?? 'ukjent feil'));
+                                  }
+                              },
+                          }
+                        : undefined
+                }
             />
 
             <ConfirmDialog
@@ -304,6 +373,17 @@ const AdminPage: React.FC = () => {
                 onClose={() => { setOpenPDFDialog(false); setSelected(null); }}
                 confirmButtonText="Lukk"
                 showCancelButton={false}
+                secondaryAction={{
+                    label: 'Kopier lenke',
+                    onClick: async () => {
+                        try {
+                            await navigator.clipboard.writeText(pdfUrl);
+                            toast.success('Verifiseringslenken er kopiert');
+                        } catch {
+                            toast.error('Kunne ikke kopiere – marker lenken manuelt');
+                        }
+                    },
+                }}
             />
         </>
     );
