@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS certificates (
     submission_id text NOT NULL,
     hash text NOT NULL,
     template_id uuid REFERENCES templates(id) ON DELETE SET NULL,
+    issued_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
     created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS certificates_lookup_idx ON certificates(organization_id, submission_id);

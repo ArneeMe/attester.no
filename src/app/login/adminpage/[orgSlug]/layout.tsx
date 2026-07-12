@@ -84,6 +84,14 @@ export default function OrgAdminLayout({ children }: { children: React.ReactNode
                     </Button>
                     <Button
                         component={Link}
+                        href={`/login/adminpage/${orgSlug}/utstedte`}
+                        variant="outlined"
+                        size="small"
+                    >
+                        Utstedte
+                    </Button>
+                    <Button
+                        component={Link}
                         href={`/org/${orgSlug}`}
                         target="_blank"
                         rel="noreferrer"
