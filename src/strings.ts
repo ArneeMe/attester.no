@@ -147,6 +147,18 @@ const no = {
         invalidNumber: 'Må være et tall',
         dropdownFallback: 'Skriv inn fritekst — det er ingen forhåndsdefinerte valg satt opp.',
     },
+    admin: {
+        nav: {
+            oversikt: 'Oversikt',
+            innhold: 'Innhold',
+            pdfmal: 'PDF-mal',
+            maler: 'Maler',
+            medlemmer: 'Medlemmer',
+            tilbakemeldinger: 'Tilbakemeldinger',
+            utstedte: 'Utstedte',
+            publicForm: 'Se offentlig skjema ↗',
+        },
+    },
     feedback: {
         title: 'Hvordan var det å bruke attester.no?',
         commentLabel: 'Kommentar (valgfritt)',
@@ -291,6 +303,18 @@ const en: Strings = {
         invalidDate: 'Invalid date',
         invalidNumber: 'Must be a number',
         dropdownFallback: 'Free text — no predefined options are set up.',
+    },
+    admin: {
+        nav: {
+            oversikt: 'Overview',
+            innhold: 'Content',
+            pdfmal: 'PDF template',
+            maler: 'Templates',
+            medlemmer: 'Members',
+            tilbakemeldinger: 'Feedback',
+            utstedte: 'Issued',
+            publicForm: 'View public form ↗',
+        },
     },
     feedback: {
         title: 'How was your experience with attester.no?',
