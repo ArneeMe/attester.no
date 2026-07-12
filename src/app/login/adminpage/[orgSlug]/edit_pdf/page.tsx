@@ -16,6 +16,7 @@ import {
     Switch,
 } from '@mui/material';
 import dynamic from 'next/dynamic';
+import { useAdminLang } from '@/util/useAdminLang';
 
 const DesignerComponent = dynamic(() => import('./DesignerComponent'), {
     ssr: false,
@@ -30,6 +31,8 @@ export default function TemplateEditorPage() {
     const { orgSlug } = useParams<{ orgSlug: string }>();
     const searchParams = useSearchParams();
     const loadTemplateId = searchParams.get('id');
+    const { strings } = useAdminLang();
+    const d = strings.admin.designer;
     const [templateName, setTemplateName] = useState('');
     const [templateDescription, setTemplateDescription] = useState('');
     const [isDefault, setIsDefault] = useState(false);
@@ -39,11 +42,11 @@ export default function TemplateEditorPage() {
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
             <Typography variant="h4" gutterBottom>
-                PDF Mal Editor
+                {d.title}
             </Typography>
 
             <Typography variant="body1" color="text.secondary">
-                Last opp en PDF og definer feltene som skal fylles inn.
+                {d.intro}
             </Typography>
 
             {error && (
@@ -54,12 +57,12 @@ export default function TemplateEditorPage() {
 
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                    Mal-informasjon
+                    {d.infoTitle}
                 </Typography>
 
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
                     <TextField
-                        label="Navn på mal"
+                        label={d.nameLabel}
                         value={templateName}
                         onChange={(e) => setTemplateName(e.target.value)}
                         required
@@ -67,7 +70,7 @@ export default function TemplateEditorPage() {
                     />
 
                     <TextField
-                        label="Beskrivelse (valgfritt)"
+                        label={d.descLabel}
                         value={templateDescription}
                         onChange={(e) => setTemplateDescription(e.target.value)}
                         sx={{ minWidth: 300, flexGrow: 1 }}
@@ -80,7 +83,7 @@ export default function TemplateEditorPage() {
                                 onChange={(e) => setIsDefault(e.target.checked)}
                             />
                         }
-                        label="Standard mal"
+                        label={d.defaultLabel}
                     />
                 </Box>
             </Paper>
@@ -102,13 +105,11 @@ export default function TemplateEditorPage() {
 
             <Paper sx={{ p: 2, mt: 2, bgcolor: 'info.light' }}>
                 <Typography variant="subtitle2" gutterBottom>
-                    Slik kobler du PDF-felter til data:
+                    {d.howToTitle}
                 </Typography>
                 <Typography variant="body2" sx={{ mt: 1 }}>
-                    Gi PDF-feltet samme navn som et skjemafelt (f.eks. <code>name</code>,{' '}
-                    <code>role</code>), så fylles det automatisk inn. For mer avansert
-                    oppførsel (sammensatte tekster, signaturer fra biblioteket,
-                    oppslagslister) – bruk «Felter»-panelet under designeren.
+                    {d.howToPrefix}<code>name</code>,{' '}
+                    <code>role</code>{d.howToSuffix}
                 </Typography>
             </Paper>
 

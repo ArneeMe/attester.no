@@ -13,6 +13,7 @@ import {
     Typography,
 } from '@mui/material';
 import { STARTER_TEMPLATES, type StarterTemplate } from '@/app/pdfinfo/starterTemplates';
+import { useAdminLang } from '@/util/useAdminLang';
 
 type Props = {
     open: boolean;
@@ -21,13 +22,14 @@ type Props = {
 };
 
 export default function StarterTemplatePicker({ open, onClose, onPick }: Props) {
+    const { strings } = useAdminLang();
+    const d = strings.admin.designer;
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>Start fra en ferdig mal</DialogTitle>
+            <DialogTitle>{d.pickerTitle}</DialogTitle>
             <DialogContent>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Velg en mal som utgangspunkt. Layouten, feltbindingene, og
-                    skjemaet blir fylt inn — du kan redigere alt etterpå.
+                    {d.pickerIntro}
                 </Typography>
                 <Grid container spacing={2}>
                     {STARTER_TEMPLATES.map((s) => (
@@ -48,9 +50,7 @@ export default function StarterTemplatePicker({ open, onClose, onPick }: Props) 
                                             {s.description}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                                            {s.formSchema.length} skjemafelt
-                                            {' · '}
-                                            {Object.keys(s.fieldBindings).length} bindinger
+                                            {d.starterMeta(s.formSchema.length, Object.keys(s.fieldBindings).length)}
                                         </Typography>
                                     </CardContent>
                                 </CardActionArea>
@@ -60,7 +60,7 @@ export default function StarterTemplatePicker({ open, onClose, onPick }: Props) 
                 </Grid>
             </DialogContent>
             <Grid container justifyContent="flex-end" sx={{ p: 2 }}>
-                <Button onClick={onClose}>Avbryt</Button>
+                <Button onClick={onClose}>{strings.common.cancel}</Button>
             </Grid>
         </Dialog>
     );
