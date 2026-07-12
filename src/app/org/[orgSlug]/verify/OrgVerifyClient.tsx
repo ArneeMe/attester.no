@@ -1,10 +1,13 @@
 'use client'
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Box, CircularProgress, Grid, TextField, Typography } from '@mui/material';
 import { canonicalHash } from '@/util/canonicalHash';
 import { customTheme } from '@/app/style/customTheme';
 import type { FormSchema, FormFieldSchema } from '@/types/formSchema';
+import { getStrings } from '@/strings';
+import LanguageToggle from '@/components/LanguageToggle';
 
 const OrgVerifyClient: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -12,6 +15,8 @@ const OrgVerifyClient: React.FC = () => {
     const colorTheme = customTheme.palette;
     const submissionId = searchParams.get('id') ?? '';
     const templateId = searchParams.get('t') ?? '';
+    const lang = searchParams.get('lang');
+    const s = getStrings(lang).verify;
 
     const [storedHash, setStoredHash] = useState<string | null | undefined>(undefined);
     const [verificationResult, setVerificationResult] = useState<'verified' | 'invalid' | null>(null);
@@ -73,20 +78,44 @@ const OrgVerifyClient: React.FC = () => {
               .map((k) => ({ key: k, label: k, type: 'text' as const }));
 
     return (
-        <Box sx={{ border: `5px solid ${getColor()}`, padding: 1, borderRadius: 2, margin: 2 }}>
-            <Typography variant="h3">Verifikasjon</Typography>
-            <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant="h6" color={getColor()}>
-                    {verificationResult === null
-                        ? 'Laster...'
-                        : verificationResult === 'verified'
-                            ? 'Attesten er gyldig!'
-                            : 'Attesten er ugyldig.'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                    Endre feltene under for å verifisere mot lagret hash.
-                </Typography>
-            </Grid>
+        <Box sx={{ border: `5px solid ${getColor()}`, padding: 3, borderRadius: 2, margin: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 2 }}>
+                <Typography variant="h3" gutterBottom>{s.title}</Typography>
+                <LanguageToggle />
+            </Box>
+
+            {verificationResult === null ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
+                    <CircularProgress size={28} />
+                    <Typography variant="h6" color="text.secondary">{s.checking}</Typography>
+                </Box>
+            ) : verificationResult === 'verified' ? (
+                <Box sx={{ my: 2 }}>
+                    <Typography variant="h5" color={getColor()} sx={{ fontWeight: 700 }}>
+                        {s.validTitle}
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
+                        {s.validBody}
+                    </Typography>
+                </Box>
+            ) : (
+                <Box sx={{ my: 2 }}>
+                    <Typography variant="h5" color={getColor()} sx={{ fontWeight: 700 }}>
+                        {s.invalidTitle}
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
+                        {s.invalidBody}
+                    </Typography>
+                </Box>
+            )}
+
+            <Typography variant="body2" sx={{ mt: 1 }}>
+                <Link href={lang === 'en' ? '/om?lang=en' : '/om'}>{s.aboutLink}</Link>
+            </Typography>
+
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3 }}>
+                {s.fieldsLabel}
+            </Typography>
             <Grid container spacing={2} paddingTop={2}>
                 {schemaLoading ? (
                     <Grid size={{ xs: 12 }}>
