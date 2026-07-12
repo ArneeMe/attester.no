@@ -5,10 +5,6 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
 
 ## Near-term (unblocked, just needs doing)
 
-- **Translate the template designer and content library** (`edit_pdf/*`,
-  `rediger/page.tsx`, ~1 800 lines). The pattern is established
-  (`src/strings.ts` + `useAdminLang`); every other admin page is done.
-  Only UI chrome — never database-persisted values.
 - **Live end-to-end pass against real Nhost** before onboarding a stranger
   org: password reset email, signup (check whether email verification is on),
   invite redemption, issue + verify one attest on paper, confirm the sweep

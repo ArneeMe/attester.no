@@ -70,9 +70,9 @@ CREATE TABLE IF NOT EXISTS org_assets (
 CREATE INDEX IF NOT EXISTS org_assets_org_idx ON org_assets(organization_id);
 CREATE INDEX IF NOT EXISTS org_assets_kind_idx ON org_assets(organization_id, kind);
 
--- Volunteer form submissions. Deleted automatically in the same
--- transaction that inserts the certificate — rows here are transient
--- review-queue state, never long-term storage.
+-- Volunteer form submissions. Deleted automatically by the retention
+-- sweep 24 hours after creation (issued or not) — rows here are
+-- transient review-queue state, never long-term storage.
 CREATE TABLE IF NOT EXISTS submissions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -85,8 +85,8 @@ CREATE INDEX IF NOT EXISTS submissions_template_idx ON submissions(template_id);
 
 -- The hash IS the certificate: no volunteer fields, ever (see CLAUDE.md).
 -- submission_id is the opaque lookup key embedded in the QR URL's `id`
--- param (a submissions uuid stored as text; the submission row itself is
--- deleted at issuance). template_id is SET NULL on template deletion —
+-- param (a submissions uuid stored as text; the submission row itself
+-- expires on its 24h TTL). template_id is SET NULL on template deletion —
 -- the hash keeps verifying regardless of presentation.
 CREATE TABLE IF NOT EXISTS certificates (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -97,7 +97,8 @@ CREATE TABLE IF NOT EXISTS certificates (
     issued_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
     created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS certificates_lookup_idx ON certificates(organization_id, submission_id);
+CREATE UNIQUE INDEX IF NOT EXISTS certificates_org_submission_unique
+    ON certificates(organization_id, submission_id);
 
 -- One-time snapshot of echo's pre-migration certs. The app NEVER inserts
 -- here; the legacy /verify route reads it until ~2030 (see CLAUDE.md).

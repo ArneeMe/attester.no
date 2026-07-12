@@ -108,19 +108,40 @@ export async function POST(
             return NextResponse.json({ id: existing.certificates[0].id, alreadyIssued: true });
         }
 
-        const data = await hasuraAdmin<{ insert_certificates_one: { id: string } }>(
-            `mutation InsertCertificate($organizationId: uuid!, $submissionId: String!, $hash: String!, $templateId: uuid!, $issuedBy: uuid!) {
-                insert_certificates_one(object: {
-                    organization_id: $organizationId,
-                    submission_id: $submissionId,
-                    hash: $hash,
-                    template_id: $templateId,
-                    issued_by: $issuedBy
-                }) { id }
-            }`,
-            { organizationId: auth.organizationId, submissionId, hash, templateId, issuedBy: auth.userId },
-        );
-        return NextResponse.json({ id: data.insert_certificates_one.id });
+        try {
+            const data = await hasuraAdmin<{ insert_certificates_one: { id: string } }>(
+                `mutation InsertCertificate($organizationId: uuid!, $submissionId: String!, $hash: String!, $templateId: uuid!, $issuedBy: uuid!) {
+                    insert_certificates_one(object: {
+                        organization_id: $organizationId,
+                        submission_id: $submissionId,
+                        hash: $hash,
+                        template_id: $templateId,
+                        issued_by: $issuedBy
+                    }) { id }
+                }`,
+                { organizationId: auth.organizationId, submissionId, hash, templateId, issuedBy: auth.userId },
+            );
+            return NextResponse.json({ id: data.insert_certificates_one.id });
+        } catch (e) {
+            // Concurrent double-click race: the unique index on
+            // (organization_id, submission_id) rejects the second insert.
+            // Re-read and return the winner — same data, same hash.
+            if ((e as Error).message.includes('certificates_org_submission_unique')) {
+                const winner = await hasuraAdmin<{ certificates: Array<{ id: string }> }>(
+                    `query ExistingCert($submissionId: String!, $organizationId: uuid!) {
+                        certificates(where: {
+                            submission_id: { _eq: $submissionId },
+                            organization_id: { _eq: $organizationId }
+                        }, limit: 1) { id }
+                    }`,
+                    { submissionId, organizationId: auth.organizationId },
+                );
+                if (winner.certificates.length > 0) {
+                    return NextResponse.json({ id: winner.certificates[0].id, alreadyIssued: true });
+                }
+            }
+            throw e;
+        }
     } catch (e) {
         return NextResponse.json({ error: (e as Error).message }, { status: 500 });
     }
