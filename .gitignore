@@ -13,3 +13,7 @@ tsconfig.tsbuildinfo
 
 # Next.js generated types
 next-env.d.ts
+
+# Playwright artifacts
+/test-results/
+/playwright-report/
