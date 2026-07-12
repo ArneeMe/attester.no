@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import { authHeader } from '@/lib/nhost';
 import { useToast } from '@/components/ToastProvider';
+import { useAdminLang } from '@/util/useAdminLang';
 
 type Cert = {
     id: string;
@@ -23,6 +24,8 @@ const MAX_LISTED = 100;
 
 const IssuedPage: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
+    const { strings } = useAdminLang();
+    const a = strings.admin.issued;
     const toast = useToast();
     const [certs, setCerts] = useState<Cert[] | null>(null);
     const [templates, setTemplates] = useState<TemplateRow[]>([]);
@@ -41,7 +44,7 @@ const IssuedPage: React.FC = () => {
                 setTemplates(tmplJson.templates ?? []);
             }
         } catch (e) {
-            toast.error(`Kunne ikke laste utstedte attester: ${(e as Error).message}`);
+            toast.error(`${a.loadError}: ${(e as Error).message}`);
             setCerts([]);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,18 +73,16 @@ const IssuedPage: React.FC = () => {
 
     return (
         <>
-            <Typography variant="h4" gutterBottom>Utstedte attester</Typography>
+            <Typography variant="h4" gutterBottom>{a.title}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                {certs.length} attest{certs.length === 1 ? '' : 'er'} totalt. Radene
-                inneholder ingen personopplysninger — hvem attesten gjelder finnes
-                kun på selve PDF-en.
+                {a.intro(certs.length)}
             </Typography>
 
             <Paper sx={{ p: 2, mb: 2, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 <div>
-                    <Typography variant="subtitle2" gutterBottom>Per måned</Typography>
+                    <Typography variant="subtitle2" gutterBottom>{a.perMonth}</Typography>
                     {months.length === 0 ? (
-                        <Typography variant="body2" color="text.secondary">Ingen enda</Typography>
+                        <Typography variant="body2" color="text.secondary">{a.none}</Typography>
                     ) : months.map(([month, count]) => (
                         <Typography key={month} variant="body2">
                             {month}: <strong>{count}</strong>
@@ -89,7 +90,7 @@ const IssuedPage: React.FC = () => {
                     ))}
                 </div>
                 <div>
-                    <Typography variant="subtitle2" gutterBottom>Per mal</Typography>
+                    <Typography variant="subtitle2" gutterBottom>{a.perTemplate}</Typography>
                     {[...byTemplate.entries()].sort(([, a], [, b]) => b - a).map(([name, count]) => (
                         <Typography key={name} variant="body2">
                             {name}: <strong>{count}</strong>
@@ -102,9 +103,9 @@ const IssuedPage: React.FC = () => {
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell>Utstedt</TableCell>
-                            <TableCell>Mal</TableCell>
-                            <TableCell>Utstedt av</TableCell>
+                            <TableCell>{a.colIssued}</TableCell>
+                            <TableCell>{a.colTemplate}</TableCell>
+                            <TableCell>{a.colBy}</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -119,7 +120,7 @@ const IssuedPage: React.FC = () => {
                 </Table>
                 {certs.length > MAX_LISTED && (
                     <Typography variant="caption" color="text.secondary" sx={{ p: 2, display: 'block' }}>
-                        Viser de {MAX_LISTED} nyeste av {certs.length}.
+                        {a.showingNewest(MAX_LISTED, certs.length)}
                     </Typography>
                 )}
             </Paper>

@@ -17,6 +17,7 @@ import { useToast } from '@/components/ToastProvider';
 import type { Submission } from '@/types/submission';
 import type { FormSchema } from '@/types/formSchema';
 import { hoursUntilDeletion } from '@/util/retention';
+import { useAdminLang } from '@/util/useAdminLang';
 
 type SubmissionRow = {
     id: string;
@@ -34,6 +35,8 @@ type FullTemplate = TemplateData & {
 
 const AdminPage: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
+    const { strings } = useAdminLang();
+    const a = strings.admin.dashboard;
     const toast = useToast();
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [templates, setTemplates] = useState<FullTemplate[]>([]);
@@ -72,7 +75,7 @@ const AdminPage: React.FC = () => {
                     })));
                 } else {
                     const json = await subRes.json().catch(() => ({} as { error?: string }));
-                    toast.error(`Kunne ikke laste innsendinger: ${json.error ?? `HTTP ${subRes.status}`}`);
+                    toast.error(`${a.loadSubmissionsError}: ${json.error ?? `HTTP ${subRes.status}`}`);
                 }
 
                 if (tmplRes.ok) {
@@ -80,10 +83,10 @@ const AdminPage: React.FC = () => {
                     setTemplates(json.templates ?? []);
                 } else {
                     const json = await tmplRes.json().catch(() => ({} as { error?: string }));
-                    toast.error(`Kunne ikke laste maler: ${json.error ?? `HTTP ${tmplRes.status}`}`);
+                    toast.error(`${a.loadTemplatesError}: ${json.error ?? `HTTP ${tmplRes.status}`}`);
                 }
             } catch (error) {
-                toast.error(`Kunne ikke laste data: ${(error as Error).message ?? 'nettverksfeil'}`);
+                toast.error(`${a.loadError}: ${(error as Error).message ?? ''}`);
             }
         };
         fetchData();
@@ -114,10 +117,10 @@ const AdminPage: React.FC = () => {
             await handleDelete(selected.id);
             setOpenDeleteDialog(false);
             setSelected(null);
-            toast.success('Innsendingen er slettet');
+            toast.success(a.deleted);
         } catch (error) {
             console.error(error);
-            toast.error((error as Error).message ?? 'Feil ved sletting');
+            toast.error((error as Error).message ?? a.deleteError);
         }
     };
 
@@ -130,10 +133,10 @@ const AdminPage: React.FC = () => {
             setOpenBatchDeleteDialog(false);
             const n = selectedIDs.length;
             setSelectedIDs([]);
-            toast.success(`${n} innsending${n === 1 ? '' : 'er'} slettet`);
+            toast.success(a.batchDeleted(n));
         } catch (error) {
             console.error(error);
-            toast.error((error as Error).message ?? 'Feil ved sletting');
+            toast.error((error as Error).message ?? a.deleteError);
         }
     };
 
@@ -153,7 +156,7 @@ const AdminPage: React.FC = () => {
         if (!selected) return;
         const tmpl = templateById(selected.templateId);
         if (!tmpl) {
-            toast.error('Malen finnes ikke lenger. Velg en annen mal eller opprett den på nytt.');
+            toast.error(a.templateGone);
             return;
         }
         if (!issuedIds.current.has(selected.id)) {
@@ -163,7 +166,7 @@ const AdminPage: React.FC = () => {
                 setSubmissions((prev) => prev.filter((s) => s.id !== selected.id));
             } catch (error) {
                 console.error(error);
-                toast.error('Feil ved registrering av sertifikat: ' + ((error as Error).message ?? 'ukjent feil'));
+                toast.error(a.registerError + ((error as Error).message ?? a.unknownError));
                 return;
             }
         }
@@ -174,8 +177,7 @@ const AdminPage: React.FC = () => {
             setOpenDialog(false);
         } catch (error) {
             console.error(error);
-            toast.error('Feil ved generering av PDF: ' + ((error as Error).message ?? 'ukjent feil')
-                + '. Attesten er registrert og dataene er fortsatt i minnet – trykk «Generer PDF» for å prøve igjen. Ikke last siden på nytt.');
+            toast.error(a.pdfError + ((error as Error).message ?? a.unknownError) + a.pdfRetryHint);
         }
     };
 
@@ -200,7 +202,7 @@ const AdminPage: React.FC = () => {
             const tmpl = templateById(sub.templateId);
             const label = sub.data.name || id.slice(0, 8);
             if (!tmpl) {
-                failures.push(`${label}: mal mangler`);
+                failures.push(`${label}: ${a.templateMissingShort}`);
                 continue;
             }
             try {
@@ -214,14 +216,14 @@ const AdminPage: React.FC = () => {
                 issued++;
             } catch (e) {
                 console.error(e);
-                failures.push(`${label}: ${(e as Error).message ?? 'ukjent feil'}`);
+                failures.push(`${label}: ${(e as Error).message ?? a.unknownError}`);
             }
         }
         if (issued > 0) {
             const zipBlob = await zip.generateAsync({ type: 'blob' });
             downloadBlob(zipBlob, 'attester.zip');
             setSubmissions((prev) => prev.filter((s) => !issuedIds.current.has(s.id)));
-            toast.success(`${issued} attest${issued === 1 ? '' : 'er'} utstedt og lastet ned som ZIP. Innsendingene er slettet automatisk.`);
+            toast.success(a.batchDone(issued));
         }
         for (const f of failures) toast.error(f);
         setSelectedIDs((prev) => prev.filter((id) => !issuedIds.current.has(id)));
@@ -245,7 +247,7 @@ const AdminPage: React.FC = () => {
         <>
             <Grid container alignItems="center" spacing={2} sx={{ mb: 2 }}>
                 <Grid size={{ sm: 10 }}>
-                    <Typography variant="h4" gutterBottom>Oversikt</Typography>
+                    <Typography variant="h4" gutterBottom>{a.title}</Typography>
                 </Grid>
                 <Grid size={{ sm: 2 }}>
                     <Button
@@ -255,10 +257,10 @@ const AdminPage: React.FC = () => {
                         disabled={selectedIDs.length === 0 || batchBusy}
                         sx={{ mr: 1 }}
                     >
-                        Generer valgte
+                        {a.batchIssue}
                     </Button>
                     <Button size="small" onClick={openBatchDeleteClick} disabled={selectedIDs.length === 0 || batchBusy}>
-                        Slett valgte
+                        {a.batchDelete}
                     </Button>
                 </Grid>
             </Grid>
@@ -269,7 +271,7 @@ const AdminPage: React.FC = () => {
                         <TextField
                             fullWidth
                             size="small"
-                            label="Søk i innsendinger"
+                            label={a.search}
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
                         />
@@ -279,11 +281,11 @@ const AdminPage: React.FC = () => {
                             fullWidth
                             select
                             size="small"
-                            label="Mal"
+                            label={a.template}
                             value={templateFilter}
                             onChange={(e) => setTemplateFilter(e.target.value)}
                         >
-                            <MenuItem value="">Alle maler</MenuItem>
+                            <MenuItem value="">{a.allTemplates}</MenuItem>
                             {templates.map((t) => (
                                 <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
                             ))}
@@ -291,13 +293,13 @@ const AdminPage: React.FC = () => {
                     </Grid>
                     <Grid size={{ xs: 12, sm: 3 }}>
                         <Button size="small" onClick={() => setNewestFirst((v) => !v)}>
-                            {newestFirst ? 'Nyeste først ↓' : 'Eldste først ↑'}
+                            {newestFirst ? a.newestFirst : a.oldestFirst}
                         </Button>
                     </Grid>
                     {visibleSubmissions.length !== submissions.length && (
                         <Grid size={{ xs: 12 }}>
                             <Typography variant="caption" color="text.secondary">
-                                Viser {visibleSubmissions.length} av {submissions.length} innsendinger
+                                {a.showing(visibleSubmissions.length, submissions.length)}
                             </Typography>
                         </Grid>
                     )}
@@ -306,16 +308,13 @@ const AdminPage: React.FC = () => {
 
             {submissions.length === 0 && (
                 <Paper elevation={1} sx={{ p: 3, mb: 2, bgcolor: 'grey.50' }}>
-                    <Typography variant="h6" gutterBottom>Ingen innsendinger enda</Typography>
+                    <Typography variant="h6" gutterBottom>{a.emptyTitle}</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Folk fyller ut skjemaet på <code>/org/{orgSlug}</code>.
-                        Når de sender inn, dukker innsendingene opp her klare for godkjenning.
+                        {a.emptyBody(orgSlug)}
                     </Typography>
                     {templates.length === 0 && (
                         <Typography variant="body2" color="warning.main">
-                            Du har ingen PDF-mal enda. Gå til «PDF-mal» og lag en
-                            (eller velg en ferdig fra galleriet) før du sender ut
-                            skjemalenken.
+                            {a.noTemplateWarn}
                         </Typography>
                     )}
                 </Paper>
@@ -341,17 +340,17 @@ const AdminPage: React.FC = () => {
                                     />
                                     {tmpl && (
                                         <Typography variant="caption" color="text.secondary" display="block">
-                                            Mal: {tmpl.name}
+                                            {a.templateCaption(tmpl.name)}
                                         </Typography>
                                     )}
                                     <Typography variant="caption" color="warning.main" display="block">
-                                        Slettes automatisk om {hoursUntilDeletion(sub.createdAt)} t
+                                        {a.deletesIn(hoursUntilDeletion(sub.createdAt))}
                                     </Typography>
                                     {schema ? (
                                         <SchemaDetails schema={schema} data={sub.data} />
                                     ) : (
                                         <Typography variant="body2" color="error">
-                                            Skjema ikke funnet for malen.
+                                            {a.schemaMissing}
                                         </Typography>
                                     )}
                                 </Grid>
@@ -361,14 +360,14 @@ const AdminPage: React.FC = () => {
                                     onClick={() => handleClick(sub)}
                                     disabled={!tmpl}
                                 >
-                                    <Typography>Generer PDF</Typography>
+                                    <Typography>{a.generate}</Typography>
                                 </Button>
                                 <Button
                                     onClick={() => handleDeleteClick(sub)}
                                     color="primary"
                                     size="small"
                                 >
-                                    <Typography color="error">Slett data</Typography>
+                                    <Typography color="error">{a.deleteData}</Typography>
                                 </Button>
                             </Paper>
                         </Grid>
@@ -378,24 +377,24 @@ const AdminPage: React.FC = () => {
 
             <ConfirmDialog
                 open={openDialog}
-                title="Bekreft generering av PDF"
-                message="Når du genererer PDF-en, registreres attesten og innsendingen slettes automatisk. Bruk forhåndsvisningen hvis du vil se resultatet først."
+                title={a.confirmGenTitle}
+                message={a.confirmGenMsg}
                 details={selected && selectedSchema ? (
                     <SchemaDetails schema={selectedSchema} data={selected.data} />
                 ) : null}
                 onConfirm={handleConfirm}
                 onClose={handleClose}
-                confirmButtonText="Generer PDF"
+                confirmButtonText={a.generate}
                 secondaryAction={
                     selected && selectedTemplate
                         ? {
-                              label: 'Forhåndsvis',
+                              label: a.preview,
                               onClick: async () => {
                                   try {
                                       await previewPDF(orgSlug, selectedTemplate, selected.id, selected.data);
                                   } catch (e) {
                                       console.error(e);
-                                      toast.error('Feil ved forhåndsvisning: ' + ((e as Error).message ?? 'ukjent feil'));
+                                      toast.error(a.previewError + ((e as Error).message ?? a.unknownError));
                                   }
                               },
                           }
@@ -405,51 +404,51 @@ const AdminPage: React.FC = () => {
 
             <ConfirmDialog
                 open={openDeleteDialog}
-                title="Bekreft sletting"
-                message="Er du sikker på at du vil slette denne innsendingen?"
+                title={a.confirmDeleteTitle}
+                message={a.confirmDeleteMsg}
                 onConfirm={handleDeleteConfirm}
                 onClose={() => setOpenDeleteDialog(false)}
-                confirmButtonText="Slett"
+                confirmButtonText={a.deleteButton}
             />
 
             <ConfirmDialog
                 open={openBatchIssueDialog}
-                title="Utsted valgte attester"
-                message={`${selectedIDs.length} attest${selectedIDs.length === 1 ? '' : 'er'} genereres og lastes ned som én ZIP-fil. Innsendingene slettes automatisk når attestene registreres.`}
+                title={a.batchTitle}
+                message={a.batchMsg(selectedIDs.length)}
                 onConfirm={handleBatchIssueConfirm}
                 onClose={() => { if (!batchBusy) setOpenBatchIssueDialog(false); }}
-                confirmButtonText={batchBusy ? 'Genererer …' : 'Generer ZIP'}
+                confirmButtonText={batchBusy ? a.batchBusy : a.batchButton}
             />
 
             <ConfirmDialog
                 open={openBatchDeleteDialog}
-                title="Bekreft sletting av alle"
-                message={`Vil du slette ${selectedIDs.length} valgte innsendinger?`}
+                title={a.confirmBatchDeleteTitle}
+                message={a.confirmBatchDeleteMsg(selectedIDs.length)}
                 onConfirm={handleBatchDeleteConfirm}
                 onClose={() => setOpenBatchDeleteDialog(false)}
-                confirmButtonText="Slett"
+                confirmButtonText={a.deleteButton}
             />
 
             <ConfirmDialog
                 open={openPDFDialog}
-                title="PDF-en er generert"
-                message="Innsendingen er slettet automatisk – personinformasjonen er fjernet fra databasen. Sjekk at PDF-en ser riktig ut før du lukker."
+                title={a.pdfDoneTitle}
+                message={a.pdfDoneMsg}
                 details={<Typography variant="body1">
-                    Her er verifiserings-URL-en:{' '}
+                    {a.verifyUrlLabel}{' '}
                     <Link href={pdfUrl} target="_blank" rel="noreferrer">{pdfUrl}</Link>
                 </Typography>}
                 onConfirm={() => { setOpenPDFDialog(false); setSelected(null); }}
                 onClose={() => { setOpenPDFDialog(false); setSelected(null); }}
-                confirmButtonText="Lukk"
+                confirmButtonText={a.close}
                 showCancelButton={false}
                 secondaryAction={{
-                    label: 'Kopier lenke',
+                    label: a.copyLink,
                     onClick: async () => {
                         try {
                             await navigator.clipboard.writeText(pdfUrl);
-                            toast.success('Verifiseringslenken er kopiert');
+                            toast.success(a.linkCopied);
                         } catch {
-                            toast.error('Kunne ikke kopiere – marker lenken manuelt');
+                            toast.error(a.copyFailed);
                         }
                     },
                 }}

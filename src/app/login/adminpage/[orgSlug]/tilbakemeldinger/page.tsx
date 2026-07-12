@@ -9,11 +9,14 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import { authHeader } from '@/lib/nhost';
 import { useToast } from '@/components/ToastProvider';
+import { useAdminLang } from '@/util/useAdminLang';
 
 type FeedbackItem = { id: string; rating: number; comment: string; created_at: string };
 
 const FeedbackPage: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
+    const { strings } = useAdminLang();
+    const a = strings.admin.feedbackPage;
     const toast = useToast();
     const [items, setItems] = useState<FeedbackItem[] | null>(null);
 
@@ -26,7 +29,7 @@ const FeedbackPage: React.FC = () => {
             if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
             setItems(json.feedback);
         } catch (e) {
-            toast.error(`Kunne ikke laste tilbakemeldinger: ${(e as Error).message}`);
+            toast.error(`${a.loadError}: ${(e as Error).message}`);
             setItems([]);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -55,9 +58,9 @@ const FeedbackPage: React.FC = () => {
 
     return (
         <>
-            <Typography variant="h4" gutterBottom>Tilbakemeldinger</Typography>
+            <Typography variant="h4" gutterBottom>{a.title}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Anonyme tilbakemeldinger fra innsendere etter at skjemaet er sendt inn.
+                {a.intro}
             </Typography>
 
             {items === null ? (
@@ -65,8 +68,7 @@ const FeedbackPage: React.FC = () => {
             ) : items.length === 0 ? (
                 <Paper sx={{ p: 3 }}>
                     <Typography variant="body2" color="text.secondary">
-                        Ingen tilbakemeldinger enda. De dukker opp her når innsendere
-                        vurderer opplevelsen på bekreftelsessiden.
+                        {a.empty}
                     </Typography>
                 </Paper>
             ) : (
@@ -74,7 +76,7 @@ const FeedbackPage: React.FC = () => {
                     <Paper sx={{ p: 2, mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Rating value={average} precision={0.1} readOnly />
                         <Typography variant="body2" color="text.secondary">
-                            {average?.toFixed(1)} i snitt · {items.length} tilbakemelding{items.length === 1 ? '' : 'er'}
+                            {a.average(average?.toFixed(1) ?? '', items.length)}
                         </Typography>
                     </Paper>
                     {items.map((f) => (
@@ -88,7 +90,7 @@ const FeedbackPage: React.FC = () => {
                                 </Box>
                                 <IconButton
                                     size="small"
-                                    aria-label="Slett tilbakemelding"
+                                    aria-label={a.deleteAria}
                                     onClick={() => handleDelete(f.id)}
                                 >
                                     <DeleteIcon fontSize="small" />
