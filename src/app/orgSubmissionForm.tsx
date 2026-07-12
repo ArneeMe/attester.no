@@ -11,6 +11,8 @@ import { useToast } from '@/components/ToastProvider';
 import ConfirmDialog from "@/util/confirmDialog";
 import { getStrings } from '@/strings';
 import LanguageToggle from '@/components/LanguageToggle';
+import FeedbackWidget from '@/components/FeedbackWidget';
+import OrgLogo from '@/components/OrgLogo';
 
 interface Props {
     orgSlug: string;
@@ -121,6 +123,7 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
                     <Button variant="outlined" onClick={() => { setFormData({}); setSubmitted(false); }}>
                         {s.sendAnother}
                     </Button>
+                    <FeedbackWidget orgSlug={orgSlug} strings={strings.feedback} />
                 </Paper>
             </Container>
         );
@@ -128,6 +131,7 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
 
     return (
         <Container component="main">
+            <OrgLogo orgSlug={orgSlug} />
             <Grid container spacing={0} alignItems="baseline">
                 <Grid size={{ xs: 8 }}>
                     <Typography variant="h5">{s.title(orgName)}</Typography>
