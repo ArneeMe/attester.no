@@ -8,6 +8,7 @@ export const runtime = "edge";
 
 type CertRow = {
     id: string;
+    submission_id: string;
     template_id: string | null;
     issued_by: string | null;
     created_at: string;
@@ -33,7 +34,7 @@ export async function GET(
                 certificates(
                     where: { organization_id: { _eq: $organizationId } },
                     order_by: { created_at: desc }
-                ) { id template_id issued_by created_at }
+                ) { id submission_id template_id issued_by created_at }
             }`,
             { organizationId: auth.organizationId },
         );
@@ -42,6 +43,7 @@ export async function GET(
         const emailById = new Map(users.map((u) => [u.id, u.email]));
         const certificates = data.certificates.map((c) => ({
             id: c.id,
+            submissionId: c.submission_id,
             templateId: c.template_id,
             issuedBy: c.issued_by ? emailById.get(c.issued_by) ?? null : null,
             createdAt: c.created_at,
@@ -88,17 +90,26 @@ export async function POST(
     }
 
     try {
-        // Insert the cert and delete the submission in ONE mutation. Hasura
-        // runs both root fields in a single transaction, so the volunteer's
-        // personal data is gone the moment the cert exists — the privacy
-        // guarantee no longer depends on an admin remembering to click delete.
-        // certificates.submission_id is a String column; submissions.id is
-        // uuid — same value, two GraphQL types.
-        const data = await hasuraAdmin<{
-            insert_certificates_one: { id: string };
-            delete_submissions_by_pk: { id: string } | null;
-        }>(
-            `mutation InsertCertificateDeleteSubmission($organizationId: uuid!, $submissionId: String!, $submissionUuid: uuid!, $hash: String!, $templateId: uuid!, $issuedBy: uuid!) {
+        // Issuance does NOT delete the submission: it stays until the 24h
+        // retention sweep removes it (src/lib/server/retention.ts), so the
+        // admin can regenerate the PDF within that window. That makes this
+        // endpoint idempotent per submission — a re-issue returns the
+        // existing cert instead of minting a duplicate row.
+        const existing = await hasuraAdmin<{ certificates: Array<{ id: string }> }>(
+            `query ExistingCert($submissionId: String!, $organizationId: uuid!) {
+                certificates(where: {
+                    submission_id: { _eq: $submissionId },
+                    organization_id: { _eq: $organizationId }
+                }, limit: 1) { id }
+            }`,
+            { submissionId, organizationId: auth.organizationId },
+        );
+        if (existing.certificates.length > 0) {
+            return NextResponse.json({ id: existing.certificates[0].id, alreadyIssued: true });
+        }
+
+        const data = await hasuraAdmin<{ insert_certificates_one: { id: string } }>(
+            `mutation InsertCertificate($organizationId: uuid!, $submissionId: String!, $hash: String!, $templateId: uuid!, $issuedBy: uuid!) {
                 insert_certificates_one(object: {
                     organization_id: $organizationId,
                     submission_id: $submissionId,
@@ -106,9 +117,8 @@ export async function POST(
                     template_id: $templateId,
                     issued_by: $issuedBy
                 }) { id }
-                delete_submissions_by_pk(id: $submissionUuid) { id }
             }`,
-            { organizationId: auth.organizationId, submissionId, submissionUuid: submissionId, hash, templateId, issuedBy: auth.userId },
+            { organizationId: auth.organizationId, submissionId, hash, templateId, issuedBy: auth.userId },
         );
         return NextResponse.json({ id: data.insert_certificates_one.id });
     } catch (e) {
