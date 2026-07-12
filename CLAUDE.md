@@ -18,8 +18,8 @@ Data flow:
 3. The server stores ONLY: `cert_id`, `hash(URL params)`, `template_id`,
    `organization_id`, `created_at`. Never the name, dates, group, role, or
    any other identifying field.
-4. The admin deletes the volunteer row (manual today; meant to happen
-   immediately after PDF issuance).
+4. The submission row is deleted automatically in the same transaction
+   that inserts the certificate (see the certificates POST route).
 5. To verify: anyone with the QR code opens the URL. The verify page
    recomputes the canonical hash from the URL params, fetches the stored
    hash from the API, compares them.
@@ -48,11 +48,22 @@ What IS acceptable:
 
 ### Volunteer deletion
 
-The admin UI has a per-volunteer "Slett data" button and a batch one. The
-intended workflow is: generate PDF → confirm everything looks right →
-delete the volunteer. Automating this deletion (e.g. on successful cert
-insertion) is a reasonable future change. Storing volunteer data
-indefinitely is NOT.
+Deletion is automatic: the certificates POST route deletes the submission
+row in the same Hasura mutation (single transaction) that inserts the
+certificate. The admin UI keeps its per-submission "Slett data" button and
+the batch one for rejecting submissions without issuing a cert. The
+dashboard holds the submission data in memory after issuance so a failed
+PDF render can be retried without re-calling the certificates route (the
+row is gone; a second submitHash would fail the ownership check).
+Storing volunteer data indefinitely is NOT acceptable — do not remove the
+auto-delete.
+
+On top of that, unprocessed submissions expire: a lazy sweep
+(`src/lib/server/retention.ts`, TTL in `src/util/retention.ts`) deletes
+rows older than the TTL whenever the submissions API is touched. No
+scheduler exists on the edge runtime, and none is needed — if nothing
+triggers the sweep, nothing is reading the data either. Do not remove
+the sweep calls from the submissions GET/POST routes.
 
 ## The legacy `/verify` route
 

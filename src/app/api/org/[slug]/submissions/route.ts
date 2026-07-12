@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "@/lib/server/apiAuth";
 import { templateBelongsToOrg } from "@/lib/server/ownership";
+import { checkRateLimit, clientIp } from "@/lib/server/rateLimit";
+import { sweepExpiredSubmissions } from "@/lib/server/retention";
+import { notifyNewSubmission } from "@/lib/server/notify";
 
 export const runtime = "edge";
 
@@ -10,6 +13,12 @@ export const runtime = "edge";
 // of headroom for any realistic form.
 const MAX_SUBMISSION_BYTES = 64 * 1024;
 const MAX_FIELD_VALUE_LEN = 8 * 1024;
+
+// Per-IP throttle on the anonymous POST. Generous enough for a whole
+// student group filling the form behind one campus NAT, tight enough
+// that one machine can't fill an org's review queue.
+const RATE_LIMIT = 20;
+const RATE_WINDOW_MS = 10 * 60 * 1000;
 
 type SubmissionRow = {
     id: string;
@@ -26,6 +35,10 @@ export async function GET(
     const { slug } = await params;
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
+
+    // Enforce the retention TTL before reading, so the admin never sees
+    // (and the response never contains) rows that should already be gone.
+    await sweepExpiredSubmissions();
 
     try {
         const data = await hasuraAdmin<{ submissions: SubmissionRow[] }>(
@@ -50,6 +63,12 @@ export async function POST(
     { params }: { params: Promise<{ slug: string }> },
 ) {
     const { slug } = await params;
+    if (!checkRateLimit(`submissions:${clientIp(req.headers)}`, RATE_LIMIT, RATE_WINDOW_MS)) {
+        return NextResponse.json(
+            { error: "For mange innsendinger. Vent noen minutter og prøv igjen." },
+            { status: 429 },
+        );
+    }
     const body = await req.text();
     if (body.length > MAX_SUBMISSION_BYTES) {
         return NextResponse.json({ error: "Submission too large" }, { status: 413 });
@@ -79,6 +98,10 @@ export async function POST(
         }
     }
 
+    // Piggyback the retention sweep on the anonymous write path too, so
+    // expired rows are purged even if no admin logs in for days.
+    await sweepExpiredSubmissions();
+
     try {
         const organizationId = await resolveOrgIdBySlug(slug);
         if (!organizationId) {
@@ -106,6 +129,11 @@ export async function POST(
             }`,
             { organizationId, templateId, data },
         );
+
+        // Content-free heads-up to the org's admins. No-op unless an email
+        // provider is configured; never fails the submission.
+        await notifyNewSubmission(organizationId, slug);
+
         return NextResponse.json({ submission: result.insert_submissions_one });
     } catch (e) {
         return NextResponse.json({ error: (e as Error).message }, { status: 500 });

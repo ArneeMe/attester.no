@@ -27,7 +27,8 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
   et `form_schema` (skjemaet innsenderen ser), og `field_bindings`
   (hvor hvert PDF-felt henter sin verdi: skjema, system, asset,
   oppslag, sammensatt tekst, …).
-- `submissions` — innsendte data, slettes manuelt etter PDF-generering.
+- `submissions` — innsendte data, slettes automatisk når attesten
+  utstedes (i samme transaksjon som hash-lagringen).
 - `certificates` — kun id, hash, template-id, org-id, tidsstempel.
   Ingen personalia.
 
@@ -51,6 +52,10 @@ types/       — formSchema, fieldBindings, orgAssets, templateTypes
 
 SQL-filer i `scripts/migrations/` kjøres i Hasura SQL-konsollen, så
 sporer du de nye/endrede tabellene i Hasura-grafQL-skjemaet.
+
+Ny installasjon: kjør kun `0000-baseline-schema.sql` — den inneholder
+hele skjemaet. `2026-05-*`-filene er historiske migrasjoner av den gamle
+echo-databasen.
 
 ## Kjøre lokalt
 
