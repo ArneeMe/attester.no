@@ -34,7 +34,8 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
   Ingen personalia.
 
 Se [CLAUDE.md](CLAUDE.md) for personvernsmodellen og hvorfor det er
-viktig at strukturen forblir slik.
+viktig at strukturen forblir slik. Utfyllende dokumentasjon ligger i
+[docs/](docs/): arkitektur, utviklingsguide og roadmap.
 
 ## Struktur
 
