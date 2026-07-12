@@ -3,10 +3,12 @@ export const runtime = 'edge';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, Button, CircularProgress, Container, TextField, Typography } from '@mui/material';
 import { signup } from '@/util/auth';
 import { useToast } from '@/components/ToastProvider';
+import { getStrings } from '@/strings';
+import LanguageToggle from '@/components/LanguageToggle';
 
 const RegisterPage: React.FC = () => {
     const [displayName, setDisplayName] = useState('');
@@ -16,27 +18,31 @@ const RegisterPage: React.FC = () => {
     const [busy, setBusy] = useState(false);
     const [needsVerification, setNeedsVerification] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const lang = searchParams.get('lang');
+    const s = getStrings(lang).auth;
+    const withLang = (path: string) => (lang === 'en' ? `${path}?lang=en` : path);
     const toast = useToast();
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (busy) return;
         if (password !== confirm) {
-            toast.error('Passordene er ikke like');
+            toast.error(s.passwordMismatch);
             return;
         }
         setBusy(true);
         try {
             const hasSession = await signup(email, password, displayName.trim());
             if (hasSession) {
-                toast.success('Kontoen er opprettet');
+                toast.success(s.registerDone);
                 router.push('/login/adminpage');
             } else {
                 setNeedsVerification(true);
             }
         } catch (error) {
             console.error(error);
-            toast.error((error as Error).message ?? 'Registrering feilet');
+            toast.error((error as Error).message ?? s.registerFailed);
         } finally {
             setBusy(false);
         }
@@ -46,26 +52,23 @@ const RegisterPage: React.FC = () => {
         <Container component="main" maxWidth="xs">
             <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <Typography component="h1" variant="h5" gutterBottom>
-                    Registrer konto
+                    {s.registerTitle}
                 </Typography>
                 {needsVerification ? (
                     <Typography variant="body1" sx={{ mt: 2 }}>
-                        Sjekk e-posten din og bekreft kontoen. Deretter kan du logge inn —
-                        og be et eksisterende medlem i organisasjonen din om å legge deg
-                        til under «Medlemmer».
+                        {s.verifyEmail}
                     </Typography>
                 ) : (
                     <>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 1 }}>
-                            En konto gir ingen tilgang i seg selv — et eksisterende medlem
-                            må legge deg til i organisasjonen etterpå.
+                            {s.registerIntro}
                         </Typography>
                         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
                             <TextField
                                 variant="outlined"
                                 margin="normal"
                                 fullWidth
-                                label="Navn"
+                                label={s.name}
                                 autoComplete="name"
                                 autoFocus
                                 value={displayName}
@@ -77,7 +80,7 @@ const RegisterPage: React.FC = () => {
                                 margin="normal"
                                 required
                                 fullWidth
-                                label="E-post"
+                                label={s.email}
                                 type="email"
                                 autoComplete="email"
                                 value={email}
@@ -89,7 +92,7 @@ const RegisterPage: React.FC = () => {
                                 margin="normal"
                                 required
                                 fullWidth
-                                label="Passord"
+                                label={s.password}
                                 type="password"
                                 autoComplete="new-password"
                                 value={password}
@@ -101,7 +104,7 @@ const RegisterPage: React.FC = () => {
                                 margin="normal"
                                 required
                                 fullWidth
-                                label="Gjenta passord"
+                                label={s.repeatPassword}
                                 type="password"
                                 autoComplete="new-password"
                                 value={confirm}
@@ -115,12 +118,15 @@ const RegisterPage: React.FC = () => {
                                 sx={{ mt: 3, mb: 2 }}
                                 disabled={busy || !email || !password || !confirm}
                             >
-                                {busy ? <CircularProgress size={20} /> : 'Registrer'}
+                                {busy ? <CircularProgress size={20} /> : s.registerButton}
                             </Button>
                         </Box>
                     </>
                 )}
-                <Link href="/login">Har du konto? Logg inn</Link>
+                <Link href={withLang('/login')}>{s.hasAccount}</Link>
+                <Box sx={{ mt: 2 }}>
+                    <LanguageToggle />
+                </Box>
             </Box>
         </Container>
     );

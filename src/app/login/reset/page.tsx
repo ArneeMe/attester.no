@@ -7,10 +7,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, Button, CircularProgress, Container, TextField, Typography } from '@mui/material';
 import { completePasswordReset } from '@/util/auth';
 import { useToast } from '@/components/ToastProvider';
+import { getStrings } from '@/strings';
 
 const ResetPasswordPage: React.FC = () => {
     const searchParams = useSearchParams();
     const refreshToken = searchParams.get('refreshToken');
+    const lang = searchParams.get('lang');
+    const s = getStrings(lang).auth;
+    const withLang = (path: string) => (lang === 'en' ? `${path}?lang=en` : path);
     const [password, setPassword] = useState('');
     const [confirm, setConfirm] = useState('');
     const [busy, setBusy] = useState(false);
@@ -21,11 +25,11 @@ const ResetPasswordPage: React.FC = () => {
         return (
             <Container component="main" maxWidth="xs">
                 <Box sx={{ mt: 8, textAlign: 'center' }}>
-                    <Typography variant="h5" gutterBottom>Ugyldig lenke</Typography>
+                    <Typography variant="h5" gutterBottom>{s.resetInvalidTitle}</Typography>
                     <Typography variant="body1" sx={{ mb: 2 }}>
-                        Lenken mangler eller er utløpt. Be om en ny.
+                        {s.resetInvalidBody}
                     </Typography>
-                    <Link href="/login/glemt">Glemt passord</Link>
+                    <Link href={withLang('/login/glemt')}>{s.forgotTitle}</Link>
                 </Box>
             </Container>
         );
@@ -35,20 +39,17 @@ const ResetPasswordPage: React.FC = () => {
         e.preventDefault();
         if (busy) return;
         if (password !== confirm) {
-            toast.error('Passordene er ikke like');
+            toast.error(s.passwordMismatch);
             return;
         }
         setBusy(true);
         try {
             await completePasswordReset(refreshToken, password);
-            toast.success('Passordet er endret. Logg inn med det nye passordet.');
+            toast.success(s.resetDone);
             router.push('/login');
         } catch (error) {
             console.error(error);
-            toast.error(
-                ((error as Error).message ?? 'Noe gikk galt')
-                + '. Lenken kan være utløpt – be om en ny under «Glemt passord».',
-            );
+            toast.error(((error as Error).message ?? s.genericError) + s.resetFailedHint);
             setBusy(false);
         }
     };
@@ -57,7 +58,7 @@ const ResetPasswordPage: React.FC = () => {
         <Container component="main" maxWidth="xs">
             <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <Typography component="h1" variant="h5">
-                    Sett nytt passord
+                    {s.resetTitle}
                 </Typography>
                 <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
                     <TextField
@@ -65,7 +66,7 @@ const ResetPasswordPage: React.FC = () => {
                         margin="normal"
                         required
                         fullWidth
-                        label="Nytt passord"
+                        label={s.newPassword}
                         type="password"
                         autoComplete="new-password"
                         autoFocus
@@ -78,7 +79,7 @@ const ResetPasswordPage: React.FC = () => {
                         margin="normal"
                         required
                         fullWidth
-                        label="Gjenta nytt passord"
+                        label={s.repeatNewPassword}
                         type="password"
                         autoComplete="new-password"
                         value={confirm}
@@ -92,7 +93,7 @@ const ResetPasswordPage: React.FC = () => {
                         sx={{ mt: 3, mb: 2 }}
                         disabled={busy || !password || !confirm}
                     >
-                        {busy ? <CircularProgress size={20} /> : 'Endre passord'}
+                        {busy ? <CircularProgress size={20} /> : s.resetButton}
                     </Button>
                 </Box>
             </Box>

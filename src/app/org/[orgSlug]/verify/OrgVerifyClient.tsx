@@ -1,10 +1,13 @@
 'use client'
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Box, CircularProgress, Grid, TextField, Typography } from '@mui/material';
 import { canonicalHash } from '@/util/canonicalHash';
 import { customTheme } from '@/app/style/customTheme';
 import type { FormSchema, FormFieldSchema } from '@/types/formSchema';
+import { getStrings } from '@/strings';
+import LanguageToggle from '@/components/LanguageToggle';
 
 const OrgVerifyClient: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -12,6 +15,8 @@ const OrgVerifyClient: React.FC = () => {
     const colorTheme = customTheme.palette;
     const submissionId = searchParams.get('id') ?? '';
     const templateId = searchParams.get('t') ?? '';
+    const lang = searchParams.get('lang');
+    const s = getStrings(lang).verify;
 
     const [storedHash, setStoredHash] = useState<string | null | undefined>(undefined);
     const [verificationResult, setVerificationResult] = useState<'verified' | 'invalid' | null>(null);
@@ -74,39 +79,42 @@ const OrgVerifyClient: React.FC = () => {
 
     return (
         <Box sx={{ border: `5px solid ${getColor()}`, padding: 3, borderRadius: 2, margin: 2 }}>
-            <Typography variant="h3" gutterBottom>Verifikasjon</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 2 }}>
+                <Typography variant="h3" gutterBottom>{s.title}</Typography>
+                <LanguageToggle />
+            </Box>
 
             {verificationResult === null ? (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
                     <CircularProgress size={28} />
-                    <Typography variant="h6" color="text.secondary">Kontrollerer attesten …</Typography>
+                    <Typography variant="h6" color="text.secondary">{s.checking}</Typography>
                 </Box>
             ) : verificationResult === 'verified' ? (
                 <Box sx={{ my: 2 }}>
                     <Typography variant="h5" color={getColor()} sx={{ fontWeight: 700 }}>
-                        ✓ Attesten er gyldig
+                        {s.validTitle}
                     </Typography>
                     <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-                        Opplysningene under stemmer nøyaktig med attesten slik den ble
-                        utstedt. Endres så mye som ett tegn, blir den ugyldig.
+                        {s.validBody}
                     </Typography>
                 </Box>
             ) : (
                 <Box sx={{ my: 2 }}>
                     <Typography variant="h5" color={getColor()} sx={{ fontWeight: 700 }}>
-                        ✗ Attesten er ugyldig
+                        {s.invalidTitle}
                     </Typography>
                     <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-                        Opplysningene stemmer ikke med noen utstedt attest. Enten er
-                        lenken ufullstendig (skann QR-koden på nytt), et felt er endret,
-                        eller attesten er aldri utstedt av denne organisasjonen.
+                        {s.invalidBody}
                     </Typography>
                 </Box>
             )}
 
+            <Typography variant="body2" sx={{ mt: 1 }}>
+                <Link href={lang === 'en' ? '/om?lang=en' : '/om'}>{s.aboutLink}</Link>
+            </Typography>
+
             <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3 }}>
-                Attesterte opplysninger — du kan endre et felt for å se at
-                verifiseringen da slår feil:
+                {s.fieldsLabel}
             </Typography>
             <Grid container spacing={2} paddingTop={2}>
                 {schemaLoading ? (

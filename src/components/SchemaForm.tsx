@@ -11,16 +11,20 @@ import {
     TextField,
 } from '@mui/material';
 import type { FormSchema, FormFieldSchema } from '@/types/formSchema';
-import { validateField } from '@/util/validateFormField';
+import { validateField, type ValidationMessages } from '@/util/validateFormField';
+
+type FormValidationStrings = ValidationMessages & { dropdownFallback: string };
 
 interface Props {
     schema: FormSchema;
     onSubmit: (data: Record<string, string>) => void | Promise<void>;
     submitLabel?: string;
     initialData?: Record<string, string>;
+    // Localized messages; omitted = Norwegian defaults (admin surfaces).
+    validation?: FormValidationStrings;
 }
 
-const SchemaForm: React.FC<Props> = ({ schema, onSubmit, submitLabel = 'Send inn', initialData = {} }) => {
+const SchemaForm: React.FC<Props> = ({ schema, onSubmit, submitLabel = 'Send inn', initialData = {}, validation }) => {
     const [data, setData] = useState<Record<string, string>>(initialData);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -31,7 +35,7 @@ const SchemaForm: React.FC<Props> = ({ schema, onSubmit, submitLabel = 'Send inn
         setErrors((prev) => {
             if (!(key in prev)) return prev;
             const field = schema.find((f) => f.key === key);
-            const err = field ? validateField(field, value) : null;
+            const err = field ? validateField(field, value, validation) : null;
             const next = { ...prev };
             if (err) next[key] = err; else delete next[key];
             return next;
@@ -42,7 +46,7 @@ const SchemaForm: React.FC<Props> = ({ schema, onSubmit, submitLabel = 'Send inn
         e.preventDefault();
         const found: Record<string, string> = {};
         for (const field of schema) {
-            const err = validateField(field, data[field.key] ?? '');
+            const err = validateField(field, data[field.key] ?? '', validation);
             if (err) found[field.key] = err;
         }
         setErrors(found);
@@ -59,6 +63,7 @@ const SchemaForm: React.FC<Props> = ({ schema, onSubmit, submitLabel = 'Send inn
                             field={field}
                             value={data[field.key] ?? ''}
                             error={errors[field.key]}
+                            dropdownFallback={validation?.dropdownFallback}
                             onChange={(v) => handleChange(field.key, v)}
                         />
                     </Grid>
@@ -77,11 +82,13 @@ function FieldInput({
     field,
     value,
     error,
+    dropdownFallback,
     onChange,
 }: {
     field: FormFieldSchema;
     value: string;
     error?: string;
+    dropdownFallback?: string;
     onChange: (v: string) => void;
 }) {
     switch (field.type) {
@@ -102,7 +109,7 @@ function FieldInput({
                         onChange={(e) => onChange(e.target.value)}
                         margin="normal"
                         error={!!error}
-                        helperText={error ?? 'Skriv inn fritekst — det er ingen forhåndsdefinerte valg satt opp.'}
+                        helperText={error ?? dropdownFallback ?? 'Skriv inn fritekst — det er ingen forhåndsdefinerte valg satt opp.'}
                     />
                 );
             }
