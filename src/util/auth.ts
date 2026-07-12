@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { nhost, type NhostUser } from '@/lib/nhost';
+import { authHeader, nhost, type NhostUser } from '@/lib/nhost';
 
 export const login = async (email: string, password: string): Promise<void> => {
     await nhost.auth.signInEmailPassword({ email, password });
@@ -27,6 +27,22 @@ export const signup = async (
 export const logout = async (): Promise<void> => {
     const session = nhost.getUserSession();
     await nhost.auth.signOut({ refreshToken: session?.refreshToken });
+};
+
+/**
+ * Redeem an org invite token for the logged-in user. Returns the org name
+ * on success; throws with the server's message otherwise. Callable right
+ * after signup/login once the session is established.
+ */
+export const redeemInvite = async (token: string): Promise<string> => {
+    const res = await fetch('/api/invites/redeem', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ token }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? 'Server error');
+    return json.organization?.name ?? '';
 };
 
 export const requestPasswordReset = async (email: string): Promise<void> => {

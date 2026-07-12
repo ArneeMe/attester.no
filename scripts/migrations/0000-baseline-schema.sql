@@ -120,6 +120,21 @@ CREATE TABLE IF NOT EXISTS feedback (
 );
 CREATE INDEX IF NOT EXISTS feedback_org_idx ON feedback(organization_id, created_at DESC);
 
+-- Org invites: token is a capability that, combined with logging in as the
+-- invited email, grants membership in the org. See the invites API routes.
+CREATE TABLE IF NOT EXISTS invites (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    token uuid NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    email text NOT NULL,
+    created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz NOT NULL DEFAULT now() + interval '7 days',
+    redeemed_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS invites_token_idx ON invites(token);
+CREATE INDEX IF NOT EXISTS invites_org_idx ON invites(organization_id);
+
 -- Hasura console steps (fresh install):
 --   1. Data → "Untracked tables/views" → track every table above.
 --   2. Relationships: object relationships on each organization_id /

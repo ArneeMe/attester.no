@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, Button, CircularProgress, Container, TextField, Typography } from '@mui/material';
-import { signup } from '@/util/auth';
+import { redeemInvite, signup } from '@/util/auth';
 import { useToast } from '@/components/ToastProvider';
 import { getStrings } from '@/strings';
 import LanguageToggle from '@/components/LanguageToggle';
@@ -20,6 +20,7 @@ const RegisterPage: React.FC = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const lang = searchParams.get('lang');
+    const inviteToken = searchParams.get('invite');
     const s = getStrings(lang).auth;
     const withLang = (path: string) => (lang === 'en' ? `${path}?lang=en` : path);
     const toast = useToast();
@@ -36,6 +37,14 @@ const RegisterPage: React.FC = () => {
             const hasSession = await signup(email, password, displayName.trim());
             if (hasSession) {
                 toast.success(s.registerDone);
+                if (inviteToken) {
+                    try {
+                        const orgName = await redeemInvite(inviteToken);
+                        toast.success(s.inviteJoined(orgName));
+                    } catch (e) {
+                        toast.error((e as Error).message);
+                    }
+                }
                 router.push('/login/adminpage');
             } else {
                 setNeedsVerification(true);
@@ -57,6 +66,7 @@ const RegisterPage: React.FC = () => {
                 {needsVerification ? (
                     <Typography variant="body1" sx={{ mt: 2 }}>
                         {s.verifyEmail}
+                        {inviteToken && ` ${s.inviteAfterVerify}`}
                     </Typography>
                 ) : (
                     <>

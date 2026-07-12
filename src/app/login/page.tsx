@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { login, useAuth } from '@/util/auth';
+import { login, redeemInvite, useAuth } from '@/util/auth';
 import { Box, Button, CircularProgress, Container, TextField, Typography } from '@mui/material';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/ToastProvider';
@@ -16,6 +16,7 @@ const LoginPage: React.FC = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const lang = searchParams.get('lang');
+    const inviteToken = searchParams.get('invite');
     const s = getStrings(lang).auth;
     const withLang = (path: string) => (lang === 'en' ? `${path}?lang=en` : path);
     const toast = useToast();
@@ -32,6 +33,14 @@ const LoginPage: React.FC = () => {
         setBusy(true);
         try {
             await login(email, password);
+            if (inviteToken) {
+                try {
+                    const orgName = await redeemInvite(inviteToken);
+                    toast.success(s.inviteJoined(orgName));
+                } catch (e) {
+                    toast.error((e as Error).message);
+                }
+            }
             router.push('/login/adminpage');
         } catch (error) {
             console.error('Login failed:', error);

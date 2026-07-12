@@ -138,6 +138,8 @@ const no = {
         verifyEmail: 'Sjekk e-posten din og bekreft kontoen. Deretter kan du logge inn — og be et eksisterende medlem i organisasjonen din om å legge deg til under «Medlemmer».',
         hasAccount: 'Har du konto? Logg inn',
         genericError: 'Noe gikk galt',
+        inviteJoined: (org: string) => org ? `Du er nå medlem av ${org}` : 'Du er nå medlem av organisasjonen',
+        inviteAfterVerify: 'Åpne invitasjonslenken på nytt og logg inn etterpå, så blir du medlem av organisasjonen.',
     },
     validation: {
         required: 'Må fylles ut',
@@ -281,6 +283,8 @@ const en: Strings = {
         verifyEmail: 'Check your email and confirm the account. Then log in — and ask an existing member of your organization to add you under “Members”.',
         hasAccount: 'Already have an account? Log in',
         genericError: 'Something went wrong',
+        inviteJoined: (org: string) => org ? `You are now a member of ${org}` : 'You are now a member of the organization',
+        inviteAfterVerify: 'Open the invite link again and log in afterwards to join the organization.',
     },
     validation: {
         required: 'Required',

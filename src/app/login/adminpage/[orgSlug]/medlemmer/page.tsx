@@ -27,6 +27,8 @@ const MembersPage: React.FC = () => {
     const [newEmail, setNewEmail] = useState('');
     const [busy, setBusy] = useState(false);
     const [toRemove, setToRemove] = useState<Member | null>(null);
+    const [inviteLink, setInviteLink] = useState<string | null>(null);
+    const [inviteEmailed, setInviteEmailed] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -56,6 +58,22 @@ const MembersPage: React.FC = () => {
                 body: JSON.stringify({ email: newEmail }),
             });
             const json = await res.json();
+            if (res.status === 404) {
+                // No account yet — create an invite instead. The link joins
+                // them to the org automatically once they register/log in
+                // with the invited email.
+                const invRes = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/invites`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json', ...authHeader() },
+                    body: JSON.stringify({ email: newEmail }),
+                });
+                const invJson = await invRes.json();
+                if (!invRes.ok) throw new Error(invJson.error ?? `HTTP ${invRes.status}`);
+                setInviteLink(invJson.link);
+                setInviteEmailed(invJson.emailed);
+                setNewEmail('');
+                return;
+            }
             if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
             setNewEmail('');
             toast.success('Medlem lagt til');
@@ -151,6 +169,31 @@ const MembersPage: React.FC = () => {
                     </List>
                 )}
             </Paper>
+
+            <ConfirmDialog
+                open={inviteLink !== null}
+                title="Invitasjon opprettet"
+                message={inviteEmailed
+                    ? 'Personen har ingen konto enda, så en invitasjon er sendt på e-post. Du kan også dele lenken direkte:'
+                    : 'Personen har ingen konto enda. Del denne invitasjonslenken — den gjør dem til medlem når de registrerer seg med samme e-post (gyldig i 7 dager):'}
+                details={inviteLink ? (
+                    <Typography variant="body2" sx={{ wordBreak: 'break-all', mt: 1 }}>
+                        <code>{inviteLink}</code>
+                    </Typography>
+                ) : null}
+                onConfirm={async () => {
+                    try {
+                        await navigator.clipboard.writeText(inviteLink ?? '');
+                        toast.success('Lenken er kopiert');
+                    } catch {
+                        toast.error('Kunne ikke kopiere – marker lenken manuelt');
+                    }
+                }}
+                onClose={() => setInviteLink(null)}
+                confirmButtonText="Kopier lenke"
+                secondaryAction={{ label: 'Lukk', onClick: () => setInviteLink(null) }}
+                showCancelButton={false}
+            />
 
             <ConfirmDialog
                 open={toRemove !== null}
