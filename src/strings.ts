@@ -145,6 +145,14 @@ const no = {
         invalidNumber: 'Må være et tall',
         dropdownFallback: 'Skriv inn fritekst — det er ingen forhåndsdefinerte valg satt opp.',
     },
+    feedback: {
+        title: 'Hvordan var det å bruke attester.no?',
+        commentLabel: 'Kommentar (valgfritt)',
+        commentHint: 'Ikke skriv personopplysninger her — tilbakemeldingen er anonym.',
+        send: 'Send tilbakemelding',
+        thanks: 'Takk for tilbakemeldingen!',
+        error: 'Kunne ikke sende tilbakemeldingen',
+    },
 };
 
 const en: Strings = {
@@ -279,6 +287,14 @@ const en: Strings = {
         invalidDate: 'Invalid date',
         invalidNumber: 'Must be a number',
         dropdownFallback: 'Free text — no predefined options are set up.',
+    },
+    feedback: {
+        title: 'How was your experience with attester.no?',
+        commentLabel: 'Comment (optional)',
+        commentHint: 'Please don’t include personal data — the feedback is anonymous.',
+        send: 'Send feedback',
+        thanks: 'Thanks for the feedback!',
+        error: 'Could not send the feedback',
     },
 };
 

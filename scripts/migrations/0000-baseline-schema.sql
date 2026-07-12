@@ -108,6 +108,17 @@ CREATE TABLE IF NOT EXISTS legacy_certificates (
 );
 CREATE INDEX IF NOT EXISTS legacy_certificates_volunteer_idx ON legacy_certificates(volunteer_id);
 
+-- Anonymous platform feedback from volunteers, shown to the org's admins.
+-- Carries NO identity by design: no user id, no submission reference.
+CREATE TABLE IF NOT EXISTS feedback (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    rating int NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment text NOT NULL DEFAULT '',
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS feedback_org_idx ON feedback(organization_id, created_at DESC);
+
 -- Hasura console steps (fresh install):
 --   1. Data → "Untracked tables/views" → track every table above.
 --   2. Relationships: object relationships on each organization_id /
