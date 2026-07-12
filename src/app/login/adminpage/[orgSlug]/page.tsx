@@ -7,7 +7,7 @@ import { authHeader } from '@/lib/nhost';
 import {
     Button, Checkbox, FormControlLabel, Grid, Link, MenuItem, Paper, TextField, Typography
 } from '@mui/material';
-import { generatePDF, previewPDF, TemplateData } from '@/app/login/adminpage/generatePDF';
+import { buildAttestPdfBlob, downloadBlob, generatePDF, previewPDF, TemplateData } from '@/app/login/adminpage/generatePDF';
 import { deleteSubmission } from "@/util/deleteSubmission";
 import ConfirmDialog from "@/util/confirmDialog";
 import { generateURL } from "@/app/login/adminpage/generateURL";
@@ -44,6 +44,8 @@ const AdminPage: React.FC = () => {
 
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [openBatchDeleteDialog, setOpenBatchDeleteDialog] = useState(false);
+    const [openBatchIssueDialog, setOpenBatchIssueDialog] = useState(false);
+    const [batchBusy, setBatchBusy] = useState(false);
     const [openPDFDialog, setOpenPDFDialog] = useState(false);
     const [pdfUrl, setPdfUrl] = useState('');
 
@@ -182,6 +184,51 @@ const AdminPage: React.FC = () => {
         setSelected(null);
     };
 
+    // Batch issue: for each selected submission, register the cert (which
+    // deletes the row server-side) and collect the PDF into one ZIP. A
+    // failure on one item never blocks the others.
+    const handleBatchIssueConfirm = async () => {
+        if (batchBusy) return;
+        setBatchBusy(true);
+        const { default: JSZip } = await import('jszip');
+        const zip = new JSZip();
+        const failures: string[] = [];
+        let issued = 0;
+        for (const id of selectedIDs) {
+            const sub = submissions.find((s) => s.id === id);
+            if (!sub) continue;
+            const tmpl = templateById(sub.templateId);
+            const label = sub.data.name || id.slice(0, 8);
+            if (!tmpl) {
+                failures.push(`${label}: mal mangler`);
+                continue;
+            }
+            try {
+                if (!issuedIds.current.has(sub.id)) {
+                    await submitHash(orgSlug, tmpl.id, sub.id, sub.data);
+                    issuedIds.current.add(sub.id);
+                }
+                const { blob, filename } = await buildAttestPdfBlob(orgSlug, tmpl, sub.id, sub.data);
+                const unique = zip.files[filename] ? `${id.slice(0, 8)}_${filename}` : filename;
+                zip.file(unique, blob);
+                issued++;
+            } catch (e) {
+                console.error(e);
+                failures.push(`${label}: ${(e as Error).message ?? 'ukjent feil'}`);
+            }
+        }
+        if (issued > 0) {
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            downloadBlob(zipBlob, 'attester.zip');
+            setSubmissions((prev) => prev.filter((s) => !issuedIds.current.has(s.id)));
+            toast.success(`${issued} attest${issued === 1 ? '' : 'er'} utstedt og lastet ned som ZIP. Innsendingene er slettet automatisk.`);
+        }
+        for (const f of failures) toast.error(f);
+        setSelectedIDs((prev) => prev.filter((id) => !issuedIds.current.has(id)));
+        setOpenBatchIssueDialog(false);
+        setBatchBusy(false);
+    };
+
     const selectedTemplate = selected ? templateById(selected.templateId) : null;
     const selectedSchema = selectedTemplate?.form_schema ?? null;
 
@@ -201,7 +248,16 @@ const AdminPage: React.FC = () => {
                     <Typography variant="h4" gutterBottom>Oversikt</Typography>
                 </Grid>
                 <Grid size={{ sm: 2 }}>
-                    <Button onClick={openBatchDeleteClick} disabled={selectedIDs.length === 0}>
+                    <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => setOpenBatchIssueDialog(true)}
+                        disabled={selectedIDs.length === 0 || batchBusy}
+                        sx={{ mr: 1 }}
+                    >
+                        Generer valgte
+                    </Button>
+                    <Button size="small" onClick={openBatchDeleteClick} disabled={selectedIDs.length === 0 || batchBusy}>
                         Slett valgte
                     </Button>
                 </Grid>
@@ -354,6 +410,15 @@ const AdminPage: React.FC = () => {
                 onConfirm={handleDeleteConfirm}
                 onClose={() => setOpenDeleteDialog(false)}
                 confirmButtonText="Slett"
+            />
+
+            <ConfirmDialog
+                open={openBatchIssueDialog}
+                title="Utsted valgte attester"
+                message={`${selectedIDs.length} attest${selectedIDs.length === 1 ? '' : 'er'} genereres og lastes ned som én ZIP-fil. Innsendingene slettes automatisk når attestene registreres.`}
+                onConfirm={handleBatchIssueConfirm}
+                onClose={() => { if (!batchBusy) setOpenBatchIssueDialog(false); }}
+                confirmButtonText={batchBusy ? 'Genererer …' : 'Generer ZIP'}
             />
 
             <ConfirmDialog

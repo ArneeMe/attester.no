@@ -13,12 +13,17 @@ export type TemplateData = {
     field_bindings: FieldBindings;
 };
 
-export const generatePDF = async (
+/**
+ * Render the attest PDF and return it as a blob + filename, without
+ * touching the DOM. Shared by single download, batch ZIP, and (with a
+ * watermark layered on) preview.
+ */
+export const buildAttestPdfBlob = async (
     orgSlug: string,
     templateData: TemplateData,
     submissionId: string,
     data: Record<string, string>,
-) => {
+): Promise<{ blob: Blob; filename: string }> => {
     const pdfInput = await getPdfInput(
         orgSlug,
         templateData.id,
@@ -37,13 +42,26 @@ export const generatePDF = async (
         plugins: { text, image, qrcode: barcodes.qrcode },
     });
     const filename = data.name ? `${data.name}_attest.pdf` : `attest_${submissionId}.pdf`;
-    const blob = new Blob([new Uint8Array(pdf.buffer)], { type: 'application/pdf' });
+    return { blob: new Blob([new Uint8Array(pdf.buffer)], { type: 'application/pdf' }), filename };
+};
+
+export const downloadBlob = (blob: Blob, filename: string) => {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+};
+
+export const generatePDF = async (
+    orgSlug: string,
+    templateData: TemplateData,
+    submissionId: string,
+    data: Record<string, string>,
+) => {
+    const { blob, filename } = await buildAttestPdfBlob(orgSlug, templateData, submissionId, data);
+    downloadBlob(blob, filename);
 };
 
 // Diagonal grey banner stamped on every page of a preview render, so a
