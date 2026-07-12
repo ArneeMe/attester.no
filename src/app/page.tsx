@@ -54,7 +54,10 @@ export default async function Home({
                     <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
                         {s.privacyBody}
                     </Typography>
-                    <Link href={withLang('/om')}>{s.aboutLink}</Link>
+                    <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                        <Link href={withLang('/om')}>{s.aboutLink}</Link>
+                        <Link href={withLang('/personvern')}>{s.privacyLink}</Link>
+                    </Box>
                 </Paper>
 
                 {orgs.length > 0 && (

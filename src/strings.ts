@@ -27,6 +27,7 @@ const no = {
         privacyTitle: 'Personvern er hele poenget',
         privacyBody: 'Databasen lagrer aldri navn, verv eller datoer – kun en kryptografisk hash av attestens innhold. Lekker databasen, lekker ingen personopplysninger. Bare den som har attesten (eller QR-koden på den) vet hva som ble attestert.',
         aboutLink: 'Les mer om hvordan attester.no fungerer og hva som lagres',
+        privacyLink: 'Personvernerklæring',
         orgsTitle: 'Deltakende organisasjoner',
         orgsSubtitle: 'Skal du be om en attest? Gå til skjemaet til organisasjonen din:',
         adminLogin: 'Logg inn som administrator',
@@ -147,6 +148,44 @@ const no = {
         invalidNumber: 'Må være et tall',
         dropdownFallback: 'Skriv inn fritekst — det er ingen forhåndsdefinerte valg satt opp.',
     },
+    privacy: {
+        metaTitle: 'Personvernerklæring',
+        title: 'Personvernerklæring',
+        updated: 'Sist oppdatert: juli 2026',
+        sections: [
+            {
+                heading: 'Hvem er behandlingsansvarlig?',
+                body: 'attester.no er en plattform der frivillige organisasjoner utsteder attester til sine frivillige. Organisasjonen som utsteder attesten din, er behandlingsansvarlig for opplysningene du sender inn. attester.no drifter den tekniske løsningen. Spørsmål? Kontakt organisasjonen din, eller hei@attester.no for tekniske henvendelser.',
+            },
+            {
+                heading: 'Hvilke opplysninger behandles, og hvor lenge?',
+                body: `Når du fyller ut skjemaet, lagres opplysningene dine (navn, verv, datoer o.l.) midlertidig slik at organisasjonen kan kontrollere dem. Denne lagringen er strengt tidsbegrenset: behandles ikke innsendingen innen ${SUBMISSION_TTL_HOURS} timer, slettes den automatisk. Når attesten utstedes, slettes opplysningene i samme operasjon — utstedelse uten sletting er teknisk umulig i systemet.`,
+            },
+            {
+                heading: 'Hva lagres permanent?',
+                body: 'Etter utstedelse lagres kun en kryptografisk hash (et fingeravtrykk) av attestens innhold, hvilken organisasjon som utstedte den, tidspunkt, malreferanse og en tilfeldig ID. Ingen av disse kan brukes til å finne ut hvem attesten gjelder eller hva som ble attestert. Selve innholdet finnes bare på PDF-en du har fått — og i QR-koden på den.',
+            },
+            {
+                heading: 'Hvem har tilgang?',
+                body: 'Innsendingen din (før sletting) er kun synlig for administratorene i organisasjonen din. Databasen driftes hos Nhost (EU-region). Hvis organisasjonen har slått på e-postvarsling, sendes et varsel uten personopplysninger til administratorene når en innsending kommer inn.',
+            },
+            {
+                heading: 'Frivillig tilbakemelding',
+                body: 'Vurderingen du kan gi etter innsending er anonym: den lagres uten bruker-ID, uten kobling til innsendingen din og uten IP-adresse. Ikke skriv personopplysninger i fritekstfeltet.',
+            },
+            {
+                heading: 'Administratorkontoer',
+                body: 'Registrerer du en administratorkonto, lagres e-postadressen og navnet ditt hos autentiseringstjenesten (Nhost Auth) så lenge kontoen finnes. Når du utsteder en attest, lagres det at kontoen din utstedte den (uten attestens innhold). Kontakt hei@attester.no for å slette kontoen.',
+            },
+            {
+                heading: 'Dine rettigheter',
+                body: 'Du har rett til innsyn, retting og sletting etter personvernforordningen (GDPR). I praksis: opplysningene dine finnes i systemet i høyst ett døgn — be organisasjonen din slette innsendingen om du ombestemmer deg før attesten er utstedt. Etter utstedelse finnes det ingenting å slette hos oss; attesten kontrollerer du selv, på papir.',
+            },
+        ],
+        seeAlso: 'Se også den tekniske forklaringen av hvordan systemet fungerer:',
+        seeAlsoLink: 'Slik fungerer attester.no',
+        backToFront: 'Til forsiden',
+    },
     admin: {
         nav: {
             oversikt: 'Oversikt',
@@ -184,6 +223,7 @@ const en: Strings = {
         privacyTitle: 'Privacy is the whole point',
         privacyBody: 'The database never stores names, roles or dates – only a cryptographic hash of the certificate’s contents. If the database leaks, no personal data leaks. Only the person holding the certificate (or its QR code) knows what was attested.',
         aboutLink: 'Read more about how attester.no works and what is stored',
+        privacyLink: 'Privacy policy',
         orgsTitle: 'Participating organizations',
         orgsSubtitle: 'Requesting a certificate? Go to your organization’s form:',
         adminLogin: 'Log in as administrator',
@@ -303,6 +343,44 @@ const en: Strings = {
         invalidDate: 'Invalid date',
         invalidNumber: 'Must be a number',
         dropdownFallback: 'Free text — no predefined options are set up.',
+    },
+    privacy: {
+        metaTitle: 'Privacy policy',
+        title: 'Privacy policy',
+        updated: 'Last updated: July 2026',
+        sections: [
+            {
+                heading: 'Who is the data controller?',
+                body: 'attester.no is a platform where volunteer organizations issue certificates to their volunteers. The organization issuing your certificate is the data controller for what you submit. attester.no operates the technical platform. Questions? Contact your organization, or hei@attester.no for technical matters.',
+            },
+            {
+                heading: 'What data is processed, and for how long?',
+                body: `When you fill in the form, your details (name, role, dates, etc.) are stored temporarily so the organization can review them. This storage is strictly time-limited: if the submission is not processed within ${SUBMISSION_TTL_HOURS} hours, it is deleted automatically. When the certificate is issued, your details are deleted in the same operation — issuing without deleting is technically impossible in this system.`,
+            },
+            {
+                heading: 'What is stored permanently?',
+                body: 'After issuance, only a cryptographic hash (a fingerprint) of the certificate contents is stored, along with the issuing organization, a timestamp, a template reference and a random ID. None of these can reveal who the certificate concerns or what was attested. The contents exist only on the PDF you received — and in its QR code.',
+            },
+            {
+                heading: 'Who has access?',
+                body: 'Your submission (before deletion) is visible only to your organization’s administrators. The database is hosted at Nhost (EU region). If the organization has enabled email notifications, a message without personal data is sent to its administrators when a submission arrives.',
+            },
+            {
+                heading: 'Voluntary feedback',
+                body: 'The rating you can leave after submitting is anonymous: it is stored without a user ID, without any link to your submission, and without an IP address. Please do not write personal data in the free-text field.',
+            },
+            {
+                heading: 'Administrator accounts',
+                body: 'If you register an administrator account, your email address and name are stored with the authentication service (Nhost Auth) for as long as the account exists. When you issue a certificate, the fact that your account issued it is recorded (without the certificate contents). Contact hei@attester.no to delete the account.',
+            },
+            {
+                heading: 'Your rights',
+                body: 'You have the right to access, rectification and erasure under the GDPR. In practice: your data exists in the system for at most a day — ask your organization to delete the submission if you change your mind before the certificate is issued. After issuance there is nothing left to delete on our side; you hold the certificate yourself, on paper.',
+            },
+        ],
+        seeAlso: 'See also the technical explanation of how the system works:',
+        seeAlsoLink: 'How attester.no works',
+        backToFront: 'Back to the front page',
     },
     admin: {
         nav: {
