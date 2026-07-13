@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Box, Container, Divider, Stack, Typography } from '@mui/material';
 import { getStrings } from '@/strings';
 import LanguageToggle from '@/components/LanguageToggle';
+import { publicPageMetadata } from '@/util/seo';
 
 export const runtime = 'edge';
 
@@ -11,7 +12,8 @@ export async function generateMetadata({
     searchParams: Promise<{ lang?: string }>;
 }) {
     const { lang } = await searchParams;
-    return { title: getStrings(lang).privacy.metaTitle };
+    const s = getStrings(lang).privacy;
+    return publicPageMetadata('/personvern', lang, s.metaTitle, s.sections[1]?.body ?? s.title);
 }
 
 export default async function PrivacyPage({

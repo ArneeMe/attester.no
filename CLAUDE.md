@@ -13,6 +13,8 @@ Companion docs (read as needed):
   placement), and the gotchas that have cost real time.
 - `docs/ROADMAP.md` — parked work with the reasoning captured, so options
   don't get re-litigated or rebuilt by accident.
+- `docs/SEO.md` — search strategy: what shipped in code, and the
+  owner actions (Search Console, backlinks) that actually move rankings.
 
 Keep all four documents truthful in the SAME commit as any change that
 affects what they say.

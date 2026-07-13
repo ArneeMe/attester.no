@@ -4,6 +4,8 @@ import {
 } from '@mui/material';
 import { getStrings } from '@/strings';
 import LanguageToggle from '@/components/LanguageToggle';
+import JsonLd from '@/components/JsonLd';
+import { publicPageMetadata } from '@/util/seo';
 
 export const runtime = 'edge';
 
@@ -13,7 +15,8 @@ export async function generateMetadata({
     searchParams: Promise<{ lang?: string }>;
 }) {
     const { lang } = await searchParams;
-    return { title: getStrings(lang).about.metaTitle };
+    const s = getStrings(lang).about;
+    return publicPageMetadata('/om', lang, s.metaTitle, s.intro);
 }
 
 export default async function AboutPage({
@@ -25,8 +28,26 @@ export default async function AboutPage({
     const s = getStrings(lang).about;
     const withLang = (path: string) => (lang === 'en' ? `${path}?lang=en` : path);
 
+    const faq = [
+        { q: s.flowTitle, a: s.flowSteps.join(' ') },
+        { q: s.storedTitle, a: `${s.storedIntro} ${s.storedItems.join('; ')}. ${s.neverStoredIntro} ${s.neverStoredItems.join('; ')}.` },
+        { q: s.hashTitle, a: `${s.hashBody} ${s.hashConsequence}` },
+        { q: s.verifyTitle, a: s.verifySteps.join(' ') },
+    ];
+
     return (
         <Container maxWidth="md" sx={{ py: 6 }}>
+            <JsonLd
+                data={{
+                    '@context': 'https://schema.org',
+                    '@type': 'FAQPage',
+                    mainEntity: faq.map((f) => ({
+                        '@type': 'Question',
+                        name: f.q,
+                        acceptedAnswer: { '@type': 'Answer', text: f.a },
+                    })),
+                }}
+            />
             <Stack spacing={4}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 2 }}>
                     <Typography variant="h3" component="h1">{s.title}</Typography>

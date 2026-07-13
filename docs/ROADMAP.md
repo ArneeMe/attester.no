@@ -13,6 +13,9 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
 
 ## Needs a decision or an account (owner: the human)
 
+- **SEO owner actions** — Search Console/Bing verification, sitemap
+  submission, backlinks from member orgs. Full playbook: docs/SEO.md.
+
 - **Error tracking** — the most important gap once strangers depend on the
   product; today production failures are invisible (`console.error` only).
   Sentry or Cloudflare-native. Do this before promoting beyond people you know.
