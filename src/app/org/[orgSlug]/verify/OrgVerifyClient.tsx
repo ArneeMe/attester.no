@@ -23,11 +23,14 @@ const OrgVerifyClient: React.FC = () => {
     const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
     const [schemaLoading, setSchemaLoading] = useState(!!templateId);
 
-    // All URL params except 't' — includes 'id' (part of hash) and all cert fields
+    // All URL params except 't' and 'lang' — includes 'id' (part of hash) and
+    // all cert fields. 'lang' is the UI language switch (LanguageToggle writes
+    // it into the URL); it was never part of the issued cert, so feeding it
+    // into the hash would make a genuine cert display as invalid.
     const [fields, setFields] = useState<Record<string, string>>(() => {
         const result: Record<string, string> = {};
         searchParams.forEach((value, key) => {
-            if (key !== 't') result[key] = value;
+            if (key !== 't' && key !== 'lang') result[key] = value;
         });
         return result;
     });

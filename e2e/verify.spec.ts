@@ -39,6 +39,14 @@ test('matching params verify green', async ({ page }) => {
     await expect(page.getByLabel('Navn')).toHaveValue('Ola Nordmann');
 });
 
+test('lang=en in the URL keeps a genuine cert green (English UI)', async ({ page }) => {
+    // A visitor toggles to English and shares the URL from the address bar —
+    // the extra lang param is UI state, not cert data, and must not flip the
+    // verification result.
+    await page.goto(`${verifyUrl(CERT_FIELDS)}&lang=en`);
+    await expect(page.getByText('✓ The certificate is valid')).toBeVisible();
+});
+
 test('tampered params verify red', async ({ page }) => {
     await page.goto(verifyUrl({ ...CERT_FIELDS, name: 'Kari Nordmann' }));
     await expect(page.getByText('✗ Attesten er ugyldig')).toBeVisible();

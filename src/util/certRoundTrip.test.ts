@@ -24,6 +24,23 @@ describe('cert issue ↔ verify round-trip', () => {
         expect(verifierHash).toBe(issuerHash);
     });
 
+    it('a lang UI param appended to the verify URL does not break verification', async () => {
+        // Clicking "English" on the verify page writes ?lang=en into the URL,
+        // and people copy that URL from the address bar. The verifier drops
+        // 'lang' (like 't') before hashing, so a genuine cert must stay valid.
+        const issuerParams = buildCertParams('tmpl-1', 'sub-1', { name: 'Ola', role: 'Leder' });
+        const issuerHash = await canonicalHash(issuerParams);
+
+        const shared = new URL(`https://attester.no/org/echo/verify?${issuerParams}&lang=en`);
+        // Mirrors OrgVerifyClient's field extraction: drop 't' and 'lang'.
+        const fields = new URLSearchParams();
+        shared.searchParams.forEach((value, key) => {
+            if (key !== 't' && key !== 'lang') fields.set(key, value);
+        });
+
+        expect(await canonicalHash(fields)).toBe(issuerHash);
+    });
+
     it('a tampered field in the URL → different hash', async () => {
         const issuerParams = buildCertParams('t1', 's1', { name: 'Ola', role: 'Leder' });
         const issuerHash = await canonicalHash(issuerParams);
