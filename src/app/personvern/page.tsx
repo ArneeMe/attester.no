@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Box, Container, Divider, Stack, Typography } from '@mui/material';
 import { getStrings } from '@/strings';
-import LanguageToggle from '@/components/LanguageToggle';
+import PublicShell from '@/components/PublicShell';
 import { publicPageMetadata } from '@/util/seo';
 
 export const runtime = 'edge';
@@ -26,12 +26,10 @@ export default async function PrivacyPage({
     const withLang = (path: string) => (lang === 'en' ? `${path}?lang=en` : path);
 
     return (
+        <PublicShell lang={lang}>
         <Container maxWidth="md" sx={{ py: 6 }}>
             <Stack spacing={4}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 2 }}>
-                    <Typography variant="h3" component="h1">{s.title}</Typography>
-                    <LanguageToggle />
-                </Box>
+                <Typography variant="h3" component="h1">{s.title}</Typography>
                 <Typography variant="body2" color="text.secondary">{s.updated}</Typography>
 
                 {s.sections.map((section) => (
@@ -52,5 +50,6 @@ export default async function PrivacyPage({
                 </Box>
             </Stack>
         </Container>
+        </PublicShell>
     );
 }

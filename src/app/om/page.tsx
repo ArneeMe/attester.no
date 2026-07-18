@@ -3,7 +3,7 @@ import {
     Box, Container, Divider, Grid, Paper, Stack, Typography,
 } from '@mui/material';
 import { getStrings } from '@/strings';
-import LanguageToggle from '@/components/LanguageToggle';
+import PublicShell from '@/components/PublicShell';
 import JsonLd from '@/components/JsonLd';
 import { publicPageMetadata } from '@/util/seo';
 
@@ -36,6 +36,7 @@ export default async function AboutPage({
     ];
 
     return (
+        <PublicShell lang={lang}>
         <Container maxWidth="md" sx={{ py: 6 }}>
             <JsonLd
                 data={{
@@ -49,10 +50,7 @@ export default async function AboutPage({
                 }}
             />
             <Stack spacing={4}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 2 }}>
-                    <Typography variant="h3" component="h1">{s.title}</Typography>
-                    <LanguageToggle />
-                </Box>
+                <Typography variant="h3" component="h1">{s.title}</Typography>
 
                 <Typography variant="h6" component="p" color="text.secondary">
                     {s.intro}
@@ -120,5 +118,6 @@ export default async function AboutPage({
                 </Box>
             </Stack>
         </Container>
+        </PublicShell>
     );
 }
