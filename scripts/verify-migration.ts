@@ -12,6 +12,8 @@
  * re-tracked" is the most common failure mode and it can ONLY be caught
  * at the GraphQL layer.
  */
+export {}; // module scope — keeps top-level names from colliding with the other scripts
+
 const SUBDOMAIN = process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN;
 const REGION = process.env.NEXT_PUBLIC_NHOST_REGION;
 const ADMIN_SECRET = process.env.NHOST_ADMIN_SECRET;
