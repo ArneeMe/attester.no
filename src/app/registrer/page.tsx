@@ -97,6 +97,12 @@ const RegisterPage: React.FC = () => {
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={busy}
                             />
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                                {s.emailPrivacyHint}{' '}
+                                <Link href="https://pr.tn/ref/9NG6TBSB" target="_blank" rel="noreferrer">
+                                    Proton Pass ↗
+                                </Link>
+                            </Typography>
                             <TextField
                                 variant="outlined"
                                 margin="normal"
