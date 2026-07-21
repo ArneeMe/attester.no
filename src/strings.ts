@@ -8,6 +8,8 @@
 // server and client components and survives link sharing. Norwegian is the
 // default for any other value.
 
+import { SUBMISSION_TTL_HOURS } from '@/util/retention';
+
 export type Lang = 'no' | 'en';
 
 const no = {
@@ -160,19 +162,15 @@ const no = {
             },
             {
                 heading: 'Hvilke opplysninger behandles, og hvor lenge?',
-                body: `Når du fyller ut skjemaet, lagres opplysningene dine (navn, verv, datoer o.l.) midlertidig slik at organisasjonen kan kontrollere dem. Denne lagringen er strengt tidsbegrenset: behandles ikke innsendingen innen ${SUBMISSION_TTL_HOURS} timer, slettes den automatisk. Når attesten utstedes, slettes opplysningene i samme operasjon — utstedelse uten sletting er teknisk umulig i systemet.`,
+                body: `Når du fyller ut skjemaet, lagres opplysningene dine (navn, verv, datoer o.l.) midlertidig slik at organisasjonen kan kontrollere dem og utstede attesten. Denne lagringen er strengt tidsbegrenset: senest ${SUBMISSION_TTL_HOURS} timer etter innsending slettes den automatisk — uansett om attesten er utstedt eller ikke. Organisasjonen kan også slette innsendingen manuelt når som helst, for eksempel rett etter utstedelse.`,
             },
             {
                 heading: 'Hva lagres permanent?',
-                body: 'Etter utstedelse lagres kun en kryptografisk hash (et fingeravtrykk) av attestens innhold, hvilken organisasjon som utstedte den, tidspunkt, malreferanse og en tilfeldig ID. Ingen av disse kan brukes til å finne ut hvem attesten gjelder eller hva som ble attestert. Selve innholdet finnes bare på PDF-en du har fått — og i QR-koden på den.',
+                body: 'Når innsendingen er slettet, står kun en kryptografisk hash (et fingeravtrykk) av attestens innhold tilbake, sammen med hvilken organisasjon som utstedte attesten, tidspunkt, malreferanse og en tilfeldig ID. Ingen av disse kan brukes til å finne ut hvem attesten gjelder eller hva som ble attestert. Selve innholdet finnes bare på PDF-en du har fått — og i QR-koden på den.',
             },
             {
                 heading: 'Hvem har tilgang?',
-                body: 'Innsendingen din (før sletting) er kun synlig for administratorene i organisasjonen din. Databasen driftes hos Nhost (EU-region). Hvis organisasjonen har slått på e-postvarsling, sendes et varsel uten personopplysninger til administratorene når en innsending kommer inn.',
-            },
-            {
-                heading: 'Frivillig tilbakemelding',
-                body: 'Vurderingen du kan gi etter innsending er anonym: den lagres uten bruker-ID, uten kobling til innsendingen din og uten IP-adresse. Ikke skriv personopplysninger i fritekstfeltet.',
+                body: 'Innsendingen din (før sletting) er kun synlig for administratorene i organisasjonen din. Databasen driftes hos Nhost (EU-region).',
             },
             {
                 heading: 'Administratorkontoer',
@@ -180,7 +178,7 @@ const no = {
             },
             {
                 heading: 'Dine rettigheter',
-                body: 'Du har rett til innsyn, retting og sletting etter personvernforordningen (GDPR). I praksis: opplysningene dine finnes i systemet i høyst ett døgn — be organisasjonen din slette innsendingen om du ombestemmer deg før attesten er utstedt. Etter utstedelse finnes det ingenting å slette hos oss; attesten kontrollerer du selv, på papir.',
+                body: `Du har rett til innsyn, retting og sletting etter personvernforordningen (GDPR). I praksis: opplysningene dine finnes i systemet i høyst ${SUBMISSION_TTL_HOURS} timer fra du sendte inn, uansett om attesten er utstedt eller ikke — du kan be organisasjonen din slette innsendingen når du vil, også etter at attesten er utstedt. Selve attesten kontrollerer du selv, på papir; databasen inneholder etter sletting kun en kryptografisk hash som ikke kan spores tilbake til deg.`,
             },
         ],
         seeAlso: 'Se også den tekniske forklaringen av hvordan systemet fungerer:',
@@ -350,19 +348,15 @@ const en: Strings = {
             },
             {
                 heading: 'What data is processed, and for how long?',
-                body: `When you fill in the form, your details (name, role, dates, etc.) are stored temporarily so the organization can review them. This storage is strictly time-limited: if the submission is not processed within ${SUBMISSION_TTL_HOURS} hours, it is deleted automatically. When the certificate is issued, your details are deleted in the same operation — issuing without deleting is technically impossible in this system.`,
+                body: `When you fill in the form, your details (name, role, dates, etc.) are stored temporarily so the organization can review them and issue the certificate. This storage is strictly time-limited: at most ${SUBMISSION_TTL_HOURS} hours after submission it is deleted automatically — regardless of whether the certificate has been issued. The organization can also delete the submission manually at any time, for example right after issuance.`,
             },
             {
                 heading: 'What is stored permanently?',
-                body: 'After issuance, only a cryptographic hash (a fingerprint) of the certificate contents is stored, along with the issuing organization, a timestamp, a template reference and a random ID. None of these can reveal who the certificate concerns or what was attested. The contents exist only on the PDF you received — and in its QR code.',
+                body: 'Once the submission is deleted, only a cryptographic hash (a fingerprint) of the certificate contents remains, along with the issuing organization, a timestamp, a template reference and a random ID. None of these can reveal who the certificate concerns or what was attested. The contents exist only on the PDF you received — and in its QR code.',
             },
             {
                 heading: 'Who has access?',
-                body: 'Your submission (before deletion) is visible only to your organization’s administrators. The database is hosted at Nhost (EU region). If the organization has enabled email notifications, a message without personal data is sent to its administrators when a submission arrives.',
-            },
-            {
-                heading: 'Voluntary feedback',
-                body: 'The rating you can leave after submitting is anonymous: it is stored without a user ID, without any link to your submission, and without an IP address. Please do not write personal data in the free-text field.',
+                body: 'Your submission (before deletion) is visible only to your organization’s administrators. The database is hosted at Nhost (EU region).',
             },
             {
                 heading: 'Administrator accounts',
@@ -370,7 +364,7 @@ const en: Strings = {
             },
             {
                 heading: 'Your rights',
-                body: 'You have the right to access, rectification and erasure under the GDPR. In practice: your data exists in the system for at most a day — ask your organization to delete the submission if you change your mind before the certificate is issued. After issuance there is nothing left to delete on our side; you hold the certificate yourself, on paper.',
+                body: `You have the right to access, rectification and erasure under the GDPR. In practice: your data exists in the system for at most ${SUBMISSION_TTL_HOURS} hours from submission, regardless of whether the certificate has been issued — you can ask your organization to delete the submission whenever you like, including after issuance. You hold the certificate itself, on paper; once deleted, the database contains only a cryptographic hash that cannot be traced back to you.`,
             },
         ],
         seeAlso: 'See also the technical explanation of how the system works:',
