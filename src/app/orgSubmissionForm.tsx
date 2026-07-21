@@ -1,6 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react';
-import { Button, CircularProgress, Container, Grid, Typography } from '@mui/material';
+import { Button, CircularProgress, Container, Grid, Paper, Typography } from '@mui/material';
 import Link from "next/link";
 import { useSearchParams } from 'next/navigation';
 import { getOrgBySlug } from '@/lib/nhost';
@@ -9,6 +9,8 @@ import SchemaForm from '@/components/SchemaForm';
 import SchemaDetails from '@/components/SchemaDetails';
 import { useToast } from '@/components/ToastProvider';
 import ConfirmDialog from "@/util/confirmDialog";
+import { getStrings } from '@/strings';
+import LanguageToggle from '@/components/LanguageToggle';
 
 interface Props {
     orgSlug: string;
@@ -19,11 +21,15 @@ type TemplateForForm = { id: string; name: string; form_schema: FormSchema | nul
 const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
     const searchParams = useSearchParams();
     const templateIdOverride = searchParams.get('t');
+    const lang = searchParams.get('lang');
+    const strings = getStrings(lang);
+    const s = strings.form;
+    const withLang = (path: string) => (lang === 'en' ? `${path}?lang=en` : path);
     const toast = useToast();
 
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
-    const [openSummaryDialog, setOpenSummaryDialog] = useState(false);
     const [openHelpDialog, setOpenHelpDialog] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
 
     const [orgName, setOrgName] = useState<string>(orgSlug);
     const [template, setTemplate] = useState<TemplateForForm | null>(null);
@@ -73,10 +79,11 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error ?? 'Server error');
             setOpenConfirmDialog(false);
-            setOpenSummaryDialog(true);
+            setSubmitted(true);
+            window.scrollTo({ top: 0 });
         } catch (e) {
             console.error('Error adding submission:', e);
-            toast.error('Feil ved lagring av data: ' + ((e as Error).message ?? 'ukjent feil'));
+            toast.error(s.submitError + ((e as Error).message ?? ''));
         }
     };
 
@@ -91,79 +98,87 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
     if (!template || !schema) {
         return (
             <Container component="main">
-                <Typography variant="h5">Søk om attest til {orgName}</Typography>
+                <Typography variant="h5">{s.title(orgName)}</Typography>
                 <Typography color="error" sx={{ mt: 2 }}>
-                    Ingen mal funnet for denne organisasjonen
-                    {templateIdOverride ? ` (id ${templateIdOverride})` : ''}.
+                    {s.noTemplate(templateIdOverride)}
                 </Typography>
+            </Container>
+        );
+    }
+
+    if (submitted) {
+        return (
+            <Container component="main" maxWidth="sm">
+                <Paper elevation={2} sx={{ p: 4, mt: 6, textAlign: 'center' }}>
+                    <Typography variant="h2" component="div" aria-hidden sx={{ mb: 1 }}>✅</Typography>
+                    <Typography variant="h5" gutterBottom>{s.receivedTitle}</Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 2, textAlign: 'left' }}>
+                        {s.receivedWhatNext}
+                    </Typography>
+                    <Typography component="ol" variant="body2" color="text.secondary" sx={{ textAlign: 'left', pl: 3, mb: 3 }}>
+                        {s.receivedSteps(orgName).map((step) => <li key={step}>{step}</li>)}
+                    </Typography>
+                    <Button variant="outlined" onClick={() => { setFormData({}); setSubmitted(false); }}>
+                        {s.sendAnother}
+                    </Button>
+                </Paper>
             </Container>
         );
     }
 
     return (
         <Container component="main">
-            <Grid container spacing={0}>
+            <Grid container spacing={0} alignItems="baseline">
                 <Grid size={{ xs: 8 }}>
-                    <Typography variant="h5">Søk om attest til {orgName}</Typography>
+                    <Typography variant="h5">{s.title(orgName)}</Typography>
+                </Grid>
+                <Grid size={{ xs: 4 }} sx={{ textAlign: 'right' }}>
+                    <LanguageToggle />
                 </Grid>
                 <Grid size={{ xs: 7 }}>
-                    <Typography>
-                        Her kan du sende inn din informasjon for å få en attest fra {orgName}!
-                    </Typography>
+                    <Typography>{s.intro(orgName)}</Typography>
                 </Grid>
                 <Grid size={{ xs: 1 }}>
-                    <Button onClick={() => setOpenHelpDialog(true)} color="primary">Hjelp</Button>
+                    <Button onClick={() => setOpenHelpDialog(true)} color="primary">{s.help}</Button>
                 </Grid>
                 <Grid size={{ xs: 2 }}>
                     <Link href="/login" passHref>
-                        <Button variant="contained" color="primary">Admin innlogging</Button>
+                        <Button variant="contained" color="primary">{s.adminLogin}</Button>
                     </Link>
                 </Grid>
             </Grid>
 
-            <SchemaForm schema={schema} onSubmit={handleSubmit} submitLabel="Send inn" />
-
-            <ConfirmDialog
-                open={openConfirmDialog}
-                title="Bekreft innsending"
-                message="Er du sikker på at du vil lagre disse dataene?"
-                onConfirm={handleConfirmSubmit}
-                onClose={() => setOpenConfirmDialog(false)}
-                details={<SchemaDetails schema={schema} data={formData} />}
-                confirmButtonText="Ja, lagre"
+            <SchemaForm
+                schema={schema}
+                onSubmit={handleSubmit}
+                submitLabel={s.submit}
+                validation={strings.validation}
             />
 
             <ConfirmDialog
-                open={openSummaryDialog}
-                title="Innsending mottatt"
-                message="Denne informasjonen ble sendt inn:"
-                onConfirm={() => setOpenSummaryDialog(false)}
+                open={openConfirmDialog}
+                title={s.confirmTitle}
+                message={s.confirmMessage}
+                onConfirm={handleConfirmSubmit}
+                onClose={() => setOpenConfirmDialog(false)}
                 details={<SchemaDetails schema={schema} data={formData} />}
-                onClose={() => setOpenSummaryDialog(false)}
-                confirmButtonText="OK"
-                showCancelButton={false}
+                confirmButtonText={s.confirmButton}
+                cancelButtonText={strings.common.cancel}
             />
 
             <ConfirmDialog
                 open={openHelpDialog}
-                title="Hva er denne nettsiden??"
+                title={s.helpTitle}
                 message=""
                 onConfirm={() => setOpenHelpDialog(false)}
                 details={
-                    <Typography>
-                        Dette er en nettside for å gi deg attest fra {orgName}. Du sender inn din informasjon i en database,
-                        en admin vil inspisere det du har sendt inn.
-                        Hvis dette ser bra ut vil det bli generert en PDF, og din informasjon vil bli slettet fra
-                        databasen. Vi unngår å lagre dataen din lenge.
-
-                        Vi kommer derimot til å lagre hash-verdien til
-                        sertifikatet slik at attesten din kan verifiseres.
-
-                        Spørsmål? Send epost til hei@attester.no da vel!
-                    </Typography>
+                    <>
+                        <Typography sx={{ mb: 2 }}>{s.helpBody(orgName)}</Typography>
+                        <Link href={withLang('/om')}>{s.helpMore}</Link>
+                    </>
                 }
                 onClose={() => setOpenHelpDialog(false)}
-                confirmButtonText="takk for info 😊"
+                confirmButtonText={s.helpClose}
                 showCancelButton={false}
             />
         </Container>
