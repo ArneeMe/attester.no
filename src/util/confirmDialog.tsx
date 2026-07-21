@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
     onConfirm: () => void;
     onClose: () => void;
     confirmButtonText?: string;
+    cancelButtonText?: string;
     showCancelButton?: boolean;
     // Optional second action button rendered alongside the primary confirm.
     // Useful for "Lukk" + "Slett innsendingen" style dialogs where neither
@@ -28,6 +29,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                                                          onConfirm,
                                                          onClose,
                                                          confirmButtonText,
+                                                         cancelButtonText,
                                                          showCancelButton = true,
                                                          secondaryAction,
                                                      }: ConfirmDialogProps) => {
@@ -41,7 +43,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             <DialogActions>
                 {showCancelButton &&
                     <Button onClick={onClose} color="primary">
-                        Avbryt
+                        {cancelButtonText ?? 'Avbryt'}
                     </Button>}
                 {secondaryAction && (
                     <Button
