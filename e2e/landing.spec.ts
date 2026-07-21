@@ -16,7 +16,7 @@ test('?lang=en renders the English strings and links to /om', async ({ page }) =
 
     await page.getByRole('link', { name: /Read more about how attester.no works/ }).click();
     await expect(page.getByRole('heading', { name: 'How attester.no works' })).toBeVisible();
-    await expect(page.getByText('This is NEVER stored after issuance:')).toBeVisible();
+    await expect(page.getByText('This is NEVER stored as part of the certificate:')).toBeVisible();
 
     // The toggle swaps back to Norwegian on the same page.
     await page.getByRole('link', { name: 'Norsk' }).click();
