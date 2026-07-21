@@ -46,5 +46,5 @@ test('valid submission reaches the confirmation screen', async ({ page }) => {
     await page.getByRole('button', { name: 'Ja, lagre' }).click();
 
     await expect(page.getByText('Innsendingen er mottatt')).toBeVisible();
-    await expect(page.getByText('slettes den automatisk')).toBeVisible();
+    await expect(page.getByText(/sletter Testorg opplysningene dine/)).toBeVisible();
 });
