@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "@/lib/server/apiAuth";
-import { checkRateLimit, clientIp } from "@/lib/server/rateLimit";
 
 export const runtime = "edge";
 
 const MAX_COMMENT_LEN = 2000;
-
-// Anonymous endpoint → throttle like the submissions POST, but tighter:
-// nobody legitimately leaves many ratings from one machine.
-const RATE_LIMIT = 5;
-const RATE_WINDOW_MS = 10 * 60 * 1000;
 
 type FeedbackRow = { id: string; rating: number; comment: string; created_at: string };
 
@@ -43,10 +37,6 @@ export async function POST(
     { params }: { params: Promise<{ slug: string }> },
 ) {
     const { slug } = await params;
-    if (!checkRateLimit(`feedback:${clientIp(req.headers)}`, RATE_LIMIT, RATE_WINDOW_MS)) {
-        return NextResponse.json({ error: "For mange tilbakemeldinger. Prøv igjen senere." }, { status: 429 });
-    }
-
     const { rating, comment } = await req.json().catch(() => ({} as Record<string, unknown>));
     if (!Number.isInteger(rating) || (rating as number) < 1 || (rating as number) > 5) {
         return NextResponse.json({ error: "Rating must be an integer 1-5" }, { status: 400 });
