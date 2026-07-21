@@ -5,9 +5,9 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { authHeader } from '@/lib/nhost';
 import {
-    Button, Checkbox, FormControlLabel, Grid, Link, Paper, Typography
+    Button, Checkbox, Chip, FormControlLabel, Grid, Link, MenuItem, Paper, TextField, Typography
 } from '@mui/material';
-import { generatePDF, TemplateData } from '@/app/login/adminpage/generatePDF';
+import { buildAttestPdfBlob, downloadBlob, generatePDF, previewPDF, TemplateData } from '@/app/login/adminpage/generatePDF';
 import { deleteSubmission } from "@/util/deleteSubmission";
 import ConfirmDialog from "@/util/confirmDialog";
 import { generateURL } from "@/app/login/adminpage/generateURL";
@@ -16,6 +16,7 @@ import SchemaDetails from '@/components/SchemaDetails';
 import { useToast } from '@/components/ToastProvider';
 import type { Submission } from '@/types/submission';
 import type { FormSchema } from '@/types/formSchema';
+import { hoursUntilDeletion, SUBMISSION_TTL_HOURS } from '@/util/retention';
 
 type SubmissionRow = {
     id: string;
@@ -43,15 +44,22 @@ const AdminPage: React.FC = () => {
 
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [openBatchDeleteDialog, setOpenBatchDeleteDialog] = useState(false);
+    const [openBatchIssueDialog, setOpenBatchIssueDialog] = useState(false);
+    const [batchBusy, setBatchBusy] = useState(false);
     const [openPDFDialog, setOpenPDFDialog] = useState(false);
     const [pdfUrl, setPdfUrl] = useState('');
+
+    const [searchText, setSearchText] = useState('');
+    const [templateFilter, setTemplateFilter] = useState('');
+    const [newestFirst, setNewestFirst] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [subRes, tmplRes] = await Promise.all([
+                const [subRes, tmplRes, certRes] = await Promise.all([
                     fetch(`/api/org/${encodeURIComponent(orgSlug)}/submissions`, { headers: authHeader() }),
                     fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, { headers: authHeader() }),
+                    fetch(`/api/org/${encodeURIComponent(orgSlug)}/certificates`, { headers: authHeader() }),
                 ]);
 
                 if (subRes.ok) {
@@ -74,6 +82,15 @@ const AdminPage: React.FC = () => {
                 } else {
                     const json = await tmplRes.json().catch(() => ({} as { error?: string }));
                     toast.error(`Kunne ikke laste maler: ${json.error ?? `HTTP ${tmplRes.status}`}`);
+                }
+
+                // Seed which still-present submissions already have a cert,
+                // so a page reload keeps showing the "Utstedt" chip — a
+                // submission and its certificate now coexist until the
+                // retention sweep removes the submission.
+                if (certRes.ok) {
+                    const json = await certRes.json() as { certificates: Array<{ submissionId: string }> };
+                    setIssuedIds(new Set((json.certificates ?? []).map((c) => c.submissionId)));
                 }
             } catch (error) {
                 toast.error(`Kunne ikke laste data: ${(error as Error).message ?? 'nettverksfeil'}`);
@@ -135,6 +152,14 @@ const AdminPage: React.FC = () => {
         setOpenDialog(true);
     };
 
+    // Submissions with an issued certificate. Issuing does NOT delete the
+    // submission (see CLAUDE.md "Volunteer deletion") — a submission stays
+    // visible, marked "Utstedt", until the retention sweep removes it. The
+    // certificates POST route is idempotent per submission, so re-running
+    // "Generer PDF" for an already-issued one (retry after a failed render,
+    // or a deliberate regenerate) is always safe.
+    const [issuedIds, setIssuedIds] = useState<Set<string>>(new Set());
+
     const handleConfirm = async () => {
         if (!selected) return;
         const tmpl = templateById(selected.templateId);
@@ -144,6 +169,7 @@ const AdminPage: React.FC = () => {
         }
         try {
             await submitHash(orgSlug, tmpl.id, selected.id, selected.data);
+            setIssuedIds((prev) => new Set(prev).add(selected.id));
         } catch (error) {
             console.error(error);
             toast.error('Feil ved registrering av sertifikat: ' + ((error as Error).message ?? 'ukjent feil'));
@@ -156,7 +182,8 @@ const AdminPage: React.FC = () => {
             setOpenDialog(false);
         } catch (error) {
             console.error(error);
-            toast.error('Feil ved generering av PDF: ' + ((error as Error).message ?? 'ukjent feil'));
+            toast.error('Feil ved generering av PDF: ' + ((error as Error).message ?? 'ukjent feil')
+                + '. Attesten er registrert – trykk «Generer PDF» for å prøve igjen.');
         }
     };
 
@@ -165,8 +192,65 @@ const AdminPage: React.FC = () => {
         setSelected(null);
     };
 
+    // Batch issue: for each selected submission, register the cert (which
+    // deletes the row server-side) and collect the PDF into one ZIP. A
+    // failure on one item never blocks the others.
+    const handleBatchIssueConfirm = async () => {
+        if (batchBusy) return;
+        setBatchBusy(true);
+        const { default: JSZip } = await import('jszip');
+        const zip = new JSZip();
+        const failures: string[] = [];
+        const newlyIssued: string[] = [];
+        let issued = 0;
+        for (const id of selectedIDs) {
+            const sub = submissions.find((s) => s.id === id);
+            if (!sub) continue;
+            const tmpl = templateById(sub.templateId);
+            const label = sub.data.name || id.slice(0, 8);
+            if (!tmpl) {
+                failures.push(`${label}: mal mangler`);
+                continue;
+            }
+            try {
+                await submitHash(orgSlug, tmpl.id, sub.id, sub.data);
+                newlyIssued.push(sub.id);
+                const { blob, filename } = await buildAttestPdfBlob(orgSlug, tmpl, sub.id, sub.data);
+                const unique = zip.files[filename] ? `${id.slice(0, 8)}_${filename}` : filename;
+                zip.file(unique, blob);
+                issued++;
+            } catch (e) {
+                console.error(e);
+                failures.push(`${label}: ${(e as Error).message ?? 'ukjent feil'}`);
+            }
+        }
+        if (issued > 0) {
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            downloadBlob(zipBlob, 'attester.zip');
+            setIssuedIds((prev) => {
+                const next = new Set(prev);
+                newlyIssued.forEach((id) => next.add(id));
+                return next;
+            });
+            toast.success(`${issued} attest${issued === 1 ? '' : 'er'} utstedt og lastet ned som ZIP.`);
+        }
+        for (const f of failures) toast.error(f);
+        setSelectedIDs([]);
+        setOpenBatchIssueDialog(false);
+        setBatchBusy(false);
+    };
+
     const selectedTemplate = selected ? templateById(selected.templateId) : null;
     const selectedSchema = selectedTemplate?.form_schema ?? null;
+
+    const query = searchText.trim().toLowerCase();
+    const visibleSubmissions = submissions
+        .filter((s) => !templateFilter || s.templateId === templateFilter)
+        .filter((s) => !query
+            || Object.values(s.data).some((v) => v.toLowerCase().includes(query)))
+        .sort((a, b) => newestFirst
+            ? b.createdAt.getTime() - a.createdAt.getTime()
+            : a.createdAt.getTime() - b.createdAt.getTime());
 
     return (
         <>
@@ -175,11 +259,61 @@ const AdminPage: React.FC = () => {
                     <Typography variant="h4" gutterBottom>Oversikt</Typography>
                 </Grid>
                 <Grid size={{ sm: 2 }}>
-                    <Button onClick={openBatchDeleteClick} disabled={selectedIDs.length === 0}>
+                    <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => setOpenBatchIssueDialog(true)}
+                        disabled={selectedIDs.length === 0 || batchBusy}
+                        sx={{ mr: 1 }}
+                    >
+                        Generer valgte
+                    </Button>
+                    <Button size="small" onClick={openBatchDeleteClick} disabled={selectedIDs.length === 0 || batchBusy}>
                         Slett valgte
                     </Button>
                 </Grid>
             </Grid>
+
+            {submissions.length > 0 && (
+                <Grid container spacing={2} alignItems="center" sx={{ mb: 1 }}>
+                    <Grid size={{ xs: 12, sm: 5 }}>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            label="Søk i innsendinger"
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                        />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 4 }}>
+                        <TextField
+                            fullWidth
+                            select
+                            size="small"
+                            label="Mal"
+                            value={templateFilter}
+                            onChange={(e) => setTemplateFilter(e.target.value)}
+                        >
+                            <MenuItem value="">Alle maler</MenuItem>
+                            {templates.map((t) => (
+                                <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
+                            ))}
+                        </TextField>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 3 }}>
+                        <Button size="small" onClick={() => setNewestFirst((v) => !v)}>
+                            {newestFirst ? 'Nyeste først ↓' : 'Eldste først ↑'}
+                        </Button>
+                    </Grid>
+                    {visibleSubmissions.length !== submissions.length && (
+                        <Grid size={{ xs: 12 }}>
+                            <Typography variant="caption" color="text.secondary">
+                                Viser {visibleSubmissions.length} av {submissions.length} innsendinger
+                            </Typography>
+                        </Grid>
+                    )}
+                </Grid>
+            )}
 
             {submissions.length === 0 && (
                 <Paper elevation={1} sx={{ p: 3, mb: 2, bgcolor: 'grey.50' }}>
@@ -199,7 +333,7 @@ const AdminPage: React.FC = () => {
             )}
 
             <Grid container spacing={2}>
-                {submissions.map((sub) => {
+                {visibleSubmissions.map((sub) => {
                     const tmpl = templateById(sub.templateId);
                     const schema = tmpl?.form_schema ?? null;
                     return (
@@ -216,11 +350,17 @@ const AdminPage: React.FC = () => {
                                         }
                                         label=""
                                     />
+                                    {issuedIds.has(sub.id) && (
+                                        <Chip label="Utstedt" color="success" size="small" sx={{ mb: 0.5 }} />
+                                    )}
                                     {tmpl && (
                                         <Typography variant="caption" color="text.secondary" display="block">
                                             Mal: {tmpl.name}
                                         </Typography>
                                     )}
+                                    <Typography variant="caption" color="warning.main" display="block">
+                                        Slettes automatisk om {hoursUntilDeletion(sub.createdAt)} t
+                                    </Typography>
                                     {schema ? (
                                         <SchemaDetails schema={schema} data={sub.data} />
                                     ) : (
@@ -253,13 +393,28 @@ const AdminPage: React.FC = () => {
             <ConfirmDialog
                 open={openDialog}
                 title="Bekreft generering av PDF"
-                message="Er du sikker på at du vil generere PDF?"
+                message={`Når du genererer PDF-en, registreres attesten. Innsendingen slettes automatisk senest ${SUBMISSION_TTL_HOURS} timer etter mottak, uansett om attesten er utstedt – du kan generere den på nytt inntil da. Bruk forhåndsvisningen hvis du vil se resultatet først.`}
                 details={selected && selectedSchema ? (
                     <SchemaDetails schema={selectedSchema} data={selected.data} />
                 ) : null}
                 onConfirm={handleConfirm}
                 onClose={handleClose}
                 confirmButtonText="Generer PDF"
+                secondaryAction={
+                    selected && selectedTemplate
+                        ? {
+                              label: 'Forhåndsvis',
+                              onClick: async () => {
+                                  try {
+                                      await previewPDF(orgSlug, selectedTemplate, selected.id, selected.data);
+                                  } catch (e) {
+                                      console.error(e);
+                                      toast.error('Feil ved forhåndsvisning: ' + ((e as Error).message ?? 'ukjent feil'));
+                                  }
+                              },
+                          }
+                        : undefined
+                }
             />
 
             <ConfirmDialog
@@ -269,6 +424,15 @@ const AdminPage: React.FC = () => {
                 onConfirm={handleDeleteConfirm}
                 onClose={() => setOpenDeleteDialog(false)}
                 confirmButtonText="Slett"
+            />
+
+            <ConfirmDialog
+                open={openBatchIssueDialog}
+                title="Utsted valgte attester"
+                message={`${selectedIDs.length} attest${selectedIDs.length === 1 ? '' : 'er'} genereres og lastes ned som én ZIP-fil.`}
+                onConfirm={handleBatchIssueConfirm}
+                onClose={() => { if (!batchBusy) setOpenBatchIssueDialog(false); }}
+                confirmButtonText={batchBusy ? 'Genererer …' : 'Generer ZIP'}
             />
 
             <ConfirmDialog
@@ -283,33 +447,26 @@ const AdminPage: React.FC = () => {
             <ConfirmDialog
                 open={openPDFDialog}
                 title="PDF-en er generert"
-                message="Sjekk at alt ser riktig ut, og slett deretter innsendingen for å fjerne personinformasjonen fra databasen."
+                message={`Attesten er registrert. Innsendingen slettes automatisk senest ${SUBMISSION_TTL_HOURS} timer etter mottak. Sjekk at PDF-en ser riktig ut før du lukker.`}
                 details={<Typography variant="body1">
                     Her er verifiserings-URL-en:{' '}
                     <Link href={pdfUrl} target="_blank" rel="noreferrer">{pdfUrl}</Link>
                 </Typography>}
-                onConfirm={() => setOpenPDFDialog(false)}
-                onClose={() => setOpenPDFDialog(false)}
+                onConfirm={() => { setOpenPDFDialog(false); setSelected(null); }}
+                onClose={() => { setOpenPDFDialog(false); setSelected(null); }}
                 confirmButtonText="Lukk"
                 showCancelButton={false}
-                secondaryAction={
-                    selected
-                        ? {
-                              label: 'Slett innsendingen nå',
-                              color: 'error',
-                              onClick: async () => {
-                                  try {
-                                      await handleDelete(selected.id);
-                                      setOpenPDFDialog(false);
-                                      setSelected(null);
-                                      toast.success('Innsendingen er slettet');
-                                  } catch (e) {
-                                      toast.error((e as Error).message);
-                                  }
-                              },
-                          }
-                        : undefined
-                }
+                secondaryAction={{
+                    label: 'Kopier lenke',
+                    onClick: async () => {
+                        try {
+                            await navigator.clipboard.writeText(pdfUrl);
+                            toast.success('Verifiseringslenken er kopiert');
+                        } catch {
+                            toast.error('Kunne ikke kopiere – marker lenken manuelt');
+                        }
+                    },
+                }}
             />
         </>
     );

@@ -18,8 +18,10 @@ Data flow:
 3. The server stores ONLY: `cert_id`, `hash(URL params)`, `template_id`,
    `organization_id`, `created_at`. Never the name, dates, group, role, or
    any other identifying field.
-4. The admin deletes the volunteer row (manual today; meant to happen
-   immediately after PDF issuance).
+4. The submission row is deleted automatically by a time-based sweep, at
+   most `SUBMISSION_TTL_HOURS` after it was created — independent of
+   whether a certificate has been issued yet (see "Volunteer deletion"
+   below).
 5. To verify: anyone with the QR code opens the URL. The verify page
    recomputes the canonical hash from the URL params, fetches the stored
    hash from the API, compares them.
@@ -48,11 +50,24 @@ What IS acceptable:
 
 ### Volunteer deletion
 
-The admin UI has a per-volunteer "Slett data" button and a batch one. The
-intended workflow is: generate PDF → confirm everything looks right →
-delete the volunteer. Automating this deletion (e.g. on successful cert
-insertion) is a reasonable future change. Storing volunteer data
-indefinitely is NOT.
+Deletion is time-based, not issuance-based: a lazy sweep
+(`src/lib/server/retention.ts`, TTL in `src/util/retention.ts`) deletes
+every submission row older than `SUBMISSION_TTL_HOURS`, run whenever the
+submissions API is touched (GET or POST) — no scheduler exists on the
+edge runtime, and none is needed: if nothing triggers the sweep, nothing
+is reading the data either. Do not remove the sweep calls from the
+submissions GET/POST routes. Storing volunteer data indefinitely is NOT
+acceptable.
+
+**Issuing a certificate does NOT delete the submission.** This is
+deliberate: it gives admins a regeneration window — if a PDF is lost,
+misprinted, or a mistake is spotted late, "Generer PDF" can be run again
+for the same submission any time before the sweep runs. The certificates
+POST route is idempotent per submission (returns the existing cert
+instead of minting a duplicate on a repeat call), so re-issuing is always
+safe. The admin UI keeps its per-submission "Slett data" button and the
+batch one — for rejecting a submission outright, or clearing its data
+before the sweep would (e.g. right after issuance, without waiting).
 
 ## The legacy `/verify` route
 

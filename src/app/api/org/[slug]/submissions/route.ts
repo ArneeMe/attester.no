@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "@/lib/server/apiAuth";
 import { templateBelongsToOrg } from "@/lib/server/ownership";
+import { sweepExpiredSubmissions } from "@/lib/server/retention";
 
 export const runtime = "edge";
 
@@ -26,6 +27,10 @@ export async function GET(
     const { slug } = await params;
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
+
+    // Enforce the retention TTL before reading, so the admin never sees
+    // (and the response never contains) rows that should already be gone.
+    await sweepExpiredSubmissions();
 
     try {
         const data = await hasuraAdmin<{ submissions: SubmissionRow[] }>(
@@ -79,6 +84,10 @@ export async function POST(
         }
     }
 
+    // Piggyback the retention sweep on the anonymous write path too, so
+    // expired rows are purged even if no admin logs in for days.
+    await sweepExpiredSubmissions();
+
     try {
         const organizationId = await resolveOrgIdBySlug(slug);
         if (!organizationId) {
@@ -106,6 +115,7 @@ export async function POST(
             }`,
             { organizationId, templateId, data },
         );
+
         return NextResponse.json({ submission: result.insert_submissions_one });
     } catch (e) {
         return NextResponse.json({ error: (e as Error).message }, { status: 500 });
