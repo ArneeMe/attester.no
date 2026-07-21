@@ -1,13 +1,13 @@
 'use client'
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Box, CircularProgress, Grid, TextField, Typography } from '@mui/material';
 import { canonicalHash } from '@/util/canonicalHash';
+import { selectHashFields } from '@/util/verifyFieldSelection';
 import { customTheme } from '@/app/style/customTheme';
 import type { FormSchema, FormFieldSchema } from '@/types/formSchema';
-import { getStrings } from '@/strings';
-import LanguageToggle from '@/components/LanguageToggle';
+import { getStrings, normalizeLang, type Lang } from '@/strings';
 import OrgLogo from '@/components/OrgLogo';
 
 const OrgVerifyClient: React.FC = () => {
@@ -16,19 +16,28 @@ const OrgVerifyClient: React.FC = () => {
     const colorTheme = customTheme.palette;
     const submissionId = searchParams.get('id') ?? '';
     const templateId = searchParams.get('t') ?? '';
-    const lang = searchParams.get('lang');
-    const s = getStrings(lang).verify;
+
+    // Language here is page-local UI state, not synced to the URL. The
+    // verify URL is a fixed external contract — printed on paper, embedded
+    // in a QR code — so it shouldn't be mutated by a UI preference. This
+    // also sidesteps a whole class of bug: any extra query param a sharing
+    // channel appends (utm_*, fbclid, a future UI flag) can never leak into
+    // the hash just because the page has an interactive toggle.
+    const [uiLang, setUiLang] = useState<Lang>(() => normalizeLang(searchParams.get('lang')));
+    const s = getStrings(uiLang).verify;
 
     const [storedHash, setStoredHash] = useState<string | null | undefined>(undefined);
     const [verificationResult, setVerificationResult] = useState<'verified' | 'invalid' | null>(null);
     const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
     const [schemaLoading, setSchemaLoading] = useState(!!templateId);
 
-    // All URL params except 't' — includes 'id' (part of hash) and all cert fields
+    // All URL params except 't' and 'lang' — includes 'id' and every cert
+    // field. This is the editable/display state; what actually feeds the
+    // hash is narrowed further below via selectHashFields.
     const [fields, setFields] = useState<Record<string, string>>(() => {
         const result: Record<string, string> = {};
         searchParams.forEach((value, key) => {
-            if (key !== 't') result[key] = value;
+            if (key !== 't' && key !== 'lang') result[key] = value;
         });
         return result;
     });
@@ -52,13 +61,19 @@ const OrgVerifyClient: React.FC = () => {
             .catch(() => setStoredHash(null));
     }, [orgSlug, submissionId]);
 
+    // Once the template's form schema is known, only its declared field
+    // keys (plus id) are trusted for hashing — anything else in `fields`
+    // (a stray tracking param, say) is ignored rather than blocklisted by
+    // name. Falls back to trusting every field when no schema is available.
+    const hashInput = useMemo(() => selectHashFields(formSchema, fields), [formSchema, fields]);
+
     useEffect(() => {
         if (storedHash === undefined) return;
         if (!storedHash) { setVerificationResult('invalid'); return; }
-        canonicalHash(new URLSearchParams(fields)).then((computed) => {
+        canonicalHash(new URLSearchParams(hashInput)).then((computed) => {
             setVerificationResult(computed === storedHash ? 'verified' : 'invalid');
         });
-    }, [fields, storedHash]);
+    }, [hashInput, storedHash]);
 
     const getColor = () => {
         if (verificationResult === 'verified') return colorTheme.primary.main;
@@ -78,6 +93,17 @@ const OrgVerifyClient: React.FC = () => {
               .filter((k) => k !== 'id')
               .map((k) => ({ key: k, label: k, type: 'text' as const }));
 
+    const toggleStyle = (active: boolean): React.CSSProperties => ({
+        fontSize: '0.875rem',
+        fontWeight: active ? 700 : 400,
+        textDecoration: active ? 'none' : 'underline',
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        padding: 0,
+        color: 'inherit',
+    });
+
     return (
         <Box sx={{ border: `5px solid ${getColor()}`, padding: 3, borderRadius: 2, margin: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 2 }}>
@@ -85,7 +111,15 @@ const OrgVerifyClient: React.FC = () => {
                     <OrgLogo orgSlug={orgSlug} height={44} />
                     <Typography variant="h3" gutterBottom>{s.title}</Typography>
                 </Box>
-                <LanguageToggle />
+                <Box component="span" sx={{ display: 'inline-flex', gap: 1, alignItems: 'center' }}>
+                    <button type="button" style={toggleStyle(uiLang === 'no')} onClick={() => setUiLang('no')} aria-current={uiLang === 'no' ? 'true' : undefined}>
+                        Norsk
+                    </button>
+                    <span aria-hidden>|</span>
+                    <button type="button" style={toggleStyle(uiLang === 'en')} onClick={() => setUiLang('en')} aria-current={uiLang === 'en' ? 'true' : undefined}>
+                        English
+                    </button>
+                </Box>
             </Box>
 
             {verificationResult === null ? (
@@ -114,7 +148,7 @@ const OrgVerifyClient: React.FC = () => {
             )}
 
             <Typography variant="body2" sx={{ mt: 1 }}>
-                <Link href={lang === 'en' ? '/om?lang=en' : '/om'}>{s.aboutLink}</Link>
+                <Link href={uiLang === 'en' ? '/om?lang=en' : '/om'}>{s.aboutLink}</Link>
             </Typography>
 
             <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3 }}>

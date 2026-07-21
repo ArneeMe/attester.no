@@ -36,7 +36,6 @@ export default function OrgAdminLayout({ children }: { children: React.ReactNode
         { href: `/login/adminpage/${orgSlug}/edit_pdf`, label: nav.pdfmal },
         { href: `/login/adminpage/${orgSlug}/maler`, label: nav.maler },
         { href: `/login/adminpage/${orgSlug}/medlemmer`, label: nav.medlemmer },
-        { href: `/login/adminpage/${orgSlug}/tilbakemeldinger`, label: nav.tilbakemeldinger },
         { href: `/login/adminpage/${orgSlug}/utstedte`, label: nav.utstedte },
     ];
 
