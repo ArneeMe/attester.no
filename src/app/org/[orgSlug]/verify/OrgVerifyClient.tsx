@@ -8,6 +8,7 @@ import { selectHashFields } from '@/util/verifyFieldSelection';
 import { customTheme } from '@/app/style/customTheme';
 import type { FormSchema, FormFieldSchema } from '@/types/formSchema';
 import { getStrings, normalizeLang, type Lang } from '@/strings';
+import OrgLogo from '@/components/OrgLogo';
 
 const OrgVerifyClient: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -106,7 +107,10 @@ const OrgVerifyClient: React.FC = () => {
     return (
         <Box sx={{ border: `5px solid ${getColor()}`, padding: 3, borderRadius: 2, margin: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 2 }}>
-                <Typography variant="h3" gutterBottom>{s.title}</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                    <OrgLogo orgSlug={orgSlug} height={44} />
+                    <Typography variant="h3" gutterBottom>{s.title}</Typography>
+                </Box>
                 <Box component="span" sx={{ display: 'inline-flex', gap: 1, alignItems: 'center' }}>
                     <button type="button" style={toggleStyle(uiLang === 'no')} onClick={() => setUiLang('no')} aria-current={uiLang === 'no' ? 'true' : undefined}>
                         Norsk

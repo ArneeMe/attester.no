@@ -152,18 +152,9 @@ const no = {
             pdfmal: 'PDF-mal',
             maler: 'Maler',
             medlemmer: 'Medlemmer',
-            tilbakemeldinger: 'Tilbakemeldinger',
             utstedte: 'Utstedte',
             publicForm: 'Se offentlig skjema ↗',
         },
-    },
-    feedback: {
-        title: 'Hvordan var det å bruke attester.no?',
-        commentLabel: 'Kommentar (valgfritt)',
-        commentHint: 'Ikke skriv personopplysninger her — tilbakemeldingen er anonym.',
-        send: 'Send tilbakemelding',
-        thanks: 'Takk for tilbakemeldingen!',
-        error: 'Kunne ikke sende tilbakemeldingen',
     },
 };
 
@@ -309,18 +300,9 @@ const en: Strings = {
             pdfmal: 'PDF template',
             maler: 'Templates',
             medlemmer: 'Members',
-            tilbakemeldinger: 'Feedback',
             utstedte: 'Issued',
             publicForm: 'View public form ↗',
         },
-    },
-    feedback: {
-        title: 'How was your experience with attester.no?',
-        commentLabel: 'Comment (optional)',
-        commentHint: 'Please don’t include personal data — the feedback is anonymous.',
-        send: 'Send feedback',
-        thanks: 'Thanks for the feedback!',
-        error: 'Could not send the feedback',
     },
 };
 
