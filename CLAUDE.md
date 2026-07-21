@@ -18,8 +18,10 @@ Data flow:
 3. The server stores ONLY: `cert_id`, `hash(URL params)`, `template_id`,
    `organization_id`, `created_at`. Never the name, dates, group, role, or
    any other identifying field.
-4. The submission row is deleted automatically in the same transaction
-   that inserts the certificate (see the certificates POST route).
+4. The submission row is deleted automatically by a time-based sweep, at
+   most `SUBMISSION_TTL_HOURS` after it was created — independent of
+   whether a certificate has been issued yet (see "Volunteer deletion"
+   below).
 5. To verify: anyone with the QR code opens the URL. The verify page
    recomputes the canonical hash from the URL params, fetches the stored
    hash from the API, compares them.
@@ -48,22 +50,24 @@ What IS acceptable:
 
 ### Volunteer deletion
 
-Deletion is automatic: the certificates POST route deletes the submission
-row in the same Hasura mutation (single transaction) that inserts the
-certificate. The admin UI keeps its per-submission "Slett data" button and
-the batch one for rejecting submissions without issuing a cert. The
-dashboard holds the submission data in memory after issuance so a failed
-PDF render can be retried without re-calling the certificates route (the
-row is gone; a second submitHash would fail the ownership check).
-Storing volunteer data indefinitely is NOT acceptable — do not remove the
-auto-delete.
-
-On top of that, unprocessed submissions expire: a lazy sweep
+Deletion is time-based, not issuance-based: a lazy sweep
 (`src/lib/server/retention.ts`, TTL in `src/util/retention.ts`) deletes
-rows older than the TTL whenever the submissions API is touched. No
-scheduler exists on the edge runtime, and none is needed — if nothing
-triggers the sweep, nothing is reading the data either. Do not remove
-the sweep calls from the submissions GET/POST routes.
+every submission row older than `SUBMISSION_TTL_HOURS`, run whenever the
+submissions API is touched (GET or POST) — no scheduler exists on the
+edge runtime, and none is needed: if nothing triggers the sweep, nothing
+is reading the data either. Do not remove the sweep calls from the
+submissions GET/POST routes. Storing volunteer data indefinitely is NOT
+acceptable.
+
+**Issuing a certificate does NOT delete the submission.** This is
+deliberate: it gives admins a regeneration window — if a PDF is lost,
+misprinted, or a mistake is spotted late, "Generer PDF" can be run again
+for the same submission any time before the sweep runs. The certificates
+POST route is idempotent per submission (returns the existing cert
+instead of minting a duplicate on a repeat call), so re-issuing is always
+safe. The admin UI keeps its per-submission "Slett data" button and the
+batch one — for rejecting a submission outright, or clearing its data
+before the sweep would (e.g. right after issuance, without waiting).
 
 ## The legacy `/verify` route
 

@@ -3,7 +3,6 @@ import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "@/lib/server/apiAuth";
 import { templateBelongsToOrg } from "@/lib/server/ownership";
 import { sweepExpiredSubmissions } from "@/lib/server/retention";
-import { notifyNewSubmission } from "@/lib/server/notify";
 
 export const runtime = "edge";
 
@@ -116,10 +115,6 @@ export async function POST(
             }`,
             { organizationId, templateId, data },
         );
-
-        // Content-free heads-up to the org's admins. No-op unless an email
-        // provider is configured; never fails the submission.
-        await notifyNewSubmission(organizationId, slug);
 
         return NextResponse.json({ submission: result.insert_submissions_one });
     } catch (e) {
