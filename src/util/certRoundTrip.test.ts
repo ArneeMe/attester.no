@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { buildCertParams } from './certParams';
 import { canonicalHash } from './canonicalHash';
+import { selectHashFields } from './verifyFieldSelection';
+import { VOLUNTEER_FORM_SCHEMA } from '@/types/formSchema';
 
 // End-to-end: simulate the issuer (admin generating a cert) and the verifier
 // (anyone scanning the QR). They must produce the same hash, otherwise certs
@@ -39,6 +41,42 @@ describe('cert issue ↔ verify round-trip', () => {
         });
 
         expect(await canonicalHash(fields)).toBe(issuerHash);
+    });
+
+    it('the schema allowlist never drops a field an existing cert actually used', async () => {
+        // Direct proof that the schema-narrowing added to the verify page
+        // (selectHashFields) cannot break an already-issued certificate.
+        // Templates are immutable — a real cert's `t` always resolves to the
+        // exact form_schema that was in effect when the submission was made
+        // — so the fields buildCertParams put in the URL at issuance are
+        // always a subset of that same schema's declared keys.
+        const data = {
+            name: 'Ola Nordmann',
+            group: 'Webkom',
+            start: '2023-01-01',
+            end: '2024-06-30',
+            role: 'Leder',
+            // Some optional extra-role fields left blank, as a real
+            // volunteer submission often has — buildCertParams drops empty
+            // values, so these never reach the cert URL at all.
+            group1: '',
+            start1: '',
+        };
+        const issuerParams = buildCertParams('tmpl-1', 'sub-1', data);
+        const issuerHash = await canonicalHash(issuerParams);
+
+        // Verifier: parse the URL the way OrgVerifyClient does (drop t/lang),
+        // then narrow via the production form schema for this template.
+        const url = new URL(`https://attester.no/org/echo/verify?${issuerParams}`);
+        const fields: Record<string, string> = {};
+        url.searchParams.forEach((value, key) => {
+            if (key !== 't' && key !== 'lang') fields[key] = value;
+        });
+        const hashInput = selectHashFields(VOLUNTEER_FORM_SCHEMA, fields);
+
+        // Nothing the issuer actually hashed gets dropped by the allowlist.
+        expect(Object.keys(hashInput).sort()).toEqual(Object.keys(fields).sort());
+        expect(await canonicalHash(new URLSearchParams(hashInput))).toBe(issuerHash);
     });
 
     it('a tampered field in the URL → different hash', async () => {
