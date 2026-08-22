@@ -1,11 +1,11 @@
 'use client'
 export const runtime = 'edge';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { authHeader } from '@/lib/nhost';
 import {
-    Button, Checkbox, FormControlLabel, Grid, Link, MenuItem, Paper, TextField, Typography
+    Button, Checkbox, Chip, FormControlLabel, Grid, Link, MenuItem, Paper, TextField, Typography
 } from '@mui/material';
 import { buildAttestPdfBlob, downloadBlob, generatePDF, previewPDF, TemplateData } from '@/app/login/adminpage/generatePDF';
 import { deleteSubmission } from "@/util/deleteSubmission";
@@ -59,9 +59,10 @@ const AdminPage: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [subRes, tmplRes] = await Promise.all([
+                const [subRes, tmplRes, certRes] = await Promise.all([
                     fetch(`/api/org/${encodeURIComponent(orgSlug)}/submissions`, { headers: authHeader() }),
                     fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, { headers: authHeader() }),
+                    fetch(`/api/org/${encodeURIComponent(orgSlug)}/certificates`, { headers: authHeader() }),
                 ]);
 
                 if (subRes.ok) {
@@ -84,6 +85,15 @@ const AdminPage: React.FC = () => {
                 } else {
                     const json = await tmplRes.json().catch(() => ({} as { error?: string }));
                     toast.error(`${a.loadTemplatesError}: ${json.error ?? `HTTP ${tmplRes.status}`}`);
+                }
+
+                // Seed which still-present submissions already have a cert,
+                // so a page reload keeps showing the "Utstedt" chip — a
+                // submission and its certificate now coexist until the
+                // retention sweep removes the submission.
+                if (certRes.ok) {
+                    const json = await certRes.json() as { certificates: Array<{ submissionId: string }> };
+                    setIssuedIds(new Set((json.certificates ?? []).map((c) => c.submissionId)));
                 }
             } catch (error) {
                 toast.error(`${a.loadError}: ${(error as Error).message ?? ''}`);
@@ -145,12 +155,13 @@ const AdminPage: React.FC = () => {
         setOpenDialog(true);
     };
 
-    // Submissions whose cert hash is already registered this session. The
-    // server deletes the submission row when the cert is inserted, so a
-    // PDF-generation retry must NOT call submitHash again (the row is gone
-    // and the ownership check would reject it) — but the data is still in
-    // memory here, so the PDF itself can be regenerated.
-    const issuedIds = useRef(new Set<string>());
+    // Submissions with an issued certificate. Issuing does NOT delete the
+    // submission (see CLAUDE.md "Volunteer deletion") — a submission stays
+    // visible, marked "Utstedt", until the retention sweep removes it. The
+    // certificates POST route is idempotent per submission, so re-running
+    // "Generer PDF" for an already-issued one (retry after a failed render,
+    // or a deliberate regenerate) is always safe.
+    const [issuedIds, setIssuedIds] = useState<Set<string>>(new Set());
 
     const handleConfirm = async () => {
         if (!selected) return;
@@ -159,16 +170,13 @@ const AdminPage: React.FC = () => {
             toast.error(a.templateGone);
             return;
         }
-        if (!issuedIds.current.has(selected.id)) {
-            try {
-                await submitHash(orgSlug, tmpl.id, selected.id, selected.data);
-                issuedIds.current.add(selected.id);
-                setSubmissions((prev) => prev.filter((s) => s.id !== selected.id));
-            } catch (error) {
-                console.error(error);
-                toast.error(a.registerError + ((error as Error).message ?? a.unknownError));
-                return;
-            }
+        try {
+            await submitHash(orgSlug, tmpl.id, selected.id, selected.data);
+            setIssuedIds((prev) => new Set(prev).add(selected.id));
+        } catch (error) {
+            console.error(error);
+            toast.error(a.registerError + ((error as Error).message ?? a.unknownError));
+            return;
         }
         try {
             await generatePDF(orgSlug, tmpl, selected.id, selected.data);
@@ -195,6 +203,7 @@ const AdminPage: React.FC = () => {
         const { default: JSZip } = await import('jszip');
         const zip = new JSZip();
         const failures: string[] = [];
+        const newlyIssued: string[] = [];
         let issued = 0;
         for (const id of selectedIDs) {
             const sub = submissions.find((s) => s.id === id);
@@ -206,10 +215,8 @@ const AdminPage: React.FC = () => {
                 continue;
             }
             try {
-                if (!issuedIds.current.has(sub.id)) {
-                    await submitHash(orgSlug, tmpl.id, sub.id, sub.data);
-                    issuedIds.current.add(sub.id);
-                }
+                await submitHash(orgSlug, tmpl.id, sub.id, sub.data);
+                newlyIssued.push(sub.id);
                 const { blob, filename } = await buildAttestPdfBlob(orgSlug, tmpl, sub.id, sub.data);
                 const unique = zip.files[filename] ? `${id.slice(0, 8)}_${filename}` : filename;
                 zip.file(unique, blob);
@@ -222,11 +229,15 @@ const AdminPage: React.FC = () => {
         if (issued > 0) {
             const zipBlob = await zip.generateAsync({ type: 'blob' });
             downloadBlob(zipBlob, 'attester.zip');
-            setSubmissions((prev) => prev.filter((s) => !issuedIds.current.has(s.id)));
+            setIssuedIds((prev) => {
+                const next = new Set(prev);
+                newlyIssued.forEach((id) => next.add(id));
+                return next;
+            });
             toast.success(a.batchDone(issued));
         }
         for (const f of failures) toast.error(f);
-        setSelectedIDs((prev) => prev.filter((id) => !issuedIds.current.has(id)));
+        setSelectedIDs([]);
         setOpenBatchIssueDialog(false);
         setBatchBusy(false);
     };
@@ -338,6 +349,9 @@ const AdminPage: React.FC = () => {
                                         }
                                         label=""
                                     />
+                                    {issuedIds.has(sub.id) && (
+                                        <Chip label="Utstedt" color="success" size="small" sx={{ mb: 0.5 }} />
+                                    )}
                                     {tmpl && (
                                         <Typography variant="caption" color="text.secondary" display="block">
                                             {a.templateCaption(tmpl.name)}

@@ -8,6 +8,7 @@ export const runtime = "edge";
 
 type CertRow = {
     id: string;
+    submission_id: string;
     template_id: string | null;
     issued_by: string | null;
     created_at: string;
@@ -17,7 +18,11 @@ type CertRow = {
  * List issued certificates for the org. Contains NO personal data by
  * construction — the rows only carry ids, timestamps, and the issuing
  * admin (resolved to email for display). The hash is deliberately not
- * returned; nothing in the admin UI needs it.
+ * returned; nothing in the admin UI needs it. `submissionId` IS returned —
+ * it's a random id, not personal data, and the dashboard needs it to know
+ * which still-present submissions have already been issued (see the
+ * "Volunteer deletion" note in CLAUDE.md: issuance no longer deletes the
+ * submission, so a submission and its cert coexist until the sweep).
  */
 export async function GET(
     req: NextRequest,
@@ -33,7 +38,7 @@ export async function GET(
                 certificates(
                     where: { organization_id: { _eq: $organizationId } },
                     order_by: { created_at: desc }
-                ) { id template_id issued_by created_at }
+                ) { id submission_id template_id issued_by created_at }
             }`,
             { organizationId: auth.organizationId },
         );
@@ -42,6 +47,7 @@ export async function GET(
         const emailById = new Map(users.map((u) => [u.id, u.email]));
         const certificates = data.certificates.map((c) => ({
             id: c.id,
+            submissionId: c.submission_id,
             templateId: c.template_id,
             issuedBy: c.issued_by ? emailById.get(c.issued_by) ?? null : null,
             createdAt: c.created_at,
@@ -88,17 +94,32 @@ export async function POST(
     }
 
     try {
-        // Insert the cert and delete the submission in ONE mutation. Hasura
-        // runs both root fields in a single transaction, so the volunteer's
-        // personal data is gone the moment the cert exists — the privacy
-        // guarantee no longer depends on an admin remembering to click delete.
-        // certificates.submission_id is a String column; submissions.id is
-        // uuid — same value, two GraphQL types.
-        const data = await hasuraAdmin<{
-            insert_certificates_one: { id: string };
-            delete_submissions_by_pk: { id: string } | null;
-        }>(
-            `mutation InsertCertificateDeleteSubmission($organizationId: uuid!, $submissionId: String!, $submissionUuid: uuid!, $hash: String!, $templateId: uuid!, $issuedBy: uuid!) {
+        // Idempotent issuance: a submission is NOT deleted when its cert is
+        // issued (deletion is solely the 24h retention sweep's job, see
+        // CLAUDE.md "Volunteer deletion") — so "Generer PDF" can legitimately
+        // be clicked again for the same submission, e.g. to regenerate a
+        // lost or misprinted PDF. Check for an existing cert first and
+        // return it instead of minting a duplicate.
+        //
+        // This check-then-insert has a small race window under concurrent
+        // double-clicks; a DB-enforced unique constraint on
+        // (organization_id, submission_id) closes it and is tracked as
+        // follow-up hardening.
+        const existing = await hasuraAdmin<{ certificates: { id: string }[] }>(
+            `query ExistingCertificate($organizationId: uuid!, $submissionId: String!) {
+                certificates(
+                    where: { organization_id: { _eq: $organizationId }, submission_id: { _eq: $submissionId } },
+                    limit: 1
+                ) { id }
+            }`,
+            { organizationId: auth.organizationId, submissionId },
+        );
+        if (existing.certificates.length > 0) {
+            return NextResponse.json({ id: existing.certificates[0].id, alreadyIssued: true });
+        }
+
+        const data = await hasuraAdmin<{ insert_certificates_one: { id: string } }>(
+            `mutation InsertCertificate($organizationId: uuid!, $submissionId: String!, $hash: String!, $templateId: uuid!, $issuedBy: uuid!) {
                 insert_certificates_one(object: {
                     organization_id: $organizationId,
                     submission_id: $submissionId,
@@ -106,9 +127,8 @@ export async function POST(
                     template_id: $templateId,
                     issued_by: $issuedBy
                 }) { id }
-                delete_submissions_by_pk(id: $submissionUuid) { id }
             }`,
-            { organizationId: auth.organizationId, submissionId, submissionUuid: submissionId, hash, templateId, issuedBy: auth.userId },
+            { organizationId: auth.organizationId, submissionId, hash, templateId, issuedBy: auth.userId },
         );
         return NextResponse.json({ id: data.insert_certificates_one.id });
     } catch (e) {
