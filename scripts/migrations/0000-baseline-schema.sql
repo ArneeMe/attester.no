@@ -73,20 +73,30 @@ CREATE INDEX IF NOT EXISTS org_assets_kind_idx ON org_assets(organization_id, ki
 -- Volunteer form submissions. Deleted automatically in the same
 -- transaction that inserts the certificate — rows here are transient
 -- review-queue state, never long-term storage.
+-- issued_at: stamped when the certificate is inserted. It is the deletion
+-- clock — the sweep removes rows whose issued_at is older than the
+-- regeneration window (src/util/retention.ts). NULL means "not issued yet",
+-- and such rows are never swept: they wait for an admin, who clears them
+-- with the explicit "Slett data" action. See CLAUDE.md "Volunteer deletion".
 CREATE TABLE IF NOT EXISTS submissions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     template_id uuid NOT NULL REFERENCES templates(id) ON DELETE RESTRICT,
     data jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamptz NOT NULL DEFAULT now()
+    created_at timestamptz NOT NULL DEFAULT now(),
+    issued_at timestamptz
 );
 CREATE INDEX IF NOT EXISTS submissions_org_idx ON submissions(organization_id);
 CREATE INDEX IF NOT EXISTS submissions_template_idx ON submissions(template_id);
+CREATE INDEX IF NOT EXISTS submissions_issued_at_idx
+    ON submissions(issued_at)
+    WHERE issued_at IS NOT NULL;
 
 -- The hash IS the certificate: no volunteer fields, ever (see CLAUDE.md).
 -- submission_id is the opaque lookup key embedded in the QR URL's `id`
--- param (a submissions uuid stored as text; the submission row itself is
--- deleted at issuance). template_id is SET NULL on template deletion —
+-- param (a submissions uuid stored as text; the submission row outlives
+-- issuance by the regeneration window, then the sweep removes it).
+-- template_id is SET NULL on template deletion —
 -- the hash keeps verifying regardless of presentation.
 CREATE TABLE IF NOT EXISTS certificates (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

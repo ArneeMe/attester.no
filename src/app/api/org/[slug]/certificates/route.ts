@@ -18,7 +18,11 @@ type CertRow = {
  * List issued certificates for the org. Contains NO personal data by
  * construction — the rows only carry ids, timestamps, and the issuing
  * admin (resolved to email for display). The hash is deliberately not
- * returned; nothing in the admin UI needs it.
+ * returned; nothing in the admin UI needs it. `submissionId` IS returned —
+ * it's a random id, not personal data, and the dashboard needs it to know
+ * which still-present submissions have already been issued (see the
+ * "Volunteer deletion" note in CLAUDE.md: issuance no longer deletes the
+ * submission, so a submission and its cert coexist until the sweep).
  */
 export async function GET(
     req: NextRequest,
@@ -90,26 +94,43 @@ export async function POST(
     }
 
     try {
-        // Issuance does NOT delete the submission: it stays until the 24h
-        // retention sweep removes it (src/lib/server/retention.ts), so the
-        // admin can regenerate the PDF within that window. That makes this
-        // endpoint idempotent per submission — a re-issue returns the
-        // existing cert instead of minting a duplicate row.
-        const existing = await hasuraAdmin<{ certificates: Array<{ id: string }> }>(
-            `query ExistingCert($submissionId: String!, $organizationId: uuid!) {
-                certificates(where: {
-                    submission_id: { _eq: $submissionId },
-                    organization_id: { _eq: $organizationId }
-                }, limit: 1) { id }
+        // Idempotent issuance: a submission is NOT deleted when its cert is
+        // issued — issuance stamps `issued_at`, which starts the retention
+        // window the sweep enforces (see CLAUDE.md "Volunteer deletion").
+        // So "Generer PDF" can legitimately be clicked again for the same
+        // submission, e.g. to regenerate a lost or misprinted PDF. Check for
+        // an existing cert first and return it instead of minting a
+        // duplicate. Re-issuing deliberately does NOT re-stamp issued_at:
+        // the window runs from the FIRST issuance, so regenerating can't be
+        // used to hold volunteer data indefinitely.
+        //
+        // This check-then-insert has a small race window under concurrent
+        // double-clicks; a DB-enforced unique constraint on
+        // (organization_id, submission_id) closes it and is tracked as
+        // follow-up hardening.
+        const existing = await hasuraAdmin<{ certificates: { id: string }[] }>(
+            `query ExistingCertificate($organizationId: uuid!, $submissionId: String!) {
+                certificates(
+                    where: { organization_id: { _eq: $organizationId }, submission_id: { _eq: $submissionId } },
+                    limit: 1
+                ) { id }
             }`,
-            { submissionId, organizationId: auth.organizationId },
+            { organizationId: auth.organizationId, submissionId },
         );
         if (existing.certificates.length > 0) {
             return NextResponse.json({ id: existing.certificates[0].id, alreadyIssued: true });
         }
 
-        const data = await hasuraAdmin<{ insert_certificates_one: { id: string } }>(
-            `mutation InsertCertificate($organizationId: uuid!, $submissionId: String!, $hash: String!, $templateId: uuid!, $issuedBy: uuid!) {
+        // Insert the cert AND stamp the submission's issued_at in one
+        // mutation — Hasura runs both root fields in a single transaction,
+        // so a cert can never exist without its deletion clock started.
+        // certificates.submission_id is a String column while submissions.id
+        // is uuid: same value, two GraphQL types.
+        const data = await hasuraAdmin<{
+            insert_certificates_one: { id: string };
+            update_submissions_by_pk: { id: string } | null;
+        }>(
+            `mutation InsertCertificate($organizationId: uuid!, $submissionId: String!, $submissionUuid: uuid!, $hash: String!, $templateId: uuid!, $issuedBy: uuid!) {
                 insert_certificates_one(object: {
                     organization_id: $organizationId,
                     submission_id: $submissionId,
@@ -117,8 +138,19 @@ export async function POST(
                     template_id: $templateId,
                     issued_by: $issuedBy
                 }) { id }
+                update_submissions_by_pk(
+                    pk_columns: { id: $submissionUuid },
+                    _set: { issued_at: "now()" }
+                ) { id }
             }`,
-            { organizationId: auth.organizationId, submissionId, hash, templateId, issuedBy: auth.userId },
+            {
+                organizationId: auth.organizationId,
+                submissionId,
+                submissionUuid: submissionId,
+                hash,
+                templateId,
+                issuedBy: auth.userId,
+            },
         );
         return NextResponse.json({ id: data.insert_certificates_one.id });
     } catch (e) {
