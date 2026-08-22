@@ -18,10 +18,9 @@ Data flow:
 3. The server stores ONLY: `cert_id`, `hash(URL params)`, `template_id`,
    `organization_id`, `created_at`. Never the name, dates, group, role, or
    any other identifying field.
-4. The submission row is deleted automatically by a time-based sweep, at
-   most `SUBMISSION_TTL_HOURS` after it was created — independent of
-   whether a certificate has been issued yet (see "Volunteer deletion"
-   below).
+4. Issuance stamps `submissions.issued_at`. A sweep deletes the row
+   `ISSUED_RETENTION_HOURS` after that stamp. Submissions that were never
+   issued are never swept (see "Volunteer deletion" below).
 5. To verify: anyone with the QR code opens the URL. The verify page
    recomputes the canonical hash from the URL params, fetches the stored
    hash from the API, compares them.
@@ -50,24 +49,38 @@ What IS acceptable:
 
 ### Volunteer deletion
 
-Deletion is time-based, not issuance-based: a lazy sweep
-(`src/lib/server/retention.ts`, TTL in `src/util/retention.ts`) deletes
-every submission row older than `SUBMISSION_TTL_HOURS`, run whenever the
-submissions API is touched (GET or POST) — no scheduler exists on the
-edge runtime, and none is needed: if nothing triggers the sweep, nothing
-is reading the data either. Do not remove the sweep calls from the
-submissions GET/POST routes. Storing volunteer data indefinitely is NOT
-acceptable.
+The deletion clock starts at **issuance**, not submission. Issuing a
+certificate stamps `submissions.issued_at`; a lazy sweep
+(`src/lib/server/retention.ts`, window in `src/util/retention.ts`) then
+deletes rows whose `issued_at` is older than `ISSUED_RETENTION_HOURS`. The
+sweep runs whenever the submissions API is touched (GET or POST) — no
+scheduler exists on the edge runtime, and none is needed, because the
+window only starts when an admin acts and admin activity is exactly what
+triggers the sweep. Do not remove the sweep calls from the submissions
+GET/POST routes.
 
-**Issuing a certificate does NOT delete the submission.** This is
-deliberate: it gives admins a regeneration window — if a PDF is lost,
-misprinted, or a mistake is spotted late, "Generer PDF" can be run again
-for the same submission any time before the sweep runs. The certificates
-POST route is idempotent per submission (returns the existing cert
-instead of minting a duplicate on a repeat call), so re-issuing is always
-safe. The admin UI keeps its per-submission "Slett data" button and the
-batch one — for rejecting a submission outright, or clearing its data
-before the sweep would (e.g. right after issuance, without waiting).
+**Unissued submissions are never swept.** The `issued_at IS NOT NULL`
+guard in the sweep is load-bearing. An earlier version deleted every
+submission 24h after *creation*, which meant an org reviewing its queue
+weekly lost applications before anyone read them, and the volunteer waited
+for a certificate that had been silently deleted. Do NOT "simplify" the
+sweep back to a `created_at` comparison. Clearing an unissued submission is
+the admin's explicit action — the per-submission "Slett data" button or the
+batch one — and a volunteer can ask the org to do it at any time.
+
+The trade-off this accepts (product decision, 2026-08): an org that never
+processes its queue accumulates volunteer data indefinitely. That is
+deliberate — losing a volunteer's application is worse than holding it
+until a human decides — but it means "we don't store personal data for
+long" is NOT automatic for unissued rows, and copy must not claim it is.
+
+**Issuing a certificate does NOT immediately delete the submission.** The
+window is the point: if a PDF is lost, misprinted, or a mistake is spotted
+late, "Generer PDF" can be run again any time before the sweep. The
+certificates POST route is idempotent per submission (returns the existing
+cert instead of minting a duplicate) and deliberately does **not**
+re-stamp `issued_at`, so regenerating cannot be used to extend retention
+indefinitely.
 
 ## The legacy `/verify` route
 

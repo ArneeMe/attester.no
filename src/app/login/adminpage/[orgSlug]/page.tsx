@@ -25,6 +25,7 @@ type SubmissionRow = {
     template_id: string;
     data: Record<string, string>;
     created_at: string;
+    issued_at: string | null;
 };
 
 type FullTemplate = TemplateData & {
@@ -59,10 +60,9 @@ const AdminPage: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [subRes, tmplRes, certRes] = await Promise.all([
+                const [subRes, tmplRes] = await Promise.all([
                     fetch(`/api/org/${encodeURIComponent(orgSlug)}/submissions`, { headers: authHeader() }),
                     fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, { headers: authHeader() }),
-                    fetch(`/api/org/${encodeURIComponent(orgSlug)}/certificates`, { headers: authHeader() }),
                 ]);
 
                 if (subRes.ok) {
@@ -73,6 +73,7 @@ const AdminPage: React.FC = () => {
                         templateId: row.template_id,
                         data: row.data,
                         createdAt: new Date(row.created_at),
+                        issuedAt: row.issued_at ? new Date(row.issued_at) : null,
                     })));
                 } else {
                     const json = await subRes.json().catch(() => ({} as { error?: string }));
@@ -87,14 +88,6 @@ const AdminPage: React.FC = () => {
                     toast.error(`${a.loadTemplatesError}: ${json.error ?? `HTTP ${tmplRes.status}`}`);
                 }
 
-                // Seed which still-present submissions already have a cert,
-                // so a page reload keeps showing the "Utstedt" chip — a
-                // submission and its certificate now coexist until the
-                // retention sweep removes the submission.
-                if (certRes.ok) {
-                    const json = await certRes.json() as { certificates: Array<{ submissionId: string }> };
-                    setIssuedIds(new Set((json.certificates ?? []).map((c) => c.submissionId)));
-                }
             } catch (error) {
                 toast.error(`${a.loadError}: ${(error as Error).message ?? ''}`);
             }
@@ -155,13 +148,16 @@ const AdminPage: React.FC = () => {
         setOpenDialog(true);
     };
 
-    // Submissions with an issued certificate. Issuing does NOT delete the
-    // submission (see CLAUDE.md "Volunteer deletion") — a submission stays
-    // visible, marked "Utstedt", until the retention sweep removes it. The
-    // certificates POST route is idempotent per submission, so re-running
-    // "Generer PDF" for an already-issued one (retry after a failed render,
-    // or a deliberate regenerate) is always safe.
-    const [issuedIds, setIssuedIds] = useState<Set<string>>(new Set());
+    // Issuance is read straight off the submission's `issued_at` — the same
+    // column the retention sweep uses — so the chip and the countdown can
+    // never disagree with what the server will actually delete. Issuing does
+    // NOT remove the submission (see CLAUDE.md "Volunteer deletion"): it
+    // stays visible, marked "Utstedt", for the regeneration window. The
+    // certificates POST is idempotent per submission, so re-running
+    // "Generer PDF" for an already-issued one is always safe.
+    const markIssued = (id: string) =>
+        setSubmissions((prev) => prev.map((s) =>
+            s.id === id && !s.issuedAt ? { ...s, issuedAt: new Date() } : s));
 
     const handleConfirm = async () => {
         if (!selected) return;
@@ -172,7 +168,7 @@ const AdminPage: React.FC = () => {
         }
         try {
             await submitHash(orgSlug, tmpl.id, selected.id, selected.data);
-            setIssuedIds((prev) => new Set(prev).add(selected.id));
+            markIssued(selected.id);
         } catch (error) {
             console.error(error);
             toast.error(a.registerError + ((error as Error).message ?? a.unknownError));
@@ -229,11 +225,7 @@ const AdminPage: React.FC = () => {
         if (issued > 0) {
             const zipBlob = await zip.generateAsync({ type: 'blob' });
             downloadBlob(zipBlob, 'attester.zip');
-            setIssuedIds((prev) => {
-                const next = new Set(prev);
-                newlyIssued.forEach((id) => next.add(id));
-                return next;
-            });
+            newlyIssued.forEach(markIssued);
             toast.success(a.batchDone(issued));
         }
         for (const f of failures) toast.error(f);
@@ -349,17 +341,23 @@ const AdminPage: React.FC = () => {
                                         }
                                         label=""
                                     />
-                                    {issuedIds.has(sub.id) && (
-                                        <Chip label="Utstedt" color="success" size="small" sx={{ mb: 0.5 }} />
+                                    {sub.issuedAt && (
+                                        <Chip label={a.issuedChip} color="success" size="small" sx={{ mb: 0.5 }} />
                                     )}
                                     {tmpl && (
                                         <Typography variant="caption" color="text.secondary" display="block">
                                             {a.templateCaption(tmpl.name)}
                                         </Typography>
                                     )}
-                                    <Typography variant="caption" color="warning.main" display="block">
-                                        {a.deletesIn(hoursUntilDeletion(sub.createdAt))}
-                                    </Typography>
+                                    {sub.issuedAt ? (
+                                        <Typography variant="caption" color="warning.main" display="block">
+                                            {a.deletesIn(hoursUntilDeletion(sub.issuedAt) ?? 0)}
+                                        </Typography>
+                                    ) : (
+                                        <Typography variant="caption" color="text.secondary" display="block">
+                                            {a.awaitingReview}
+                                        </Typography>
+                                    )}
                                     {schema ? (
                                         <SchemaDetails schema={schema} data={sub.data} />
                                     ) : (
