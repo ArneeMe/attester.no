@@ -33,9 +33,13 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 - Every user-facing string lives in `src/strings.ts`, in a `no` object and an
   `en` object. `Strings = typeof no` makes missing translations a **compile
   error** — never add a key to one language only.
-- Public pages (landing, /om, /personvern, form, verify, auth) read the
-  language from the URL: `?lang=en`, Norwegian default. Server components get
-  it from `searchParams`, client components from `useSearchParams()`.
+- Public pages (landing, /om, form, auth) read the language from the URL:
+  `?lang=en`, Norwegian default. Server components get it from `searchParams`,
+  client components from `useSearchParams()`.
+- **Exception — the verify page.** `/org/[slug]/verify` keeps its language in
+  local React state and never writes `?lang=` into the URL. That URL is a
+  frozen external contract (printed on paper, inside a QR code), and any extra
+  param risks feeding the hash. Don't "make it consistent" with the others.
 - Admin pages use `useAdminLang()` (`src/util/useAdminLang.ts`,
   localStorage-persisted) and alias a subgroup:
   `const a = strings.admin.<page>;`.
@@ -50,7 +54,9 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
   `const auth = await requireOrgMemberBySlug(req, slug); if (auth instanceof NextResponse) return auth;`.
 - Ids received from the client get an ownership check
   (`templateBelongsToOrg`, `submissionBelongsToOrg`) before use.
-- Anonymous write endpoints get `checkRateLimit(...)` and explicit size caps.
+- Anonymous write endpoints get explicit size caps and strict shape
+  validation. There is no rate limiter (dropped — per-isolate in-memory state
+  made it best-effort only).
 - Hasura: only through `hasuraAdmin<T>(query, variables)`. Values go in
   variables, NEVER in the query string. Multiple root fields in one mutation
   run in a single transaction — use that for atomicity (see the /admin org
@@ -73,8 +79,12 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
   components thin.
 - E2E: `e2e/*.spec.ts`, APIs mocked with `page.route()`. The verify tests
   compute the SHA-512 independently (`e2e/helpers.ts`) — they are the guard
-  on the hash contract. MUI Rating gotcha: click
-  `.MuiRating-root label` (nth), not the hidden radio input.
+  on the hash contract, so a drift in either the page or the algorithm fails
+  CI.
+- E2E navigation timing: `next dev` compiles each route on first request,
+  which under parallel workers regularly exceeds Playwright's 5s default. Give
+  the **first** assertion after a navigation an explicit longer timeout (see
+  `e2e/landing.spec.ts`) rather than accepting a flaky spec.
 
 ## Gotchas (each of these has cost real time)
 
@@ -95,14 +105,32 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 2. Run any new `scripts/migrations/*.sql` in the Hasura console and (re-)track
    affected tables.
 3. Env vars live in Cloudflare Pages: `NEXT_PUBLIC_NHOST_*`,
-   `NHOST_ADMIN_SECRET`, `NHOST_JWT_SECRET`, optional `PLATFORM_ADMIN_EMAILS`,
-   `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`.
-4. One-time Nhost setup: production URL + `/login/reset` in Auth → Redirect URLs.
+   `NHOST_ADMIN_SECRET`, `NHOST_JWT_SECRET`, optional `PLATFORM_ADMIN_EMAILS`
+   (unset ⇒ `/admin` disabled) and optional `RESEND_API_KEY` +
+   `NOTIFY_EMAIL_FROM` (used **only** for invite emails; unset ⇒ the invite
+   dialog shows the link to copy manually).
+4. One-time Nhost setup (Settings → Auth):
+   - **Allowed Redirect URLs** must contain every origin you use, with the
+     `/login/reset` path — production, `http://localhost:3000`, and a
+     wildcard for Cloudflare previews (`https://*.<project>.pages.dev/...`).
+     A missing entry fails password reset with `The value of
+     "options.redirectTo" is not allowed` — it's an allowlist, not a bug.
+   - **Client URL** should be the production origin, not localhost.
+   - Email verification and the minimum password length are project settings,
+     not code. `PASSWORD_MIN_LENGTH` in `src/util/auth.ts` only mirrors the
+     latter for a friendly client-side message — keep the two in sync.
 
 ## Working style that has worked here
 
 - Small, independently shippable slices; stacked PRs when they depend on each
-  other (base each PR on its parent branch, retarget to main as parents merge).
+  other (base each PR on its parent branch, retarget as parents merge).
+- **`main` auto-deploys to production** via the Cloudflare Pages Git
+  integration. Feature work therefore lands on **`develop`** first and reaches
+  `main` in one deliberate merge, so half-finished UI never goes live.
+- When a stacked PR merges, its child does NOT auto-retarget unless the merged
+  branch is deleted. Either delete the branch on merge or retarget the child
+  by hand — otherwise the child quietly merges into a dead branch and its work
+  disappears from `develop`. This has happened once already.
 - Group changes by review difficulty: language/tests/UI polish are quick
   approvals; anything touching issuance, retention, auth, or tenancy gets its
   own clearly-labelled PR for deep review.
