@@ -8,7 +8,7 @@
 // server and client components and survives link sharing. Norwegian is the
 // default for any other value.
 
-import { SUBMISSION_TTL_HOURS } from '@/util/retention';
+import { ISSUED_RETENTION_HOURS } from '@/util/retention';
 
 export type Lang = 'no' | 'en';
 
@@ -41,7 +41,7 @@ const no = {
         flowSteps: [
             'Du fyller ut skjemaet til organisasjonen din. Opplysningene lagres inntil organisasjonen har kontrollert dem og utstedt attesten.',
             'Når organisasjonen godkjenner, lages attesten som PDF med en QR-kode, og du får den fra organisasjonen.',
-            'Etter utstedelse sletter organisasjonen opplysningene dine fra databasen – da er kun den kryptografiske hashen igjen.',
+            `Når attesten er utstedt, slettes opplysningene dine automatisk fra databasen ${ISSUED_RETENTION_HOURS} timer senere – da er kun den kryptografiske hashen igjen.`,
             'Hører du ikke noe, kan du når som helst kontakte organisasjonen og be dem slette innsendingen din.',
         ],
         storedTitle: 'Hva lagres – og hva lagres aldri?',
@@ -88,7 +88,7 @@ const no = {
         receivedSteps: (org: string) => [
             `${org} kontrollerer opplysningene dine. Frem til det skjer, lagres innsendingen din hos attester.no.`,
             `Godkjennes de, lages attesten som PDF med QR-kode, og du får den fra ${org}.`,
-            `Når attesten er utstedt, sletter ${org} opplysningene dine fra databasen — bare en kryptografisk hash blir igjen, så attesten kan verifiseres.`,
+            `Når attesten er utstedt, slettes opplysningene dine automatisk ${ISSUED_RETENTION_HOURS} timer senere — bare en kryptografisk hash blir igjen, så attesten kan verifiseres.`,
             `Hører du ikke noe, kan du kontakte ${org} og be dem slette innsendingen din.`,
         ],
         sendAnother: 'Send inn en ny',
@@ -179,11 +179,13 @@ const no = {
             noTemplateWarn: 'Du har ingen PDF-mal enda. Gå til «PDF-mal» og lag en (eller velg en ferdig fra galleriet) før du sender ut skjemalenken.',
             templateCaption: (name: string) => `Mal: ${name}`,
             deletesIn: (h: number) => `Slettes automatisk om ${h} t`,
+            awaitingReview: 'Venter på behandling — ingen slettefrist før attesten er utstedt',
+            issuedChip: 'Utstedt',
             schemaMissing: 'Skjema ikke funnet for malen.',
             generate: 'Generer PDF',
             deleteData: 'Slett data',
             confirmGenTitle: 'Bekreft generering av PDF',
-            confirmGenMsg: `Når du genererer PDF-en, registreres attesten. Innsendingen slettes automatisk senest ${SUBMISSION_TTL_HOURS} timer etter mottak, uansett om attesten er utstedt – du kan generere den på nytt inntil da. Bruk forhåndsvisningen hvis du vil se resultatet først.`,
+            confirmGenMsg: `Når du genererer PDF-en, registreres attesten, og innsendingen slettes automatisk ${ISSUED_RETENTION_HOURS} timer senere. Frem til da kan du generere PDF-en på nytt. Bruk forhåndsvisningen hvis du vil se resultatet først.`,
             preview: 'Forhåndsvis',
             batchTitle: 'Utsted valgte attester',
             batchMsg: (n: number) => `${n} attest${n === 1 ? '' : 'er'} genereres og lastes ned som én ZIP-fil.`,
@@ -195,7 +197,7 @@ const no = {
             confirmBatchDeleteMsg: (n: number) => `Vil du slette ${n} valgte innsendinger?`,
             deleteButton: 'Slett',
             pdfDoneTitle: 'PDF-en er generert',
-            pdfDoneMsg: `Attesten er registrert. Innsendingen slettes automatisk senest ${SUBMISSION_TTL_HOURS} timer etter mottak. Sjekk at PDF-en ser riktig ut før du lukker.`,
+            pdfDoneMsg: `Attesten er registrert. Innsendingen slettes automatisk ${ISSUED_RETENTION_HOURS} timer fra nå — generer PDF-en på nytt før det om noe er feil. Sjekk at PDF-en ser riktig ut før du lukker.`,
             verifyUrlLabel: 'Her er verifiserings-URL-en:',
             close: 'Lukk',
             copyLink: 'Kopier lenke',
@@ -319,7 +321,7 @@ const en: Strings = {
         flowSteps: [
             'You fill in your organization’s form. The data is stored until the organization has reviewed it and issued the certificate.',
             'When the organization approves, the certificate is generated as a PDF with a QR code, and you receive it from the organization.',
-            'After issuance the organization deletes your data from the database – only the cryptographic hash remains.',
+            `Once the certificate is issued, your data is deleted from the database automatically ${ISSUED_RETENTION_HOURS} hours later – only the cryptographic hash remains.`,
             'If you don’t hear back, you can contact the organization at any time and ask them to delete your submission.',
         ],
         storedTitle: 'What is stored – and what is never stored?',
@@ -366,7 +368,7 @@ const en: Strings = {
         receivedSteps: (org: string) => [
             `${org} reviews your information. Until that happens, your submission is stored with attester.no.`,
             `If approved, the certificate is generated as a PDF with a QR code, and you receive it from ${org}.`,
-            `Once the certificate is issued, ${org} deletes your data from the database — only a cryptographic hash remains, so the certificate can be verified.`,
+            `Once the certificate is issued, your data is deleted automatically ${ISSUED_RETENTION_HOURS} hours later — only a cryptographic hash remains, so the certificate can be verified.`,
             `If you don’t hear back, you can contact ${org} and ask them to delete your submission.`,
         ],
         sendAnother: 'Submit another',
@@ -457,11 +459,13 @@ const en: Strings = {
             noTemplateWarn: 'You have no PDF template yet. Go to “PDF template” and create one (or pick one from the gallery) before sharing the form link.',
             templateCaption: (name: string) => `Template: ${name}`,
             deletesIn: (h: number) => `Deleted automatically in ${h} h`,
+            awaitingReview: 'Awaiting review — no deletion deadline until the certificate is issued',
+            issuedChip: 'Issued',
             schemaMissing: 'No form schema found for the template.',
             generate: 'Generate PDF',
             deleteData: 'Delete data',
             confirmGenTitle: 'Confirm PDF generation',
-            confirmGenMsg: `Generating the PDF registers the certificate. The submission is deleted automatically at most ${SUBMISSION_TTL_HOURS} hours after it arrived, whether or not a certificate was issued – you can regenerate it until then. Use the preview if you want to inspect the result first.`,
+            confirmGenMsg: `Generating the PDF registers the certificate, and the submission is deleted automatically ${ISSUED_RETENTION_HOURS} hours later. You can regenerate the PDF until then. Use the preview if you want to inspect the result first.`,
             preview: 'Preview',
             batchTitle: 'Issue selected certificates',
             batchMsg: (n: number) => `${n} certificate${n === 1 ? '' : 's'} will be generated and downloaded as one ZIP file.`,
@@ -473,7 +477,7 @@ const en: Strings = {
             confirmBatchDeleteMsg: (n: number) => `Delete ${n} selected submissions?`,
             deleteButton: 'Delete',
             pdfDoneTitle: 'The PDF has been generated',
-            pdfDoneMsg: `The certificate is registered. The submission is deleted automatically at most ${SUBMISSION_TTL_HOURS} hours after it arrived. Check that the PDF looks right before closing.`,
+            pdfDoneMsg: `The certificate is registered. The submission is deleted automatically ${ISSUED_RETENTION_HOURS} hours from now — regenerate the PDF before then if anything is wrong. Check that the PDF looks right before closing.`,
             verifyUrlLabel: 'Here is the verification URL:',
             close: 'Close',
             copyLink: 'Copy link',

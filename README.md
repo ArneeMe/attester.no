@@ -27,8 +27,9 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
   et `form_schema` (skjemaet innsenderen ser), og `field_bindings`
   (hvor hvert PDF-felt henter sin verdi: skjema, system, asset,
   oppslag, sammensatt tekst, …).
-- `submissions` — innsendte data, slettes automatisk senest 24 timer
-  etter mottak (uavhengig av om attest er utstedt — se CLAUDE.md).
+- `submissions` — innsendte data. Slettes automatisk 24 timer etter at
+  attesten er utstedt (`issued_at`). Ubehandlede innsendinger slettes
+  ikke automatisk — de venter på administratoren (se CLAUDE.md).
 - `certificates` — kun id, hash, template-id, org-id, tidsstempel.
   Ingen personalia.
 

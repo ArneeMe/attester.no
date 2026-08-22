@@ -18,6 +18,7 @@ type SubmissionRow = {
     template_id: string;
     data: Record<string, string>;
     created_at: string;
+    issued_at: string | null;
 };
 
 export async function GET(
@@ -39,7 +40,7 @@ export async function GET(
                     where: { organization_id: { _eq: $organizationId } },
                     order_by: { created_at: asc }
                 ) {
-                    id organization_id template_id data created_at
+                    id organization_id template_id data created_at issued_at
                 }
             }`,
             { organizationId: auth.organizationId },

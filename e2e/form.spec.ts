@@ -46,5 +46,7 @@ test('valid submission reaches the confirmation screen', async ({ page }) => {
     await page.getByRole('button', { name: 'Ja, lagre' }).click();
 
     await expect(page.getByText('Innsendingen er mottatt')).toBeVisible();
-    await expect(page.getByText(/sletter Testorg opplysningene dine/)).toBeVisible();
+    // The confirmation screen must tell the volunteer that deletion happens
+    // automatically after issuance — not on some clock from submission.
+    await expect(page.getByText(/slettes opplysningene dine automatisk/)).toBeVisible();
 });
