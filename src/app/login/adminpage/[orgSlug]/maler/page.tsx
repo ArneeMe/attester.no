@@ -24,9 +24,12 @@ import {
     setTemplateDefault,
 } from '@/util/databaseInteractions/templateService';
 import type { PDFTemplate } from '@/types/templateTypes';
+import { useAdminLang } from '@/util/useAdminLang';
 
 export default function MalerPage() {
     const { orgSlug } = useParams<{ orgSlug: string }>();
+    const { lang, strings } = useAdminLang();
+    const a = strings.admin.templates;
     const toast = useToast();
     const [templates, setTemplates] = useState<PDFTemplate[] | null>(null);
 
@@ -34,7 +37,7 @@ export default function MalerPage() {
         try {
             setTemplates(await getTemplates(orgSlug));
         } catch (e) {
-            toast.error('Kunne ikke laste maler: ' + (e as Error).message);
+            toast.error(a.loadError + (e as Error).message);
             setTemplates([]);
         }
     };
@@ -48,7 +51,7 @@ export default function MalerPage() {
         if (!t.id) return;
         try {
             await setTemplateDefault(orgSlug, t.id, true);
-            toast.success(`«${t.name}» er nå standardmal`);
+            toast.success(a.nowDefault(t.name));
             await reload();
         } catch (e) {
             toast.error((e as Error).message);
@@ -58,7 +61,7 @@ export default function MalerPage() {
     const handleDuplicate = async (t: PDFTemplate) => {
         try {
             await saveTemplate(orgSlug, {
-                name: `${t.name} (kopi)`,
+                name: a.copyOf(t.name),
                 description: t.description,
                 basePdf: t.basePdf,
                 schemas: t.schemas,
@@ -66,7 +69,7 @@ export default function MalerPage() {
                 fieldBindings: t.fieldBindings,
                 isDefault: false,
             });
-            toast.success(`Kopi av «${t.name}» opprettet`);
+            toast.success(a.copyCreated(t.name));
             await reload();
         } catch (e) {
             toast.error((e as Error).message);
@@ -84,28 +87,26 @@ export default function MalerPage() {
     return (
         <Box>
             <Typography variant="h4" gutterBottom>
-                Maler
+                {a.title}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Alle PDF-malene i organisasjonen din. Standardmalen er den
-                innsendere får når de besøker det offentlige skjemaet uten å
-                spesifisere en mal i URL-en.
+                {a.intro}
             </Typography>
 
             {templates.length === 0 ? (
                 <Paper sx={{ p: 3, bgcolor: 'grey.50' }}>
                     <Typography variant="body1" gutterBottom>
-                        Ingen maler enda.
+                        {a.emptyTitle}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Gå til «PDF-mal» og start fra et gallerivalg eller en blank canvas.
+                        {a.emptyBody}
                     </Typography>
                     <Button
                         component={Link}
                         href={`/login/adminpage/${orgSlug}/edit_pdf`}
                         variant="contained"
                     >
-                        Lag en mal
+                        {a.create}
                     </Button>
                 </Paper>
             ) : (
@@ -119,7 +120,7 @@ export default function MalerPage() {
                                         {t.isDefault && (
                                             <Chip
                                                 icon={<StarIcon />}
-                                                label="Standard"
+                                                label={a.standard}
                                                 size="small"
                                                 color="primary"
                                             />
@@ -131,9 +132,7 @@ export default function MalerPage() {
                                         </Typography>
                                     )}
                                     <Typography variant="caption" color="text.secondary">
-                                        Oppdatert {t.updatedAt.toLocaleDateString('nb-NO')}
-                                        {' · '}
-                                        {(t.formSchema?.length ?? 0)} skjemafelt
+                                        {a.updated(t.updatedAt.toLocaleDateString(lang === 'en' ? 'en-GB' : 'nb-NO'), t.formSchema?.length ?? 0)}
                                     </Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', gap: 1 }}>
@@ -143,14 +142,14 @@ export default function MalerPage() {
                                         startIcon={<EditIcon />}
                                         size="small"
                                     >
-                                        Åpne
+                                        {a.open}
                                     </Button>
                                     <Button
                                         startIcon={<ContentCopyIcon />}
                                         size="small"
                                         onClick={() => handleDuplicate(t)}
                                     >
-                                        Dupliser
+                                        {a.duplicate}
                                     </Button>
                                     {!t.isDefault && (
                                         <Button
@@ -158,7 +157,7 @@ export default function MalerPage() {
                                             size="small"
                                             onClick={() => handleSetDefault(t)}
                                         >
-                                            Sett som standard
+                                            {a.setDefault}
                                         </Button>
                                     )}
                                 </Box>

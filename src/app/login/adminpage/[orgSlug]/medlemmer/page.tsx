@@ -11,6 +11,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { authHeader } from '@/lib/nhost';
 import { useToast } from '@/components/ToastProvider';
 import ConfirmDialog from '@/util/confirmDialog';
+import { useAdminLang } from '@/util/useAdminLang';
 
 type Member = {
     userId: string;
@@ -22,6 +23,8 @@ type Member = {
 
 const MembersPage: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
+    const { strings } = useAdminLang();
+    const a = strings.admin.members;
     const toast = useToast();
     const [members, setMembers] = useState<Member[] | null>(null);
     const [newEmail, setNewEmail] = useState('');
@@ -39,7 +42,7 @@ const MembersPage: React.FC = () => {
             if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
             setMembers(json.members);
         } catch (e) {
-            toast.error(`Kunne ikke laste medlemmer: ${(e as Error).message}`);
+            toast.error(`${a.loadError}: ${(e as Error).message}`);
             setMembers([]);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,7 +79,7 @@ const MembersPage: React.FC = () => {
             }
             if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
             setNewEmail('');
-            toast.success('Medlem lagt til');
+            toast.success(a.added);
             await load();
         } catch (err) {
             toast.error((err as Error).message);
@@ -95,7 +98,7 @@ const MembersPage: React.FC = () => {
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-            toast.success('Medlemmet er fjernet');
+            toast.success(a.removed);
             setToRemove(null);
             await load();
         } catch (err) {
@@ -106,41 +109,38 @@ const MembersPage: React.FC = () => {
 
     return (
         <>
-            <Typography variant="h4" gutterBottom>Medlemmer</Typography>
+            <Typography variant="h4" gutterBottom>{a.title}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Alle medlemmer kan godkjenne innsendinger, utstede attester og
-                redigere maler og innhold for organisasjonen.
+                {a.intro}
             </Typography>
 
             <Paper sx={{ p: 3, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Legg til medlem</Typography>
+                <Typography variant="h6" gutterBottom>{a.addTitle}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Personen må ha en brukerkonto — nye brukere kan opprette en
-                    selv på attester.no/registrer. Skriv inn e-postadressen
-                    kontoen er registrert med.
+                    {a.addIntro}
                 </Typography>
                 <Box component="form" onSubmit={handleAdd} sx={{ display: 'flex', gap: 2 }}>
                     <TextField
                         size="small"
                         type="email"
-                        label="E-post"
+                        label={a.email}
                         value={newEmail}
                         onChange={(e) => setNewEmail(e.target.value)}
                         disabled={busy}
                         sx={{ flex: 1, maxWidth: 400 }}
                     />
                     <Button type="submit" variant="contained" disabled={busy || !newEmail}>
-                        {busy ? <CircularProgress size={20} /> : 'Legg til'}
+                        {busy ? <CircularProgress size={20} /> : a.addButton}
                     </Button>
                 </Box>
             </Paper>
 
             <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom>Nåværende medlemmer</Typography>
+                <Typography variant="h6" gutterBottom>{a.listTitle}</Typography>
                 {members === null ? (
                     <CircularProgress size={24} />
                 ) : members.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">Ingen medlemmer funnet.</Typography>
+                    <Typography variant="body2" color="text.secondary">{a.emptyList}</Typography>
                 ) : (
                     <List>
                         {members.map((m) => (
@@ -149,7 +149,7 @@ const MembersPage: React.FC = () => {
                                 secondaryAction={
                                     <IconButton
                                         edge="end"
-                                        aria-label="Fjern medlem"
+                                        aria-label={a.removeAria}
                                         onClick={() => setToRemove(m)}
                                         disabled={members.length <= 1}
                                     >
@@ -160,7 +160,7 @@ const MembersPage: React.FC = () => {
                                 <ListItemText
                                     primary={
                                         (m.displayName || m.email || m.userId)
-                                        + (m.isSelf ? ' (deg)' : '')
+                                        + (m.isSelf ? a.you : '')
                                     }
                                     secondary={m.displayName ? m.email : null}
                                 />
@@ -172,10 +172,8 @@ const MembersPage: React.FC = () => {
 
             <ConfirmDialog
                 open={inviteLink !== null}
-                title="Invitasjon opprettet"
-                message={inviteEmailed
-                    ? 'Personen har ingen konto enda, så en invitasjon er sendt på e-post. Du kan også dele lenken direkte:'
-                    : 'Personen har ingen konto enda. Del denne invitasjonslenken — den gjør dem til medlem når de registrerer seg med samme e-post (gyldig i 7 dager):'}
+                title={a.inviteTitle}
+                message={inviteEmailed ? a.inviteEmailedMsg : a.inviteLinkMsg}
                 details={inviteLink ? (
                     <Typography variant="body2" sx={{ wordBreak: 'break-all', mt: 1 }}>
                         <code>{inviteLink}</code>
@@ -184,28 +182,28 @@ const MembersPage: React.FC = () => {
                 onConfirm={async () => {
                     try {
                         await navigator.clipboard.writeText(inviteLink ?? '');
-                        toast.success('Lenken er kopiert');
+                        toast.success(a.linkCopied);
                     } catch {
-                        toast.error('Kunne ikke kopiere – marker lenken manuelt');
+                        toast.error(a.copyFailed);
                     }
                 }}
                 onClose={() => setInviteLink(null)}
-                confirmButtonText="Kopier lenke"
-                secondaryAction={{ label: 'Lukk', onClick: () => setInviteLink(null) }}
+                confirmButtonText={a.copyLink}
+                secondaryAction={{ label: a.close, onClick: () => setInviteLink(null) }}
                 showCancelButton={false}
             />
 
             <ConfirmDialog
                 open={toRemove !== null}
-                title="Fjern medlem"
+                title={a.removeTitle}
                 message={
                     toRemove?.isSelf
-                        ? 'Du er i ferd med å fjerne deg selv fra organisasjonen. Du mister tilgangen umiddelbart. Er du sikker?'
-                        : `Vil du fjerne ${toRemove?.displayName || toRemove?.email || 'medlemmet'} fra organisasjonen?`
+                        ? a.removeSelfMsg
+                        : a.removeMsg(toRemove?.displayName || toRemove?.email || '')
                 }
                 onConfirm={handleRemove}
                 onClose={() => setToRemove(null)}
-                confirmButtonText="Fjern"
+                confirmButtonText={a.removeButton}
             />
         </>
     );

@@ -3,9 +3,12 @@ import React from 'react';
 import Link from 'next/link';
 import { Box, Button, CircularProgress, Paper, Typography } from '@mui/material';
 import { useUserOrgs } from './UserOrgsProvider';
+import { useAdminLang } from '@/util/useAdminLang';
 
 const AdminOrgPicker: React.FC = () => {
     const { orgs } = useUserOrgs();
+    const { strings } = useAdminLang();
+    const a = strings.admin.picker;
 
     if (orgs === null) {
         return (
@@ -18,7 +21,7 @@ const AdminOrgPicker: React.FC = () => {
     return (
         <Box>
             <Typography variant="h4" gutterBottom>
-                Velg organisasjon
+                {a.title}
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
                 {orgs.map((org) => (
@@ -36,8 +39,7 @@ const AdminOrgPicker: React.FC = () => {
                 {orgs.length === 0 && (
                     <Paper sx={{ p: 3 }}>
                         <Typography>
-                            Du er ikke koblet til noen organisasjon ennå. Be en
-                            eksisterende admin om å legge deg til.
+                            {a.empty}
                         </Typography>
                     </Paper>
                 )}
