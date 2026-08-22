@@ -24,12 +24,14 @@ never be broken, read [CLAUDE.md](../CLAUDE.md) first — this file explains
 - `templates` — **immutable** pdfme layouts + `form_schema` (the volunteer
   form) + `field_bindings` (how each PDF field gets its value). Editing
   creates a new row; certs reference the exact row they used.
-- `submissions` — transient volunteer data. Deleted by the retention sweep
-  24h after creation, no exceptions.
+- `submissions` — volunteer data awaiting review. `issued_at` is stamped when
+  a certificate is issued and is the deletion clock: the retention sweep
+  removes rows whose `issued_at` is older than `ISSUED_RETENTION_HOURS`.
+  Unissued rows (`issued_at IS NULL`) are never swept — they wait for the
+  admin. See CLAUDE.md "Volunteer deletion".
 - `certificates` — id, `submission_id` (opaque lookup key from the QR URL's
   `id=` param — NOT a personal reference), `hash`, `template_id`,
   `organization_id`, `issued_by`, `created_at`. Never anything personal.
-- `feedback` — anonymous rating + comment per org. No identity by design.
 - `invites` — 7-day tokens; redemption requires session email == invited email.
 - `legacy_certificates` — frozen pre-migration echo certs (until ~2030).
 
@@ -37,25 +39,42 @@ never be broken, read [CLAUDE.md](../CLAUDE.md) first — this file explains
 
 ### 1. Submit
 `/org/[slug]` → public form (schema from the org's default template) →
-`POST /api/org/[slug]/submissions` (rate-limited per IP, size-capped,
-template-ownership-checked) → row in `submissions` → optional content-free
-email to admins (`notify.ts`, Resend, opt-in via env).
+`POST /api/org/[slug]/submissions` (size-capped, flat-string-shape enforced,
+template-ownership-checked) → row in `submissions` with `issued_at` NULL.
+
+Nothing notifies the admin: there is no email and no pending-count badge, so
+an org has to remember to check its queue. Unissued rows are never
+auto-deleted, so nothing is lost — but see ROADMAP, this gap is known.
 
 ### 2. Issue
 Admin dashboard → "Generer PDF" → `submitHash` computes the canonical hash
 client-side (`src/util/canonicalHash.ts`) and `POST /api/org/[slug]/certificates`
-stores it (idempotent per submission; records `issued_by`). The PDF renders
-in the browser (`buildAttestPdfBlob`) with a QR pointing at
-`/org/[slug]/verify?t=<template>&id=<submission>&<fields...>`. The submission
-stays until its 24h TTL so the PDF can be regenerated; the retention sweep
-(`src/lib/server/retention.ts`) deletes it whenever the submissions API is
-next touched.
+stores it (idempotent per submission; records `issued_by`). The same mutation
+stamps `submissions.issued_at`, so a certificate can never exist without its
+deletion clock started. The PDF renders in the browser (`buildAttestPdfBlob`)
+with a QR pointing at
+`/org/[slug]/verify?t=<template>&id=<submission>&<fields...>`.
+
+The submission then survives for `ISSUED_RETENTION_HOURS` so the PDF can be
+regenerated (lost file, misprint, late-spotted typo); the retention sweep
+(`src/lib/server/retention.ts`) removes it on the next touch of the
+submissions API. Re-issuing does **not** re-stamp `issued_at`, so
+regenerating can't extend retention.
 
 ### 3. Verify
 Anyone opens the QR URL → `OrgVerifyClient` recomputes the hash from the URL
 params (dropping `t`, sorting keys, SHA-512) and compares with the stored
 hash fetched by `submissionId`. Match ⇒ green. The database never learns what
 was attested; the URL carries the data.
+
+Which params feed the hash is narrowed by `selectHashFields`
+(`src/util/verifyFieldSelection.ts`): once the template's `form_schema` is
+loaded, only its declared field keys (plus `id`) count. That makes the
+verifier immune to incidental params — the `lang` UI switch, or the
+`utm_*`/`fbclid` junk that messaging apps append to shared links — which
+would otherwise change the digest and show a genuine certificate as invalid.
+The language toggle on this page is deliberately local React state, never a
+URL param, for the same reason.
 
 ## Security model
 
@@ -66,9 +85,11 @@ was attested; the URL carries the data.
 - Platform-level actions (`/api/admin/*`) additionally require the caller's
   `auth.users` email to be on the `PLATFORM_ADMIN_EMAILS` env allowlist
   (`src/lib/server/platformAdmin.ts`). Unset ⇒ surface disabled.
-- Anonymous endpoints (submissions POST, feedback POST) are rate-limited
-  per IP (`src/lib/server/rateLimit.ts` — in-memory per isolate, best-effort)
-  and size-capped.
+- The anonymous submissions POST is size-capped (64 KB body, per-field
+  length limit) and enforces a flat string→string data shape. There is no
+  rate limiter: the in-memory one was dropped because per-isolate state on
+  the edge runtime made it best-effort theatre. See ROADMAP if abuse ever
+  becomes real.
 - All Hasura access goes through `hasuraAdmin()` (`src/lib/server/hasura.ts`)
   with GraphQL **variables only** — never interpolate values into query text.
 
@@ -81,5 +102,13 @@ was attested; the URL carries the data.
 - The hash excludes `t` (template id) — presentation is not attested content.
 - No Hasura row-level permissions — tenancy lives in app code by design;
   every new route MUST call the guards.
-- No cron anywhere — the retention sweep is lazy on purpose (edge runtime
-  has no scheduler; if nobody triggers the sweep, nobody is reading data).
+- No cron anywhere — the retention sweep is lazy on purpose. The edge runtime
+  has no scheduler, and none is needed: the deletion window only starts when
+  an admin issues a certificate, and admin activity is exactly what triggers
+  the sweep.
+- Unissued submissions have no expiry. Deleting a volunteer's application
+  before a human read it is worse than holding it, so the sweep's
+  `issued_at IS NOT NULL` guard is load-bearing (product decision, 2026-08).
+- No `/personvern` page. Publishing a privacy policy is a legal commitment
+  the owner isn't in a position to make yet; `/om` explains the mechanics
+  factually instead.
