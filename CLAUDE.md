@@ -4,6 +4,23 @@ This file exists so you don't accidentally "clean up" the things that
 make the system work. Read it before touching certificate verification,
 data retention, or the legacy `/verify` route.
 
+Companion docs (read as needed):
+
+- `docs/ARCHITECTURE.md` — system map: stack, data model, the three core
+  flows, security model, and things that look wrong but are deliberate.
+- `docs/DEVELOPMENT.md` — commands, verification checklist, conventions
+  (strings/i18n pattern, API route pattern, migrations workflow, test
+  placement), and the gotchas that have cost real time.
+- `docs/ROADMAP.md` — parked work with the reasoning captured, so options
+  don't get re-litigated or rebuilt by accident.
+- `docs/IDEAS.md` — feature ideas not built yet, with the open questions, so
+  they get built deliberately instead of guessed at.
+
+Keep all five documents truthful in the SAME commit as any change that
+affects what they say. A doc that describes a superseded model is worse than
+no doc: it is actively misleading, and this repo has already shipped copy
+that told users something false because the docs lagged the code.
+
 ## Security model: the hash IS the certificate
 
 The point of attester.no is to prove a certificate exists without storing
