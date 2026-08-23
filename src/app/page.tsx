@@ -1,12 +1,12 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { Box } from '@mui/material';
-import { fontBody, fontMono, fontSerif, landingFontClass } from '@/app/style/landingFonts';
+import { fontBody, fontSerif, landingFontClass } from '@/app/style/landingFonts';
 import LandingHeader from '@/components/landing/LandingHeader';
 import OrgPicker from '@/components/landing/OrgPicker';
 import SplitSection from '@/components/landing/SplitSection';
 import VerifyLinkForm from '@/components/landing/VerifyLinkForm';
-import { gutter, landing, pageMaxWidth } from '@/components/landing/tokens';
+import { body, c, dividedRows, gutter, h2, lede, mono, pageMaxWidth } from '@/components/landing/tokens';
 
 export const metadata: Metadata = {
     title: 'attester.no',
@@ -14,132 +14,23 @@ export const metadata: Metadata = {
         'attester.no lager bevis for fullførte verv, arbeid eller kurs. Hver attest får en kode for å bevise at det er ekte.',
 };
 
-/** The three things that happen to an attest, in order. */
 const STEPS = [
-    {
-        numeral: 'I',
-        title: 'Du sender inn',
-        body: 'Navn, verv og tidsperiode i organisasjonens skjema.',
-    },
-    {
-        numeral: 'II',
-        title: 'Organisasjonen godkjenner',
-        body: 'En admin ser over innsendingen, lager attesten og sletter dataene dine etterpå.',
-    },
-    {
-        numeral: 'III',
-        title: 'Attesten kan etterprøves',
-        body: 'Koden i attesten fører til en side som sammenligner innholdet med det som ble utstedt.',
-    },
+    ['I', 'Du sender inn', 'Navn, verv og tidsperiode i organisasjonens skjema.'],
+    ['II', 'Organisasjonen godkjenner', 'En admin ser over innsendingen, lager attesten og sletter dataene dine etterpå.'],
+    ['III', 'Attesten kan etterprøves', 'Koden i attesten fører til en side som sammenligner innholdet med det som ble utstedt.'],
 ];
 
 const FAQ = [
-    {
-        q: 'Hva lagrer dere om meg?',
-        a: 'En hash av innholdet, hvilken mal som ble brukt, organisasjonen og tidspunktet. Ingen navn, verv eller datoer.',
-    },
-    {
-        q: 'Organisasjonen min mangler',
-        a: 'Da er de ikke satt opp ennå. Send oss en epost, eller be dem gjøre det.',
-    },
+    ['Hva lagrer dere om meg?', 'En hash av innholdet, hvilken mal som ble brukt, organisasjonen og tidspunktet. Ingen navn, verv eller datoer.'],
+    ['Organisasjonen min mangler', 'Da er de ikke satt opp ennå. Send oss en epost, eller be dem gjøre det.'],
 ];
-
-const Steps: React.FC = () => (
-    <Box component="ol" sx={{ listStyle: 'none', display: 'flex', flexDirection: 'column', m: 0, p: 0 }}>
-        {STEPS.map((step, i) => (
-            <Box
-                component="li"
-                key={step.numeral}
-                sx={{
-                    display: 'grid',
-                    gridTemplateColumns: '32px 1fr',
-                    gap: 2,
-                    pt: i === 0 ? 0 : 2.25,
-                    pb: i === STEPS.length - 1 ? 0 : 2.25,
-                    borderTop: i === 0 ? 'none' : `1px solid ${landing.ruleSoft}`,
-                }}
-            >
-                <Box aria-hidden sx={{ font: `400 20px/1.3 ${fontSerif}`, color: landing.accent }}>
-                    {step.numeral}
-                </Box>
-                <Box>
-                    <Box sx={{ fontSize: 16, fontWeight: 500 }}>{step.title}</Box>
-                    <Box
-                        component="p"
-                        sx={{ mt: 0.75, mb: 0, fontSize: 14.5, lineHeight: 1.6, color: landing.inkSoft }}
-                    >
-                        {step.body}
-                    </Box>
-                </Box>
-            </Box>
-        ))}
-    </Box>
-);
-
-const ForOrganisations: React.FC = () => (
-    <Box sx={{ mt: 5, pt: 3.5, borderTop: `1px solid ${landing.ruleSoft}` }}>
-        <Box component="h2" sx={{ m: 0, font: `400 22px/1.3 ${fontSerif}` }}>
-            For organisasjoner
-        </Box>
-        <Box
-            component="p"
-            sx={{ mt: 1.25, mb: 1.75, fontSize: 14.5, lineHeight: 1.6, color: landing.inkSoft }}
-        >
-            Vil dere utstede attester til deres frivillige? Vi setter opp organisasjon, maler og
-            administratorer.
-        </Box>
-        <Box
-            component="a"
-            href="mailto:hei@attester.no"
-            sx={{ fontSize: 14.5, color: landing.accent }}
-        >
-            hei@attester.no
-        </Box>
-    </Box>
-);
-
-const Faq: React.FC = () => (
-    <Box component="dl" sx={{ display: 'flex', flexDirection: 'column', gap: 2.25, m: 0 }}>
-        {FAQ.map((item, i) => (
-            <Box
-                key={item.q}
-                sx={{
-                    pt: i === 0 ? 0 : 2.25,
-                    borderTop: i === 0 ? 'none' : `1px solid ${landing.ruleSoft}`,
-                }}
-            >
-                <Box component="dt" sx={{ fontSize: 15, fontWeight: 500 }}>
-                    {item.q}
-                </Box>
-                <Box
-                    component="dd"
-                    sx={{ mt: 0.75, mx: 0, mb: 0, fontSize: 14, lineHeight: 1.6, color: landing.inkSoft }}
-                >
-                    {item.a}
-                </Box>
-            </Box>
-        ))}
-    </Box>
-);
 
 export default function Home() {
     return (
         <Box
             className={landingFontClass}
-            sx={{
-                minHeight: '100vh',
-                background: landing.paper,
-                color: landing.ink,
-                fontFamily: fontBody,
-            }}
+            sx={{ minHeight: '100vh', background: c.paper, color: c.ink, fontFamily: fontBody }}
         >
-            {/*
-              * The design is a 1120px artboard and the bands are meant to read
-              * as one sheet of paper. Letting them bleed to the full width of a
-              * 27" monitor would stretch each half-column of 14.5px prose to a
-              * line length nobody can track, so the sheet is capped and centred
-              * past `pageMaxWidth` instead.
-              */}
             <Box sx={{ maxWidth: pageMaxWidth, mx: 'auto' }}>
                 <LandingHeader />
 
@@ -149,7 +40,7 @@ export default function Home() {
                         px: gutter,
                         pt: { xs: 6, md: 9 },
                         pb: { xs: 5, md: 7 },
-                        borderBottom: `1px solid ${landing.rule}`,
+                        borderBottom: `1px solid ${c.rule}`,
                     }}
                 >
                     <Box sx={{ maxWidth: 640 }}>
@@ -163,12 +54,9 @@ export default function Home() {
                         >
                             En attest er verdt noe bare hvis den kan etterprøves.
                         </Box>
-                        <Box
-                            component="p"
-                            sx={{ mt: 3, mb: 0, fontSize: 17, lineHeight: 1.65, color: landing.inkMuted }}
-                        >
-                            attester.no lager bevis for fullførte verv, arbeid eller kurs. Hver attest
-                            får en kode for å bevise at det er ekte.
+                        <Box component="p" sx={{ ...lede, mt: 3, mb: 0 }}>
+                            attester.no lager bevis for fullførte verv, arbeid eller kurs. Hver
+                            attest får en kode for å bevise at det er ekte.
                         </Box>
                     </Box>
                 </Box>
@@ -177,25 +65,81 @@ export default function Home() {
                     py={5.5}
                     left={
                         <>
-                            <Steps />
-                            <ForOrganisations />
+                            <Box component="ol" sx={{ ...dividedRows, listStyle: 'none', m: 0, p: 0 }}>
+                                {STEPS.map(([numeral, title, text]) => (
+                                    <Box
+                                        component="li"
+                                        key={numeral}
+                                        sx={{ display: 'grid', gridTemplateColumns: '32px 1fr', gap: 2 }}
+                                    >
+                                        <Box
+                                            aria-hidden
+                                            sx={{ font: `400 20px/1.3 ${fontSerif}`, color: c.accent }}
+                                        >
+                                            {numeral}
+                                        </Box>
+                                        <Box>
+                                            <Box sx={{ fontSize: 16, fontWeight: 500 }}>{title}</Box>
+                                            <Box component="p" sx={{ ...body, mt: 0.75, mb: 0 }}>
+                                                {text}
+                                            </Box>
+                                        </Box>
+                                    </Box>
+                                ))}
+                            </Box>
+
+                            <Box sx={{ mt: 5, pt: 3.5, borderTop: `1px solid ${c.ruleSoft}` }}>
+                                <Box component="h2" sx={h2}>
+                                    For organisasjoner
+                                </Box>
+                                <Box component="p" sx={{ ...body, mt: 1.25, mb: 1.75 }}>
+                                    Vil dere utstede attester til deres frivillige? Vi setter opp
+                                    organisasjon, maler og administratorer.
+                                </Box>
+                                <Box
+                                    component="a"
+                                    href="mailto:hei@attester.no"
+                                    sx={{ fontSize: 14.5, color: c.accent }}
+                                >
+                                    hei@attester.no
+                                </Box>
+                            </Box>
                         </>
                     }
                     right={<OrgPicker />}
                 />
 
-                <SplitSection py={5} left={<VerifyLinkForm />} right={<Faq />} />
+                <SplitSection
+                    py={5}
+                    left={<VerifyLinkForm />}
+                    right={
+                        <Box component="dl" sx={{ ...dividedRows, m: 0 }}>
+                            {FAQ.map(([question, answer]) => (
+                                <Box key={question}>
+                                    <Box component="dt" sx={{ fontSize: 15, fontWeight: 500 }}>
+                                        {question}
+                                    </Box>
+                                    <Box
+                                        component="dd"
+                                        sx={{ ...body, fontSize: 14, mt: 0.75, mx: 0, mb: 0 }}
+                                    >
+                                        {answer}
+                                    </Box>
+                                </Box>
+                            ))}
+                        </Box>
+                    }
+                />
 
                 <Box
                     component="footer"
                     sx={{
+                        ...mono,
                         display: 'flex',
                         justifyContent: 'space-between',
                         gap: 2,
                         px: gutter,
                         py: 2.5,
-                        font: `400 12.5px/1 ${fontMono}`,
-                        color: landing.inkFaint,
                     }}
                 >
                     <span>attester.no</span>

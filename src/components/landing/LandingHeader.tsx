@@ -3,23 +3,15 @@ import React, { useState } from 'react';
 import { Box, Menu, MenuItem } from '@mui/material';
 import Link from 'next/link';
 import { fontSerif } from '@/app/style/landingFonts';
-import { gutter, landing } from './tokens';
+import { c, gutter } from './tokens';
 
-/**
- * Languages the landing page is offered in.
- *
- * Norwegian bokmål only today. The menu is here because the design calls for
- * a language control and because the second entry should be a data change,
- * not a layout change — but it deliberately does not pretend to switch
- * anything it cannot actually switch.
- */
-const LANGUAGES = [{ code: 'nb', label: 'Norsk bokmål' }] as const;
+const LANGUAGES = [{ code: 'nb', label: 'Norsk bokmål' }];
 
 const LandingHeader: React.FC = () => {
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const [langCode, setLangCode] = useState<string>(LANGUAGES[0].code);
+    const [anchor, setAnchor] = useState<null | HTMLElement>(null);
+    const [code, setCode] = useState(LANGUAGES[0].code);
 
-    const current = LANGUAGES.find((l) => l.code === langCode) ?? LANGUAGES[0];
+    const current = LANGUAGES.find((l) => l.code === code) ?? LANGUAGES[0];
 
     return (
         <Box
@@ -31,36 +23,19 @@ const LandingHeader: React.FC = () => {
                 gap: 2,
                 px: gutter,
                 py: 2.25,
-                borderBottom: `1px solid ${landing.rule}`,
+                borderBottom: `1px solid ${c.rule}`,
             }}
         >
-            <Box
-                sx={{
-                    font: `600 17px/1 ${fontSerif}`,
-                    letterSpacing: '0.01em',
-                    color: landing.ink,
-                }}
-            >
-                attester.no
-            </Box>
+            <Box sx={{ font: `600 17px/1 ${fontSerif}`, letterSpacing: '0.01em' }}>attester.no</Box>
 
-            <Box
-                sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: { xs: 1.5, sm: 2.5 },
-                    fontSize: 13,
-                }}
-            >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2.5 }, fontSize: 13 }}>
                 <Box
                     component="button"
                     type="button"
                     aria-haspopup="listbox"
-                    aria-expanded={anchorEl ? true : undefined}
+                    aria-expanded={anchor ? true : undefined}
                     aria-label="Velg språk"
-                    onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
-                        setAnchorEl(e.currentTarget)
-                    }
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => setAnchor(e.currentTarget)}
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
@@ -68,12 +43,12 @@ const LandingHeader: React.FC = () => {
                         font: 'inherit',
                         fontSize: 13,
                         whiteSpace: 'nowrap',
-                        color: landing.inkSoft,
+                        color: c.inkSoft,
                         background: 'none',
                         border: 0,
                         p: 0,
                         cursor: 'pointer',
-                        '&:hover': { color: landing.ink },
+                        '&:hover': { color: c.ink },
                     }}
                 >
                     {current.label}
@@ -82,19 +57,19 @@ const LandingHeader: React.FC = () => {
                     </Box>
                 </Box>
                 <Menu
-                    anchorEl={anchorEl}
-                    open={Boolean(anchorEl)}
-                    onClose={() => setAnchorEl(null)}
+                    anchorEl={anchor}
+                    open={Boolean(anchor)}
+                    onClose={() => setAnchor(null)}
                     anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                     transformOrigin={{ vertical: 'top', horizontal: 'right' }}
                 >
                     {LANGUAGES.map((lang) => (
                         <MenuItem
                             key={lang.code}
-                            selected={lang.code === langCode}
+                            selected={lang.code === code}
                             onClick={() => {
-                                setLangCode(lang.code);
-                                setAnchorEl(null);
+                                setCode(lang.code);
+                                setAnchor(null);
                             }}
                             sx={{ fontSize: 13 }}
                         >
@@ -107,12 +82,12 @@ const LandingHeader: React.FC = () => {
                     component={Link}
                     href="/login"
                     sx={{
-                        color: landing.ink,
+                        color: c.ink,
                         textDecoration: 'none',
-                        borderBottom: `1px solid ${landing.borderStrong}`,
+                        borderBottom: `1px solid ${c.borderStrong}`,
                         pb: '2px',
                         whiteSpace: 'nowrap',
-                        '&:hover': { borderBottomColor: landing.ink },
+                        '&:hover': { borderBottomColor: c.ink },
                     }}
                 >
                     Innlogging for admin
