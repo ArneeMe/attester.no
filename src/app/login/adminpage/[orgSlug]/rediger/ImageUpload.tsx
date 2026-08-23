@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useAdminLang } from '@/util/useAdminLang';
 
 interface ImageUploadProps {
     value: string; // base64 string
@@ -15,10 +16,12 @@ interface ImageUploadProps {
 const ImageUpload: React.FC<ImageUploadProps> = ({
                                                      value,
                                                      onChange,
-                                                     label = 'Last opp bilde',
+                                                     label,
                                                      maxSizeKB = 500,
                                                  }) => {
     const inputRef = useRef<HTMLInputElement>(null);
+    const { strings } = useAdminLang();
+    const cs = strings.admin.content;
     const [error, setError] = useState<string | null>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,13 +32,13 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
         // Check file type
         if (!file.type.startsWith('image/')) {
-            setError('Filen må være et bilde');
+            setError(cs.notAnImage);
             return;
         }
 
         // Check file size
         if (file.size > maxSizeKB * 1024) {
-            setError(`Bildet må være mindre enn ${maxSizeKB}KB`);
+            setError(cs.imageTooLarge(maxSizeKB));
             return;
         }
 
@@ -46,7 +49,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
             onChange(base64);
         };
         reader.onerror = () => {
-            setError('Kunne ikke lese filen');
+            setError(cs.readError);
         };
         reader.readAsDataURL(file);
     };
@@ -88,7 +91,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                         startIcon={<DeleteIcon />}
                         onClick={handleClear}
                     >
-                        Fjern
+                        {cs.removeImage}
                     </Button>
                 )}
             </Box>

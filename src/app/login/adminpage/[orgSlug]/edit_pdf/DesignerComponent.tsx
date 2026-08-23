@@ -26,6 +26,7 @@ import BindingsEditor from './BindingsEditor';
 import SchemaEditor from './SchemaEditor';
 import StarterTemplatePicker from './StarterTemplatePicker';
 import type { StarterTemplate } from '@/app/pdfinfo/starterTemplates';
+import { useAdminLang } from '@/util/useAdminLang';
 
 interface Props {
     orgSlug: string;
@@ -48,6 +49,8 @@ export default function DesignerComponent({
                                               onSuccess,
                                               onTemplateLoad,
                                           }: Props) {
+    const { strings } = useAdminLang();
+    const d = strings.admin.designer;
     const containerRef = useRef<HTMLDivElement>(null);
     const designerRef = useRef<Designer | null>(null);
     const [saving, setSaving] = useState(false);
@@ -90,10 +93,10 @@ export default function DesignerComponent({
         designerRef.current.onChangeTemplate(() => setSchemaRev((r) => r + 1));
 
         getTemplates(orgSlug).then(setExistingTemplates).catch((e) => {
-            onError(`Kunne ikke laste maler: ${(e as Error).message}`);
+            onError(`${d.loadTemplatesError}: ${(e as Error).message}`);
         });
         listOrgAssets(orgSlug).then(setAssets).catch((e) => {
-            onError(`Kunne ikke laste innhold (signaturer/logoer/…): ${(e as Error).message}`);
+            onError(`${d.loadAssetsError}: ${(e as Error).message}`);
         });
 
         return () => {
@@ -146,7 +149,7 @@ export default function DesignerComponent({
 
     const handleSave = async () => {
         if (!designerRef.current || !templateName.trim()) {
-            onError('Gi malen et navn først');
+            onError(d.nameFirst);
             return;
         }
 
@@ -167,12 +170,12 @@ export default function DesignerComponent({
             });
 
             await saveTemplate(orgSlug, data);
-            onSuccess(`Mal "${templateName}" lagret!`);
+            onSuccess(d.saved(templateName));
 
             const templates = await getTemplates(orgSlug);
             setExistingTemplates(templates);
         } catch {
-            onError('Kunne ikke lagre mal');
+            onError(d.saveError);
         } finally {
             setSaving(false);
         }
@@ -214,7 +217,7 @@ export default function DesignerComponent({
 
     const handlePreview = async () => {
         if (!designerRef.current) {
-            onError('Designeren er ikke klar enda');
+            onError(d.notReady);
             return;
         }
         setPreviewBusy(true);
@@ -228,7 +231,7 @@ export default function DesignerComponent({
             );
             setPreviewUrl(url);
         } catch (e) {
-            onError(`Kunne ikke generere forhåndsvisning: ${(e as Error).message}`);
+            onError(`${d.previewError}: ${(e as Error).message}`);
         } finally {
             setPreviewBusy(false);
         }
@@ -258,16 +261,16 @@ export default function DesignerComponent({
             <Paper sx={{ p: 2, mb: 2 }}>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
                     <Button variant="outlined" onClick={() => setPickerOpen(true)}>
-                        Start fra mal
+                        {d.startFromTemplate}
                     </Button>
 
                     <Button variant="outlined" component="label">
-                        Last opp PDF
+                        {d.uploadPdf}
                         <input type="file" accept="application/pdf" hidden onChange={handlePdfUpload} />
                     </Button>
 
                     <Button variant="outlined" onClick={handlePreview} disabled={previewBusy}>
-                        {previewBusy ? <CircularProgress size={20} /> : 'Forhåndsvis PDF'}
+                        {previewBusy ? <CircularProgress size={20} /> : d.previewPdf}
                     </Button>
 
                     <Button
@@ -275,11 +278,11 @@ export default function DesignerComponent({
                         onClick={handleSave}
                         disabled={saving || !templateName.trim()}
                     >
-                        {saving ? <CircularProgress size={20} /> : 'Lagre mal'}
+                        {saving ? <CircularProgress size={20} /> : d.saveTemplate}
                     </Button>
 
                     <Button variant="outlined" color="secondary" onClick={handleExport}>
-                        Eksporter JSON
+                        {d.exportJson}
                     </Button>
                 </Box>
 
@@ -293,7 +296,7 @@ export default function DesignerComponent({
                                 onClick={() => handleLoadTemplate(template)}
                             >
                                 {template.name}
-                                {template.isDefault && ' (standard)'}
+                                {template.isDefault && d.defaultSuffix}
                             </Button>
                         ))}
                     </Box>
@@ -313,7 +316,7 @@ export default function DesignerComponent({
 
             <Paper sx={{ p: 2, mt: 2 }}>
                 <Typography variant="h6" gutterBottom>
-                    Felter (PDF → data)
+                    {d.fieldsTitle}
                 </Typography>
                 <BindingsEditor
                     schemas={currentSchemas}
@@ -326,12 +329,12 @@ export default function DesignerComponent({
 
             <Paper sx={{ p: 2, mt: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="h6">Skjema (innsender → data)</Typography>
+                    <Typography variant="h6">{d.schemaTitle}</Typography>
                     <Button
                         size="small"
                         onClick={() => setFormSchema(deriveFormSchema(currentSchemas, bindings))}
                     >
-                        Auto-utled fra PDF
+                        {d.autoDerive}
                     </Button>
                 </Box>
                 <SchemaEditor orgSlug={orgSlug} schema={formSchema} assets={assets} onChange={setFormSchema} />
@@ -344,7 +347,7 @@ export default function DesignerComponent({
             />
 
             <Dialog open={!!previewUrl} onClose={closePreview} maxWidth="lg" fullWidth>
-                <DialogTitle>Forhåndsvisning av PDF</DialogTitle>
+                <DialogTitle>{d.previewDialogTitle}</DialogTitle>
                 <DialogContent dividers sx={{ p: 0, height: '80vh' }}>
                     {previewUrl && (
                         <iframe
@@ -361,11 +364,11 @@ export default function DesignerComponent({
                             href={previewUrl}
                             download={`forhandsvisning-${templateName || 'mal'}.pdf`}
                         >
-                            Last ned
+                            {d.download}
                         </Button>
                     )}
                     <Button onClick={closePreview} variant="contained">
-                        Lukk
+                        {d.close}
                     </Button>
                 </DialogActions>
             </Dialog>
