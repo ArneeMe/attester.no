@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, Button, CircularProgress, Container, TextField, Typography } from '@mui/material';
-import { completePasswordReset } from '@/util/auth';
+import { completePasswordReset, PASSWORD_MIN_LENGTH } from '@/util/auth';
 import { useToast } from '@/components/ToastProvider';
 import { getStrings } from '@/strings';
 
@@ -42,6 +42,10 @@ const ResetPasswordPage: React.FC = () => {
             toast.error(s.passwordMismatch);
             return;
         }
+        if (password.length < PASSWORD_MIN_LENGTH) {
+            toast.error(s.passwordTooShort(PASSWORD_MIN_LENGTH));
+            return;
+        }
         setBusy(true);
         try {
             await completePasswordReset(refreshToken, password);
@@ -73,6 +77,8 @@ const ResetPasswordPage: React.FC = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         disabled={busy}
+                        slotProps={{ htmlInput: { minLength: PASSWORD_MIN_LENGTH } }}
+                        helperText={s.passwordTooShort(PASSWORD_MIN_LENGTH)}
                     />
                     <TextField
                         variant="outlined"

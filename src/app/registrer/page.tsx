@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Box, Button, CircularProgress, Container, TextField, Typography } from '@mui/material';
-import { redeemInvite, signup } from '@/util/auth';
+import { PASSWORD_MIN_LENGTH, redeemInvite, signup } from '@/util/auth';
 import { useToast } from '@/components/ToastProvider';
 import { getStrings } from '@/strings';
 import LanguageToggle from '@/components/LanguageToggle';
@@ -30,6 +30,10 @@ const RegisterPage: React.FC = () => {
         if (busy) return;
         if (password !== confirm) {
             toast.error(s.passwordMismatch);
+            return;
+        }
+        if (password.length < PASSWORD_MIN_LENGTH) {
+            toast.error(s.passwordTooShort(PASSWORD_MIN_LENGTH));
             return;
         }
         setBusy(true);
@@ -97,6 +101,13 @@ const RegisterPage: React.FC = () => {
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={busy}
                             />
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                                {s.emailPrivacyHint}{' '}
+                                <Link href="https://pr.tn/ref/9NG6TBSB" target="_blank" rel="noreferrer">
+                                    Proton Pass ↗
+                                </Link>
+                                {' '}{s.affiliateDisclosure}
+                            </Typography>
                             <TextField
                                 variant="outlined"
                                 margin="normal"
@@ -108,6 +119,8 @@ const RegisterPage: React.FC = () => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 disabled={busy}
+                                slotProps={{ htmlInput: { minLength: PASSWORD_MIN_LENGTH } }}
+                                helperText={s.passwordTooShort(PASSWORD_MIN_LENGTH)}
                             />
                             <TextField
                                 variant="outlined"

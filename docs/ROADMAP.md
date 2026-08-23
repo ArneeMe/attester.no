@@ -6,9 +6,9 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
 ## Near-term (unblocked, just needs doing)
 
 - **Live end-to-end pass against real Nhost** before onboarding a stranger
-  org: password reset email, signup (check whether email verification is on),
-  invite redemption, issue + verify one attest on paper, confirm the sweep
-  deletes an expired submission.
+  org: password reset email, signup, invite redemption, issue + verify one
+  attest on paper, and confirm the sweep deletes an *issued* submission after
+  the window while leaving an unissued one alone.
 - **Pilot**: echo + one external org through the full lifecycle.
 
 ## Needs a decision or an account (owner: the human)
@@ -19,31 +19,54 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
 - **Error tracking** — the most important gap once strangers depend on the
   product; today production failures are invisible (`console.error` only).
   Sentry or Cloudflare-native. Do this before promoting beyond people you know.
-- **Email provider** — `RESEND_API_KEY`/`NOTIFY_EMAIL_FROM` enable submission
-  notifications and invite emails (both already ship dark without it). A short
-  TTL is only comfortable with notifications on.
-- **`hei@attester.no`** — referenced in the help dialog, /om, and
-  /personvern. Must actually exist.
-- **Privacy policy substance** — /personvern was drafted faithfully to the
-  architecture, but it is a commitment; the controller framing and contact
-  details need the owner's sign-off.
+- **Email provider** — `RESEND_API_KEY`/`NOTIFY_EMAIL_FROM` currently power
+  invite emails only; without them the invite dialog just shows a link to copy.
+- **`hei@attester.no`** — referenced in the help dialog and /om. Must
+  actually exist.
+- **Privacy policy** — deliberately NOT shipped. A drafted `/personvern` was
+  closed unmerged (2026-08): publishing one is a legal commitment the owner
+  isn't positioned to make. `/om` covers the mechanics factually instead. If a
+  policy is ever wanted, it needs real legal input, not a faithful-to-the-code
+  draft.
+
+## Known gaps
+
+- **Double-click can create a duplicate certificate row.** The issuance
+  confirm button isn't disabled while the request is in flight, so two rapid
+  clicks can both pass the API's check-then-insert. Harmless today — both
+  rows carry an identical hash and the verify route reads with `limit: 1` —
+  so this is hygiene, not a vulnerability. The cheap fix is a busy guard on
+  the button; a DB unique index was tried in #35 and rejected as more
+  complexity than the problem warrants (2026-08).
+
+- **Nothing tells an admin a submission is waiting.** No email, no badge, no
+  count — an org has to remember to log in. Since unissued rows are never
+  auto-deleted (see below) nothing is *lost*, but an application can sit
+  unseen for weeks. Cheapest fix is a pending count in the org nav; the
+  heavier one is reinstating a content-free email. Raised 2026-08, not yet
+  scheduled.
 
 ## Design options captured (build when the need is real)
 
-- **24h-after-issuance regeneration window.** Today the window runs from
-  *submission* (one `SUBMISSION_TTL_HOURS` constant); a submission issued at
-  hour 23 has 1h of regeneration left. If orgs hit this, switch the sweep to
-  an explicit `expires_at` column (set at creation, bumped at issuance) —
-  small migration + sweep change. Decided against preemptively (2026-07-12).
+- **A backstop for never-processed submissions.** Shipped 2026-08: the
+  deletion clock starts at issuance (`submissions.issued_at`), and unissued
+  rows are never swept. The accepted cost is that an org which abandons its
+  queue holds volunteer data indefinitely — chosen because losing an
+  application before a human read it is worse. If that becomes a real problem,
+  the fix is a long secondary TTL on `created_at` for unissued rows (e.g. 90
+  days) plus a warning to the org first — deliberately NOT added now, since a
+  silent backstop is how the original bug hurt people.
 - **Hash algorithm v2 escape hatch.** Documented in CLAUDE.md ("version-tag
   the hash"). Not implemented on purpose; the dispatch costs nothing until
   actually needed.
 - **Cert revocation.** Would need a `revoked_at` column + verify-path check
   + admin UI + policy decisions (who may revoke, is it visible publicly).
   Nothing stores personal data, so revocation is purely a trust feature.
-- **Durable rate limiting** (Cloudflare KV/DO) if the per-isolate limiter
-  proves too soft at real scale. The seam is one function
-  (`checkRateLimit`).
+- **Rate limiting.** Removed entirely (2026-08) — the in-memory limiter was
+  per-isolate on the edge runtime, so it never really bounded anything. If
+  abuse becomes real, do it properly with Cloudflare KV/Durable Objects or at
+  the CDN edge rather than reinstating best-effort in-process counters. The
+  anonymous POST still enforces body-size and field-length caps.
 - **Media out of Postgres.** Logos/signatures are base64 in `org_assets`
   jsonb — fine at pilot scale, a cost/perf smell as orgs multiply. Move to
   Nhost Storage; the seam is `ImageUpload.tsx` + `resolveBinding`'s asset

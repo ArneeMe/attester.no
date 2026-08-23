@@ -25,6 +25,7 @@ type SubmissionRow = {
     template_id: string;
     data: Record<string, string>;
     created_at: string;
+    issued_at: string | null;
 };
 
 type FullTemplate = TemplateData & {
@@ -52,8 +53,6 @@ const AdminPage: React.FC = () => {
     const [openPDFDialog, setOpenPDFDialog] = useState(false);
     const [pdfUrl, setPdfUrl] = useState('');
 
-    const [issuedIds, setIssuedIds] = useState<Set<string>>(new Set());
-
     const [searchText, setSearchText] = useState('');
     const [templateFilter, setTemplateFilter] = useState('');
     const [newestFirst, setNewestFirst] = useState(true);
@@ -61,16 +60,10 @@ const AdminPage: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [subRes, tmplRes, certRes] = await Promise.all([
+                const [subRes, tmplRes] = await Promise.all([
                     fetch(`/api/org/${encodeURIComponent(orgSlug)}/submissions`, { headers: authHeader() }),
                     fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, { headers: authHeader() }),
-                    fetch(`/api/org/${encodeURIComponent(orgSlug)}/certificates`, { headers: authHeader() }),
                 ]);
-
-                if (certRes.ok) {
-                    const json = await certRes.json() as { certificates: Array<{ submissionId: string }> };
-                    setIssuedIds(new Set((json.certificates ?? []).map((c) => c.submissionId)));
-                }
 
                 if (subRes.ok) {
                     const json = await subRes.json() as { submissions: SubmissionRow[] };
@@ -80,6 +73,7 @@ const AdminPage: React.FC = () => {
                         templateId: row.template_id,
                         data: row.data,
                         createdAt: new Date(row.created_at),
+                        issuedAt: row.issued_at ? new Date(row.issued_at) : null,
                     })));
                 } else {
                     const json = await subRes.json().catch(() => ({} as { error?: string }));
@@ -93,6 +87,7 @@ const AdminPage: React.FC = () => {
                     const json = await tmplRes.json().catch(() => ({} as { error?: string }));
                     toast.error(`${a.loadTemplatesError}: ${json.error ?? `HTTP ${tmplRes.status}`}`);
                 }
+
             } catch (error) {
                 toast.error(`${a.loadError}: ${(error as Error).message ?? ''}`);
             }
@@ -153,8 +148,16 @@ const AdminPage: React.FC = () => {
         setOpenDialog(true);
     };
 
+    // Issuance is read straight off the submission's `issued_at` — the same
+    // column the retention sweep uses — so the chip and the countdown can
+    // never disagree with what the server will actually delete. Issuing does
+    // NOT remove the submission (see CLAUDE.md "Volunteer deletion"): it
+    // stays visible, marked "Utstedt", for the regeneration window. The
+    // certificates POST is idempotent per submission, so re-running
+    // "Generer PDF" for an already-issued one is always safe.
     const markIssued = (id: string) =>
-        setIssuedIds((prev) => new Set(prev).add(id));
+        setSubmissions((prev) => prev.map((s) =>
+            s.id === id && !s.issuedAt ? { ...s, issuedAt: new Date() } : s));
 
     const handleConfirm = async () => {
         if (!selected) return;
@@ -164,8 +167,6 @@ const AdminPage: React.FC = () => {
             return;
         }
         try {
-            // Idempotent server-side: a re-issue returns the existing cert,
-            // so regenerating the PDF within the 24h window is always safe.
             await submitHash(orgSlug, tmpl.id, selected.id, selected.data);
             markIssued(selected.id);
         } catch (error) {
@@ -198,6 +199,7 @@ const AdminPage: React.FC = () => {
         const { default: JSZip } = await import('jszip');
         const zip = new JSZip();
         const failures: string[] = [];
+        const newlyIssued: string[] = [];
         let issued = 0;
         for (const id of selectedIDs) {
             const sub = submissions.find((s) => s.id === id);
@@ -210,7 +212,7 @@ const AdminPage: React.FC = () => {
             }
             try {
                 await submitHash(orgSlug, tmpl.id, sub.id, sub.data);
-                markIssued(sub.id);
+                newlyIssued.push(sub.id);
                 const { blob, filename } = await buildAttestPdfBlob(orgSlug, tmpl, sub.id, sub.data);
                 const unique = zip.files[filename] ? `${id.slice(0, 8)}_${filename}` : filename;
                 zip.file(unique, blob);
@@ -223,6 +225,7 @@ const AdminPage: React.FC = () => {
         if (issued > 0) {
             const zipBlob = await zip.generateAsync({ type: 'blob' });
             downloadBlob(zipBlob, 'attester.zip');
+            newlyIssued.forEach(markIssued);
             toast.success(a.batchDone(issued));
         }
         for (const f of failures) toast.error(f);
@@ -338,16 +341,22 @@ const AdminPage: React.FC = () => {
                                         }
                                         label=""
                                     />
+                                    {sub.issuedAt && (
+                                        <Chip label={a.issuedChip} color="success" size="small" sx={{ mb: 0.5 }} />
+                                    )}
                                     {tmpl && (
                                         <Typography variant="caption" color="text.secondary" display="block">
                                             {a.templateCaption(tmpl.name)}
                                         </Typography>
                                     )}
-                                    <Typography variant="caption" color="warning.main" display="block">
-                                        {a.deletesIn(hoursUntilDeletion(sub.createdAt))}
-                                    </Typography>
-                                    {issuedIds.has(sub.id) && (
-                                        <Chip label={a.issuedChip} color="success" size="small" sx={{ mt: 0.5 }} />
+                                    {sub.issuedAt ? (
+                                        <Typography variant="caption" color="warning.main" display="block">
+                                            {a.deletesIn(hoursUntilDeletion(sub.issuedAt) ?? 0)}
+                                        </Typography>
+                                    ) : (
+                                        <Typography variant="caption" color="text.secondary" display="block">
+                                            {a.awaitingReview}
+                                        </Typography>
                                     )}
                                     {schema ? (
                                         <SchemaDetails schema={schema} data={sub.data} />
