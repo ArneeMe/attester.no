@@ -4,10 +4,10 @@ import LanguageToggle from '@/components/LanguageToggle';
 import { getStrings } from '@/strings';
 
 /**
- * Shared chrome for the public marketing/info pages (landing, /om,
- * /personvern): a slim wordmark header with the language toggle, and a
- * footer with the standard links. The org-branded pages (form, verify)
- * keep their own headers — the org's identity should lead there, not ours.
+ * Shared chrome for the public marketing/info pages (landing, /om): a slim
+ * wordmark header with the language toggle, and a footer with the standard
+ * links. The org-branded pages (form, verify) keep their own headers — the
+ * org's identity should lead there, not ours.
  */
 
 const withLang = (path: string, lang?: string | null) =>
@@ -43,7 +43,6 @@ export function PublicFooter({ lang }: { lang?: string | null }) {
                     </Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 2, sm: 3 }, fontSize: '0.875rem' }}>
                         <Link href={withLang('/om', lang)}>{s.about.metaTitle}</Link>
-                        <Link href={withLang('/personvern', lang)}>{s.privacy.metaTitle}</Link>
                         <Link href="/login">{s.landing.adminLogin}</Link>
                         <Link href="https://github.com/ArneeMe/attester.no" target="_blank" rel="noreferrer">
                             GitHub ↗

@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { authHeader, nhost, type NhostUser } from '@/lib/nhost';
 
+// Must match the Nhost project's "Minimum password length" setting
+// (Settings → Sign-In Methods → Email and Password). Checked client-side
+// too, so a too-short password gets a clear inline message instead of
+// whatever raw error Nhost's API returns.
+export const PASSWORD_MIN_LENGTH = 10;
+
 export const login = async (email: string, password: string): Promise<void> => {
     await nhost.auth.signInEmailPassword({ email, password });
 };

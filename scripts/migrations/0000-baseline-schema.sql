@@ -70,23 +70,32 @@ CREATE TABLE IF NOT EXISTS org_assets (
 CREATE INDEX IF NOT EXISTS org_assets_org_idx ON org_assets(organization_id);
 CREATE INDEX IF NOT EXISTS org_assets_kind_idx ON org_assets(organization_id, kind);
 
--- Volunteer form submissions. Deleted automatically by the retention
--- sweep 24 hours after creation (issued or not) — rows here are
--- transient review-queue state, never long-term storage.
+-- Volunteer form submissions — the review queue, not long-term storage.
+--
+-- issued_at is stamped when the certificate is inserted, and it is the
+-- deletion clock: the sweep removes rows whose issued_at is older than the
+-- regeneration window (src/util/retention.ts). NULL means "not issued yet",
+-- and those rows are never swept — they wait for an admin, who clears them
+-- with the explicit "Slett data" action. See CLAUDE.md "Volunteer deletion".
 CREATE TABLE IF NOT EXISTS submissions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     template_id uuid NOT NULL REFERENCES templates(id) ON DELETE RESTRICT,
     data jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamptz NOT NULL DEFAULT now()
+    created_at timestamptz NOT NULL DEFAULT now(),
+    issued_at timestamptz
 );
 CREATE INDEX IF NOT EXISTS submissions_org_idx ON submissions(organization_id);
 CREATE INDEX IF NOT EXISTS submissions_template_idx ON submissions(template_id);
+CREATE INDEX IF NOT EXISTS submissions_issued_at_idx
+    ON submissions(issued_at)
+    WHERE issued_at IS NOT NULL;
 
 -- The hash IS the certificate: no volunteer fields, ever (see CLAUDE.md).
 -- submission_id is the opaque lookup key embedded in the QR URL's `id`
--- param (a submissions uuid stored as text; the submission row itself
--- expires on its 24h TTL). template_id is SET NULL on template deletion —
+-- param (a submissions uuid stored as text; the submission row outlives
+-- issuance by the regeneration window, then the sweep removes it).
+-- template_id is SET NULL on template deletion —
 -- the hash keeps verifying regardless of presentation.
 CREATE TABLE IF NOT EXISTS certificates (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -109,17 +118,6 @@ CREATE TABLE IF NOT EXISTS legacy_certificates (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS legacy_certificates_volunteer_idx ON legacy_certificates(volunteer_id);
-
--- Anonymous platform feedback from volunteers, shown to the org's admins.
--- Carries NO identity by design: no user id, no submission reference.
-CREATE TABLE IF NOT EXISTS feedback (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    rating int NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    comment text NOT NULL DEFAULT '',
-    created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS feedback_org_idx ON feedback(organization_id, created_at DESC);
 
 -- Org invites: token is a capability that, combined with logging in as the
 -- invited email, grants membership in the org. See the invites API routes.

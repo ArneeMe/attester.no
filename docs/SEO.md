@@ -29,9 +29,9 @@ backlinks can rank; there is no incumbent to displace.
 - `sitemap.xml` (app/sitemap.ts): static pages + every public org form,
   resilient to DB outage. `robots.txt` references it and now also blocks
   `/admin`.
-- Canonical URLs + `hreflang` (nb-NO / en / x-default) on `/`, `/om`,
-  `/personvern` via `publicPageMetadata` (`src/util/seo.ts`) — the `?lang=en`
-  variants are declared alternates, not duplicate content.
+- Canonical URLs + `hreflang` (nb-NO / en / x-default) on `/` and `/om` via
+  `publicPageMetadata` (`src/util/seo.ts`) — the `?lang=en` variants are
+  declared alternates, not duplicate content.
 - `metadataBase`, Open Graph and Twitter-card defaults; keyword-informed
   site title («digital attest for frivillige») and meta description
   containing the money phrases.
@@ -40,15 +40,15 @@ backlinks can rank; there is no incumbent to displace.
   sync with the visible content in both languages) — eligible for FAQ rich
   results.
 - Already in place from earlier work and load-bearing for SEO: real
-  server-rendered content on `/`, `/om`, `/personvern`; per-org page
-  titles; `lang="no"`; fast edge rendering.
+  server-rendered content on `/` and `/om`; per-org page titles;
+  `lang="no"`; fast edge rendering.
 
 ## Owner actions (in priority order — these move the needle most)
 
 1. **Google Search Console + Bing Webmaster Tools**: verify the domain,
-   submit `https://attester.no/sitemap.xml`, request indexing of `/`,
-   `/om`, `/personvern`. This is the difference between "indexed this
-   week" and "indexed whenever". Bing also feeds DuckDuckGo.
+   submit `https://attester.no/sitemap.xml`, request indexing of `/` and
+   `/om`. This is the difference between "indexed this week" and "indexed
+   whenever". Bing also feeds DuckDuckGo.
 2. **Backlinks from member orgs**: every org using the platform should
    link their `/org/<slug>` page from their own site ("Be om attest").
    echo's site is the first. These are topically perfect links.
@@ -63,8 +63,10 @@ backlinks can rank; there is no incumbent to displace.
    ends in "or issue verifiable ones with attester.no". This targets the
    single most obvious query in the niche (people searching for the
    Diabetesforbundet-style .doc).
-5. **Keep URLs stable.** Rankings accrue to URLs; don't rename `/om` or
-   `/personvern` later without redirects.
+5. **Keep URLs stable.** Rankings accrue to URLs; don't rename `/om` later
+   without redirects. Note there is deliberately no `/personvern` page (see
+   ROADMAP) — if one is ever added, it should be added to the sitemap and
+   `publicPageMetadata` at the same time.
 
 ## What NOT to do
 

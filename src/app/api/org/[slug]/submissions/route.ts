@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "@/lib/server/apiAuth";
 import { templateBelongsToOrg } from "@/lib/server/ownership";
-import { checkRateLimit, clientIp } from "@/lib/server/rateLimit";
 import { sweepExpiredSubmissions } from "@/lib/server/retention";
-import { notifyNewSubmission } from "@/lib/server/notify";
 
 export const runtime = "edge";
 
@@ -14,18 +12,13 @@ export const runtime = "edge";
 const MAX_SUBMISSION_BYTES = 64 * 1024;
 const MAX_FIELD_VALUE_LEN = 8 * 1024;
 
-// Per-IP throttle on the anonymous POST. Generous enough for a whole
-// student group filling the form behind one campus NAT, tight enough
-// that one machine can't fill an org's review queue.
-const RATE_LIMIT = 20;
-const RATE_WINDOW_MS = 10 * 60 * 1000;
-
 type SubmissionRow = {
     id: string;
     organization_id: string;
     template_id: string;
     data: Record<string, string>;
     created_at: string;
+    issued_at: string | null;
 };
 
 export async function GET(
@@ -47,7 +40,7 @@ export async function GET(
                     where: { organization_id: { _eq: $organizationId } },
                     order_by: { created_at: asc }
                 ) {
-                    id organization_id template_id data created_at
+                    id organization_id template_id data created_at issued_at
                 }
             }`,
             { organizationId: auth.organizationId },
@@ -63,12 +56,6 @@ export async function POST(
     { params }: { params: Promise<{ slug: string }> },
 ) {
     const { slug } = await params;
-    if (!checkRateLimit(`submissions:${clientIp(req.headers)}`, RATE_LIMIT, RATE_WINDOW_MS)) {
-        return NextResponse.json(
-            { error: "For mange innsendinger. Vent noen minutter og prøv igjen." },
-            { status: 429 },
-        );
-    }
     const body = await req.text();
     if (body.length > MAX_SUBMISSION_BYTES) {
         return NextResponse.json({ error: "Submission too large" }, { status: 413 });
@@ -129,10 +116,6 @@ export async function POST(
             }`,
             { organizationId, templateId, data },
         );
-
-        // Content-free heads-up to the org's admins. No-op unless an email
-        // provider is configured; never fails the submission.
-        await notifyNewSubmission(organizationId, slug);
 
         return NextResponse.json({ submission: result.insert_submissions_one });
     } catch (e) {
