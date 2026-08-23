@@ -5,8 +5,19 @@ import {
 import { listPublicOrgs, type PublicOrg } from '@/lib/server/orgs';
 import { getStrings } from '@/strings';
 import LanguageToggle from '@/components/LanguageToggle';
+import JsonLd from '@/components/JsonLd';
+import { publicPageMetadata, SITE_URL } from '@/util/seo';
 
 export const runtime = 'edge';
+
+export async function generateMetadata({
+    searchParams,
+}: {
+    searchParams: Promise<{ lang?: string }>;
+}) {
+    const { lang } = await searchParams;
+    return publicPageMetadata('/', lang, undefined, getStrings(lang).landing.tagline);
+}
 
 export default async function Home({
     searchParams,
@@ -27,6 +38,16 @@ export default async function Home({
 
     return (
         <Container maxWidth="md" sx={{ py: 8 }}>
+            <JsonLd
+                data={{
+                    '@context': 'https://schema.org',
+                    '@type': 'WebSite',
+                    name: 'attester.no',
+                    url: SITE_URL,
+                    description: s.tagline,
+                    inLanguage: ['nb-NO', 'en'],
+                }}
+            />
             <Stack spacing={6}>
                 <Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 2 }}>

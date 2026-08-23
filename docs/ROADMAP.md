@@ -5,10 +5,6 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
 
 ## Near-term (unblocked, just needs doing)
 
-- **Translate the template designer and content library** (`edit_pdf/*`,
-  `rediger/page.tsx`, ~1 800 lines). The pattern is established
-  (`src/strings.ts` + `useAdminLang`); every other admin page is done.
-  Only UI chrome — never database-persisted values.
 - **Live end-to-end pass against real Nhost** before onboarding a stranger
   org: password reset email, signup, invite redemption, issue + verify one
   attest on paper, and confirm the sweep deletes an *issued* submission after
@@ -16,6 +12,9 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
 - **Pilot**: echo + one external org through the full lifecycle.
 
 ## Needs a decision or an account (owner: the human)
+
+- **SEO owner actions** — Search Console/Bing verification, sitemap
+  submission, backlinks from member orgs. Full playbook: docs/SEO.md.
 
 - **Error tracking** — the most important gap once strangers depend on the
   product; today production failures are invisible (`console.error` only).
@@ -31,6 +30,14 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
   draft.
 
 ## Known gaps
+
+- **Double-click can create a duplicate certificate row.** The issuance
+  confirm button isn't disabled while the request is in flight, so two rapid
+  clicks can both pass the API's check-then-insert. Harmless today — both
+  rows carry an identical hash and the verify route reads with `limit: 1` —
+  so this is hygiene, not a vulnerability. The cheap fix is a busy guard on
+  the button; a DB unique index was tried in #35 and rejected as more
+  complexity than the problem warrants (2026-08).
 
 - **Nothing tells an admin a submission is waiting.** No email, no badge, no
   count — an org has to remember to log in. Since unissued rows are never

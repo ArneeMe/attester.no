@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { SITE_URL } from '@/util/seo';
 
 export default function robots(): MetadataRoute.Robots {
     return {
@@ -9,8 +10,9 @@ export default function robots(): MetadataRoute.Robots {
                 // Admin and API surfaces have no business in search indexes.
                 // Verify pages stay crawlable-in-principle but are unlinked
                 // and unguessable (the URL is the secret).
-                disallow: ['/login', '/api'],
+                disallow: ['/login', '/api', '/admin'],
             },
         ],
+        sitemap: `${SITE_URL}/sitemap.xml`,
     };
 }

@@ -70,13 +70,12 @@ CREATE TABLE IF NOT EXISTS org_assets (
 CREATE INDEX IF NOT EXISTS org_assets_org_idx ON org_assets(organization_id);
 CREATE INDEX IF NOT EXISTS org_assets_kind_idx ON org_assets(organization_id, kind);
 
--- Volunteer form submissions. Deleted automatically in the same
--- transaction that inserts the certificate — rows here are transient
--- review-queue state, never long-term storage.
--- issued_at: stamped when the certificate is inserted. It is the deletion
--- clock — the sweep removes rows whose issued_at is older than the
+-- Volunteer form submissions — the review queue, not long-term storage.
+--
+-- issued_at is stamped when the certificate is inserted, and it is the
+-- deletion clock: the sweep removes rows whose issued_at is older than the
 -- regeneration window (src/util/retention.ts). NULL means "not issued yet",
--- and such rows are never swept: they wait for an admin, who clears them
+-- and those rows are never swept — they wait for an admin, who clears them
 -- with the explicit "Slett data" action. See CLAUDE.md "Volunteer deletion".
 CREATE TABLE IF NOT EXISTS submissions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -107,7 +106,8 @@ CREATE TABLE IF NOT EXISTS certificates (
     issued_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
     created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS certificates_lookup_idx ON certificates(organization_id, submission_id);
+CREATE UNIQUE INDEX IF NOT EXISTS certificates_org_submission_unique
+    ON certificates(organization_id, submission_id);
 
 -- One-time snapshot of echo's pre-migration certs. The app NEVER inserts
 -- here; the legacy /verify route reads it until ~2030 (see CLAUDE.md).
@@ -118,17 +118,6 @@ CREATE TABLE IF NOT EXISTS legacy_certificates (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS legacy_certificates_volunteer_idx ON legacy_certificates(volunteer_id);
-
--- Anonymous platform feedback from volunteers, shown to the org's admins.
--- Carries NO identity by design: no user id, no submission reference.
-CREATE TABLE IF NOT EXISTS feedback (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    rating int NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    comment text NOT NULL DEFAULT '',
-    created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS feedback_org_idx ON feedback(organization_id, created_at DESC);
 
 -- Org invites: token is a capability that, combined with logging in as the
 -- invited email, grants membership in the org. See the invites API routes.

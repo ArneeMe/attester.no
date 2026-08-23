@@ -23,8 +23,11 @@ export async function POST(req: NextRequest) {
     if (session instanceof NextResponse) return session;
 
     const { token } = await req.json().catch(() => ({} as { token?: unknown }));
-    if (typeof token !== "string" || !token) {
-        return NextResponse.json({ error: "Missing token" }, { status: 400 });
+    // The token variable is typed uuid! in the GraphQL query — validate the
+    // shape here so a malformed token is a clean 404, not a Hasura error.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (typeof token !== "string" || !UUID_RE.test(token)) {
+        return NextResponse.json({ error: "Invitasjonen er ugyldig eller utløpt" }, { status: 404 });
     }
 
     try {
