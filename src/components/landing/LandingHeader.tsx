@@ -28,16 +28,21 @@ const LandingHeader: React.FC<Props> = ({ adminLogin, lang }) => (
                 alignItems: 'center',
                 gap: { xs: 1.5, sm: 2.5 },
                 fontSize: 13,
-                '& a': { color: c.inkSoft, textDecorationColor: c.borderStrong },
-                '& a[aria-current]': { color: c.ink },
             }}
         >
-            <LanguageToggle />
+            <Box
+                sx={{
+                    '& a': { color: c.inkSoft, textDecorationColor: c.borderStrong },
+                    '& a[aria-current]': { color: c.ink },
+                }}
+            >
+                <LanguageToggle />
+            </Box>
             <Box
                 component={Link}
                 href={lang === 'en' ? '/login?lang=en' : '/login'}
                 sx={{
-                    color: `${c.ink} !important`,
+                    color: c.ink,
                     textDecoration: 'none',
                     borderBottom: `1px solid ${c.borderStrong}`,
                     pb: '2px',

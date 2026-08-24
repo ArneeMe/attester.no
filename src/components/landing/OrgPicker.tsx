@@ -110,7 +110,7 @@ const OrgPicker: React.FC<Props> = ({ orgs, failed, lang, t }) => {
                     </Box>
                 ))}
 
-                {!failed && !visible.length && (
+                {!failed && !visible.length && query.trim() !== '' && (
                     <Box sx={{ ...row, ...body, borderBottom: 0 }}>
                         {t.empty}&nbsp;
                         <Box component="a" href="mailto:hei@attester.no" sx={{ color: c.accent }}>
