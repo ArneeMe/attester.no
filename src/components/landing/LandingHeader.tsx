@@ -20,7 +20,18 @@ const LandingHeader: React.FC<Props> = ({ adminLogin, lang }) => (
             borderBottom: `1px solid ${c.rule}`,
         }}
     >
-        <Box sx={{ font: `600 17px/1 ${fontSerif}`, letterSpacing: '0.01em' }}>attester.no</Box>
+        <Box
+            component={Link}
+            href={lang === 'en' ? '/?lang=en' : '/'}
+            sx={{
+                font: `600 17px/1 ${fontSerif}`,
+                letterSpacing: '0.01em',
+                color: c.ink,
+                textDecoration: 'none',
+            }}
+        >
+            attester.no
+        </Box>
 
         <Box
             sx={{
