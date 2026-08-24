@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Box } from '@mui/material';
+import { Box, GlobalStyles } from '@mui/material';
 import { listPublicOrgs, type PublicOrg } from '@/lib/server/orgs';
 import { getStrings } from '@/strings';
 import JsonLd from '@/components/JsonLd';
@@ -45,6 +45,12 @@ export default async function Home({
             className={landingFontClass}
             sx={{ minHeight: '100vh', background: c.paper, color: c.ink, fontFamily: fontBody }}
         >
+            {/* The app ships no CssBaseline, so body keeps the browser's 8px
+                margin — which shows as a white gutter around a full-bleed
+                page. Scoped here rather than reset globally, since every
+                other screen is a centred Container that relies on it. */}
+            <GlobalStyles styles={{ body: { margin: 0, background: c.paper } }} />
+
             <JsonLd
                 data={{
                     '@context': 'https://schema.org',
