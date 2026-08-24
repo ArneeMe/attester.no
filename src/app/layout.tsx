@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="nb">
+        <html lang="en">
             <body>
                 <RootLayoutProvider>
                     <Suspense fallback={<div>Laster...</div>}>
