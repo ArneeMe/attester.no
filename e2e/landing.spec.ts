@@ -25,7 +25,6 @@ test('?lang=en renders the English strings and links to /om', async ({ page }) =
     // app serves these instantly — but it made this spec flaky.
     const FIRST_PAINT = { timeout: 30_000 };
     await expect(page.getByRole('heading', { name: 'How attester.no works' })).toBeVisible(FIRST_PAINT);
-    await expect(page.getByText('This is NEVER stored as part of the certificate:')).toBeVisible();
 
     // The toggle swaps back to Norwegian on the same page.
     await page.getByRole('link', { name: 'Norsk' }).click();

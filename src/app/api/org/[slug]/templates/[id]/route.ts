@@ -155,7 +155,7 @@ export async function DELETE(
         if (n > 0) {
             return NextResponse.json(
                 {
-                    error: `Kan ikke slette malen: ${n} sertifikat${n === 1 ? '' : 'er'} referer til den. Disse er fra tidligere "Generer PDF"-handlinger og blir værende selv om innsendingen er slettet (det er hele poenget — vi tar vare på hash-en, ikke dataen). Du må arkivere malen i stedet, eller slette sertifikatene først.`,
+                    error: `Kan ikke slette malen: ${n} sertifikat${n === 1 ? '' : 'er'} referer til den. Disse er fra tidligere "Generer PDF"-handlinger og blir værende selv om innsendingen er slettet (det er hele poenget, vi tar vare på hash-en, ikke dataen). Du må arkivere malen i stedet, eller slette sertifikatene først.`,
                     referencingCerts: n,
                 },
                 { status: 409 },

@@ -10,7 +10,7 @@ export async function generateMetadata({
 }) {
     const { orgSlug } = await params;
     const name = await getOrgNameBySlug(orgSlug).catch(() => null);
-    return { title: name ? `Verifiser attest – ${name}` : 'Verifiser attest' };
+    return { title: name ? `Verifiser attest for ${name}` : 'Verifiser attest' };
 }
 
 export default function OrgVerifyPage() {
