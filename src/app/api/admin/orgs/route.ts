@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     const { slug, name, adminEmail } = await req.json().catch(() => ({} as Record<string, unknown>));
     if (typeof slug !== "string" || !SLUG_RE.test(slug) || slug.length > MAX_SLUG_LEN) {
         return NextResponse.json(
-            { error: "Ugyldig slug — små bokstaver, tall og bindestrek" },
+            { error: "Ugyldig slug. Bruk små bokstaver, tall og bindestrek" },
             { status: 400 },
         );
     }
