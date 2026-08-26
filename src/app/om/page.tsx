@@ -38,32 +38,6 @@ const NumberedSteps: React.FC<{ steps: string[] }> = ({ steps }) => (
     </Box>
 );
 
-const ItemList: React.FC<{ title: string; items: string[] }> = ({ title, items }) => (
-    <>
-        <Box sx={{ fontSize: 15, fontWeight: 500 }}>{title}</Box>
-        <Box component="ul" sx={{ ...body, mt: 1.5, mb: 0, pl: 0, listStyle: 'none' }}>
-            {items.map((item) => (
-                <Box
-                    component="li"
-                    key={item}
-                    sx={{
-                        display: 'grid',
-                        gridTemplateColumns: '14px 1fr',
-                        gap: 1,
-                        mb: 0.75,
-                        '&:last-of-type': { mb: 0 },
-                    }}
-                >
-                    <Box aria-hidden sx={{ color: c.accent }}>
-                        ·
-                    </Box>
-                    <span>{item}</span>
-                </Box>
-            ))}
-        </Box>
-    </>
-);
-
 export default async function AboutPage({
     searchParams,
 }: {
@@ -75,7 +49,6 @@ export default async function AboutPage({
 
     const faq = [
         { q: s.flowTitle, a: s.flowSteps.join(' ') },
-        { q: s.storedTitle, a: `${s.storedIntro} ${s.storedItems.join('; ')}. ${s.neverStoredIntro} ${s.neverStoredItems.join('; ')}.` },
         { q: s.hashTitle, a: `${s.hashBody} ${s.hashConsequence}` },
         { q: s.verifyTitle, a: s.verifySteps.join(' ') },
     ];
@@ -146,21 +119,6 @@ export default async function AboutPage({
 
             <Box
                 component="section"
-                sx={{ px: gutter, pt: 5, pb: 3, borderBottom: `1px solid ${c.ruleSoft}` }}
-            >
-                <Box component="h2" sx={h2}>
-                    {s.storedTitle}
-                </Box>
-            </Box>
-
-            <SplitSection
-                py={4}
-                left={<ItemList title={s.storedIntro} items={s.storedItems} />}
-                right={<ItemList title={s.neverStoredIntro} items={s.neverStoredItems} />}
-            />
-
-            <Box
-                component="section"
                 sx={{ px: gutter, py: 5, borderBottom: `1px solid ${c.rule}` }}
             >
                 <Box sx={{ maxWidth: 720 }}>
@@ -203,6 +161,7 @@ export default async function AboutPage({
                     >
                         GitHub ↗
                     </Box>
+                    .
                 </Box>
                 <Box
                     component={Link}
