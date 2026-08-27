@@ -109,7 +109,7 @@ function FieldInput({
                         onChange={(e) => onChange(e.target.value)}
                         margin="normal"
                         error={!!error}
-                        helperText={error ?? dropdownFallback ?? 'Skriv inn fritekst — det er ingen forhåndsdefinerte valg satt opp.'}
+                        helperText={error ?? dropdownFallback ?? 'Skriv inn fritekst. Det er ingen forhåndsdefinerte valg satt opp.'}
                     />
                 );
             }

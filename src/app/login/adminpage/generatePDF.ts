@@ -71,7 +71,7 @@ export const generatePDF = async (
 const previewWatermark = (pageIndex: number): Schema => ({
     name: `__preview_watermark__${pageIndex}`,
     type: 'text',
-    content: 'FORHÅNDSVISNING – IKKE GYLDIG ATTEST',
+    content: 'FORHÅNDSVISNING: IKKE GYLDIG ATTEST',
     position: { x: 10, y: 130 },
     width: 190,
     height: 20,

@@ -10,7 +10,7 @@ export async function generateMetadata({
 }) {
     const { orgSlug } = await params;
     const name = await getOrgNameBySlug(orgSlug).catch(() => null);
-    return { title: name ? `Attestskjema – ${name}` : 'Attestskjema' };
+    return { title: name ? `Attestskjema for ${name}` : 'Attestskjema' };
 }
 
 export default async function OrgFormPage({
