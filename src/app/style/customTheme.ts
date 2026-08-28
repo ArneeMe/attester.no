@@ -2,9 +2,6 @@ import { createTheme } from "@mui/material/styles";
 import { c } from "@/app/style/tokens";
 import { fontBody, fontSerif } from "@/app/style/landingFonts";
 
-// Admin and auth are built from stock MUI, so component defaults here restyle
-// them without touching those files. Prefer adding a default over per-page sx.
-
 export const customTheme = createTheme({
     palette: {
         primary: { main: c.accent, dark: c.accentHover, contrastText: '#fff' },
@@ -26,17 +23,18 @@ export const customTheme = createTheme({
         h4: { fontFamily: fontSerif, fontWeight: 400, fontSize: 19, lineHeight: 1.35 },
         h5: { fontWeight: 500, fontSize: 16.5 },
         h6: { fontWeight: 500, fontSize: 15.5 },
-        body1: { fontSize: 15, lineHeight: 1.6, color: c.inkSoft },
-        body2: { fontSize: 14, lineHeight: 1.6, color: c.inkSoft },
+        body1: { fontSize: 15, lineHeight: 1.6 },
+        body2: { fontSize: 14, lineHeight: 1.6 },
         button: { textTransform: 'none', fontWeight: 500, letterSpacing: 0 },
     },
 
     components: {
         MuiCssBaseline: {
             styleOverrides: {
-                // Plain <a>/next/link are not MuiLink; without this they render
-                // browser-blue. Underline left to the browser default.
-                a: { color: c.accent, '&:hover': { color: c.accentHover } },
+                'a:not(.MuiButtonBase-root)': {
+                    color: c.accent,
+                    '&:hover': { color: c.accentHover },
+                },
             },
         },
 
