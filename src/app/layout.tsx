@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import RootLayoutProvider from '@/app/style/rootLayout';
 import {Suspense} from "react";
 import { SITE_URL } from '@/util/seo';
+import { landingFontClass } from '@/app/style/landingFonts';
 
 export const metadata: Metadata = {
     metadataBase: new URL(SITE_URL),
@@ -31,7 +32,7 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="no">
+        <html lang="no" className={landingFontClass}>
             <body>
                 <RootLayoutProvider>
                     <Suspense fallback={<div>Laster...</div>}>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import { c, gutter } from './tokens';
+import { c, gutter } from '@/app/style/tokens';
 
 type Props = { left: React.ReactNode; right: React.ReactNode; py: number };
 

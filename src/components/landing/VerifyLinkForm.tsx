@@ -4,7 +4,7 @@ import { Box, InputBase } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { fontMono } from '@/app/style/landingFonts';
 import { parseVerifyUrl } from '@/util/parseVerifyUrl';
-import { body, c, field, h2 } from './tokens';
+import { body, c, field, h2 } from '@/app/style/tokens';
 
 type Props = {
     t: {

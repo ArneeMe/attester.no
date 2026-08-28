@@ -4,7 +4,7 @@ import { Box, InputBase } from '@mui/material';
 import Link from 'next/link';
 import type { PublicOrg } from '@/lib/server/orgs';
 import { fontMono } from '@/app/style/landingFonts';
-import { body, c, field } from './tokens';
+import { body, c, field } from '@/app/style/tokens';
 
 type Props = {
     orgs: PublicOrg[];

@@ -1,23 +1,13 @@
 import React from 'react';
-import { Box, GlobalStyles } from '@mui/material';
+import { Box } from '@mui/material';
 import { getStrings } from '@/strings';
-import { fontBody, landingFontClass } from '@/app/style/landingFonts';
 import LandingHeader from './LandingHeader';
-import { c, gutter, mono, pageMaxWidth } from './tokens';
+import { c, gutter, mono, pageMaxWidth } from '@/app/style/tokens';
 
 type Props = { lang?: string; children: React.ReactNode };
 
 const PageShell: React.FC<Props> = ({ lang, children }) => (
-    <Box
-        className={landingFontClass}
-        sx={{ minHeight: '100vh', background: c.paper, color: c.ink, fontFamily: fontBody }}
-    >
-        {/* The app ships no CssBaseline and no global stylesheet, so body keeps
-            the browser's 8px margin — a white gutter around a full-bleed page.
-            Scoped here rather than reset globally, since every other screen is
-            a centred Container that relies on it. */}
-        <GlobalStyles styles={{ body: { margin: 0, background: c.paper } }} />
-
+    <Box sx={{ minHeight: '100vh', background: c.paper, color: c.ink }}>
         <Box sx={{ maxWidth: pageMaxWidth, mx: 'auto' }}>
             <LandingHeader lang={lang} adminLogin={getStrings(lang).landing.adminLogin} />
             {children}
