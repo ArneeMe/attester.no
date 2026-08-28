@@ -2,10 +2,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Box, CircularProgress, Grid, TextField, Typography } from '@mui/material';
+import { Box, CircularProgress, Grid, TextField } from '@mui/material';
 import { canonicalHash } from '@/util/canonicalHash';
 import { selectHashFields } from '@/util/verifyFieldSelection';
 import { customTheme } from '@/app/style/customTheme';
+import { fontSerif } from '@/app/style/landingFonts';
+import { body, c, gutter, mono } from '@/app/style/tokens';
 import type { FormSchema, FormFieldSchema } from '@/types/formSchema';
 import { getStrings, normalizeLang, type Lang } from '@/strings';
 import OrgLogo from '@/components/OrgLogo';
@@ -17,12 +19,6 @@ const OrgVerifyClient: React.FC = () => {
     const submissionId = searchParams.get('id') ?? '';
     const templateId = searchParams.get('t') ?? '';
 
-    // Language here is page-local UI state, not synced to the URL. The
-    // verify URL is a fixed external contract — printed on paper, embedded
-    // in a QR code — so it shouldn't be mutated by a UI preference. This
-    // also sidesteps a whole class of bug: any extra query param a sharing
-    // channel appends (utm_*, fbclid, a future UI flag) can never leak into
-    // the hash just because the page has an interactive toggle.
     const [uiLang, setUiLang] = useState<Lang>(() => normalizeLang(searchParams.get('lang')));
     const s = getStrings(uiLang).verify;
 
@@ -31,9 +27,6 @@ const OrgVerifyClient: React.FC = () => {
     const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
     const [schemaLoading, setSchemaLoading] = useState(!!templateId);
 
-    // All URL params except 't' and 'lang' — includes 'id' and every cert
-    // field. This is the editable/display state; what actually feeds the
-    // hash is narrowed further below via selectHashFields.
     const [fields, setFields] = useState<Record<string, string>>(() => {
         const result: Record<string, string> = {};
         searchParams.forEach((value, key) => {
@@ -61,10 +54,6 @@ const OrgVerifyClient: React.FC = () => {
             .catch(() => setStoredHash(null));
     }, [orgSlug, submissionId]);
 
-    // Once the template's form schema is known, only its declared field
-    // keys (plus id) are trusted for hashing — anything else in `fields`
-    // (a stray tracking param, say) is ignored rather than blocklisted by
-    // name. Falls back to trusting every field when no schema is available.
     const hashInput = useMemo(() => selectHashFields(formSchema, fields), [formSchema, fields]);
 
     useEffect(() => {
@@ -75,18 +64,16 @@ const OrgVerifyClient: React.FC = () => {
         });
     }, [hashInput, storedHash]);
 
-    const getColor = () => {
-        if (verificationResult === 'verified') return colorTheme.primary.main;
-        if (verificationResult === 'invalid') return colorTheme.error.main;
-        return colorTheme.secondary.main;
-    };
+    const stateColor = verificationResult === 'verified'
+        ? colorTheme.primary.main
+        : verificationResult === 'invalid'
+            ? colorTheme.error.main
+            : colorTheme.secondary.main;
 
     const updateField = (key: string, value: string) => {
         setFields((prev) => ({ ...prev, [key]: value }));
     };
 
-    // Schema-driven: show only fields present in schema; hide optional ones absent from URL.
-    // Fallback (no template id or schema fetch failed): derive fields from URL params.
     const visibleFields: FormFieldSchema[] = formSchema
         ? formSchema.filter((f) => !f.optional || searchParams.has(f.key))
         : Object.keys(fields)
@@ -94,85 +81,122 @@ const OrgVerifyClient: React.FC = () => {
               .map((k) => ({ key: k, label: k, type: 'text' as const }));
 
     const toggleStyle = (active: boolean): React.CSSProperties => ({
-        fontSize: '0.875rem',
-        fontWeight: active ? 700 : 400,
+        font: 'inherit',
+        fontSize: 13,
+        fontWeight: active ? 600 : 400,
         textDecoration: active ? 'none' : 'underline',
         background: 'none',
         border: 'none',
         cursor: 'pointer',
         padding: 0,
-        color: 'inherit',
+        color: active ? c.ink : c.inkSoft,
     });
 
     return (
-        <Box sx={{ border: `5px solid ${getColor()}`, padding: 3, borderRadius: 2, margin: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                    <OrgLogo orgSlug={orgSlug} height={44} />
-                    <Typography variant="h3" gutterBottom>{s.title}</Typography>
+        <Box sx={{ minHeight: '100vh', background: c.paper, color: c.ink }}>
+            <Box
+                component="header"
+                sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 2,
+                    px: gutter,
+                    py: 2.25,
+                    borderBottom: `1px solid ${c.rule}`,
+                }}
+            >
+                <Box
+                    component={Link}
+                    href="/"
+                    sx={{
+                        font: `600 17px/1 ${fontSerif}`,
+                        letterSpacing: '0.01em',
+                        color: c.ink,
+                        textDecoration: 'none',
+                    }}
+                >
+                    attester.no
                 </Box>
                 <Box component="span" sx={{ display: 'inline-flex', gap: 1, alignItems: 'center' }}>
                     <button type="button" style={toggleStyle(uiLang === 'no')} onClick={() => setUiLang('no')} aria-current={uiLang === 'no' ? 'true' : undefined}>
                         Norsk
                     </button>
-                    <span aria-hidden>|</span>
+                    <Box component="span" aria-hidden sx={{ color: c.borderStrong, fontSize: 13 }}>|</Box>
                     <button type="button" style={toggleStyle(uiLang === 'en')} onClick={() => setUiLang('en')} aria-current={uiLang === 'en' ? 'true' : undefined}>
                         English
                     </button>
                 </Box>
             </Box>
 
-            {verificationResult === null ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
-                    <CircularProgress size={28} />
-                    <Typography variant="h6" color="text.secondary">{s.checking}</Typography>
+            <Box sx={{ maxWidth: 760, mx: 'auto', px: gutter, py: { xs: 4, md: 6 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                    <OrgLogo orgSlug={orgSlug} height={40} />
+                    <Box sx={{ ...mono, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        {s.title}
+                    </Box>
                 </Box>
-            ) : verificationResult === 'verified' ? (
-                <Box sx={{ my: 2 }}>
-                    <Typography variant="h5" color={getColor()} sx={{ fontWeight: 700 }}>
-                        {s.validTitle}
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-                        {s.validBody}
-                    </Typography>
-                </Box>
-            ) : (
-                <Box sx={{ my: 2 }}>
-                    <Typography variant="h5" color={getColor()} sx={{ fontWeight: 700 }}>
-                        {s.invalidTitle}
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-                        {s.invalidBody}
-                    </Typography>
-                </Box>
-            )}
 
-            <Typography variant="body2" sx={{ mt: 1 }}>
-                <Link href={uiLang === 'en' ? '/om?lang=en' : '/om'}>{s.aboutLink}</Link>
-            </Typography>
+                <Box
+                    sx={{
+                        background: c.surface,
+                        border: `1px solid ${c.rule}`,
+                        borderLeft: `3px solid ${stateColor}`,
+                        px: { xs: 2.5, md: 3.5 },
+                        py: { xs: 3, md: 3.5 },
+                    }}
+                >
+                    {verificationResult === null ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <CircularProgress size={22} sx={{ color: stateColor }} />
+                            <Box sx={{ font: `400 20px/1.3 ${fontSerif}`, color: c.inkMuted }}>
+                                {s.checking}
+                            </Box>
+                        </Box>
+                    ) : (
+                        <>
+                            <Box
+                                sx={{
+                                    font: `400 clamp(22px, 3.5vw, 28px)/1.25 ${fontSerif}`,
+                                    color: stateColor,
+                                }}
+                            >
+                                {verificationResult === 'verified' ? s.validTitle : s.invalidTitle}
+                            </Box>
+                            <Box sx={{ ...body, mt: 1.5 }}>
+                                {verificationResult === 'verified' ? s.validBody : s.invalidBody}
+                            </Box>
+                        </>
+                    )}
+                </Box>
 
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3 }}>
-                {s.fieldsLabel}
-            </Typography>
-            <Grid container spacing={2} paddingTop={2}>
-                {schemaLoading ? (
-                    <Grid size={{ xs: 12 }}>
-                        <CircularProgress size={24} />
+                <Box sx={{ mt: 5 }}>
+                    <Box sx={{ ...body, color: c.inkMuted, mb: 2 }}>{s.fieldsLabel}</Box>
+                    <Grid container spacing={2}>
+                        {schemaLoading ? (
+                            <Grid size={{ xs: 12 }}>
+                                <CircularProgress size={22} />
+                            </Grid>
+                        ) : (
+                            visibleFields.map((field) => (
+                                <Grid key={field.key} size={{ xs: 12, sm: 6 }}>
+                                    <TextField
+                                        label={field.label}
+                                        variant="outlined"
+                                        fullWidth
+                                        value={fields[field.key] ?? ''}
+                                        onChange={(e) => updateField(field.key, e.target.value)}
+                                    />
+                                </Grid>
+                            ))
+                        )}
                     </Grid>
-                ) : (
-                    visibleFields.map((field) => (
-                        <Grid key={field.key} size={{ xs: 12, sm: 6, md: 3 }}>
-                            <TextField
-                                label={field.label}
-                                variant="outlined"
-                                fullWidth
-                                value={fields[field.key] ?? ''}
-                                onChange={(e) => updateField(field.key, e.target.value)}
-                            />
-                        </Grid>
-                    ))
-                )}
-            </Grid>
+                </Box>
+
+                <Box sx={{ mt: 5, pt: 3, borderTop: `1px solid ${c.ruleSoft}`, fontSize: 14 }}>
+                    <Link href={uiLang === 'en' ? '/om?lang=en' : '/om'}>{s.aboutLink}</Link>
+                </Box>
+            </Box>
         </Box>
     );
 };

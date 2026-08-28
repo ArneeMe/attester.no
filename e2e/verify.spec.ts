@@ -17,9 +17,6 @@ const FORM_SCHEMA = [
 ];
 
 test.beforeEach(async ({ page }) => {
-    // The verify page recomputes the hash client-side from the URL params
-    // and compares it to what "the server" returns — so mocking the two
-    // API routes exercises the full verification contract in the browser.
     await page.route(`**/api/org/${ORG}/certificates/verify*`, (route) =>
         route.fulfill({ json: { hash: certHash(CERT_FIELDS), template_id: TEMPLATE_ID } }),
     );
@@ -40,20 +37,20 @@ test('matching params verify green', async ({ page }) => {
 });
 
 test('lang=en in the URL keeps a genuine cert green (English UI)', async ({ page }) => {
-    // A visitor toggles to English and shares the URL from the address bar —
-    // the extra lang param is UI state, not cert data, and must not flip the
-    // verification result.
     await page.goto(`${verifyUrl(CERT_FIELDS)}&lang=en`);
     await expect(page.getByText('✓ The certificate is valid')).toBeVisible();
 });
 
 test('a tracking param appended by a sharing channel does not break verification', async ({ page }) => {
-    // Messaging/social apps commonly append params like fbclid/utm_source
-    // when a link is shared. With a schema loaded, the verifier only hashes
-    // the schema's declared fields (+ id) — any extra param is ignored.
     await page.goto(`${verifyUrl(CERT_FIELDS)}&fbclid=abc123&utm_source=whatsapp`);
     await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible();
 });
+
+const SETTLE_MS = 400;
+async function urlAfterSettling(page: import('@playwright/test').Page): Promise<string> {
+    await page.waitForTimeout(SETTLE_MS);
+    return page.url();
+}
 
 test('clicking English is a local UI toggle — it does not touch the URL', async ({ page }) => {
     await page.goto(verifyUrl(CERT_FIELDS));
@@ -61,7 +58,35 @@ test('clicking English is a local UI toggle — it does not touch the URL', asyn
 
     await page.getByRole('button', { name: 'English' }).click();
     await expect(page.getByText('✓ The certificate is valid')).toBeVisible();
-    expect(new URL(page.url()).searchParams.has('lang')).toBe(false);
+    expect(new URL(await urlAfterSettling(page)).searchParams.has('lang')).toBe(false);
+});
+
+test('no interaction on the verify page alters the URL', async ({ page }) => {
+    await page.goto(verifyUrl(CERT_FIELDS));
+    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible();
+    const before = page.url();
+
+    await page.getByRole('button', { name: 'English' }).click();
+    await expect(page.getByText('✓ The certificate is valid')).toBeVisible();
+    expect(await urlAfterSettling(page)).toBe(before);
+
+    await page.getByRole('button', { name: 'Norsk' }).click();
+    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible();
+    expect(await urlAfterSettling(page)).toBe(before);
+
+    await page.getByLabel('Gruppe').fill('Styret');
+    await expect(page.getByText('✗ Attesten er ugyldig')).toBeVisible();
+    expect(await urlAfterSettling(page)).toBe(before);
+});
+
+test('an existing lang param survives toggling untouched', async ({ page }) => {
+    await page.goto(`${verifyUrl(CERT_FIELDS)}&lang=en`);
+    await expect(page.getByText('✓ The certificate is valid')).toBeVisible();
+    const before = page.url();
+
+    await page.getByRole('button', { name: 'Norsk' }).click();
+    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible();
+    expect(await urlAfterSettling(page)).toBe(before);
 });
 
 test('tampered params verify red', async ({ page }) => {
