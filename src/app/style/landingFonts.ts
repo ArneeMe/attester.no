@@ -1,31 +1,21 @@
-import { IBM_Plex_Mono, Roboto, Source_Serif_4 } from 'next/font/google';
+import localFont from 'next/font/local';
 
-const serif = Source_Serif_4({
-    subsets: ['latin'],
-    weight: ['400', '600'],
+const sourceSerif4 = localFont({
+    src: [{ path: '../fonts/source-serif-4-latin-variable.woff2', weight: '400 600', style: 'normal' }],
     variable: '--landing-serif',
     display: 'swap',
     fallback: ['Georgia', 'serif'],
 });
 
-const mono = IBM_Plex_Mono({
-    subsets: ['latin'],
-    weight: ['400', '500'],
-    variable: '--landing-mono',
-    display: 'swap',
-    fallback: ['monospace'],
-});
-
-const body = Roboto({
-    subsets: ['latin'],
-    weight: ['400', '500', '700'],
+const ibmPlexSans = localFont({
+    src: [{ path: '../fonts/ibm-plex-sans-latin-variable.woff2', weight: '400 700', style: 'normal' }],
     variable: '--landing-body',
     display: 'swap',
     fallback: ['Helvetica', 'Arial', 'sans-serif'],
 });
 
-export const landingFontClass = `${serif.variable} ${mono.variable} ${body.variable}`;
+export const landingFontClass = `${sourceSerif4.variable} ${ibmPlexSans.variable}`;
 
 export const fontSerif = 'var(--landing-serif), Georgia, serif';
-export const fontMono = 'var(--landing-mono), monospace';
 export const fontBody = 'var(--landing-body), Helvetica, Arial, sans-serif';
+export const fontMono = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
