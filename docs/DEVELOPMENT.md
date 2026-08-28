@@ -106,9 +106,9 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
    affected tables.
 3. Env vars live in Cloudflare Pages: `NEXT_PUBLIC_NHOST_*`,
    `NHOST_ADMIN_SECRET`, `NHOST_JWT_SECRET`, optional `PLATFORM_ADMIN_EMAILS`
-   (unset ⇒ `/admin` disabled), optional `UNLISTED_ORG_SLUGS` (see below) and
-   optional `RESEND_API_KEY` + `NOTIFY_EMAIL_FROM` (used **only** for invite
-   emails; unset ⇒ the invite dialog shows the link to copy manually).
+   (unset ⇒ `/admin` disabled) and optional `RESEND_API_KEY` +
+   `NOTIFY_EMAIL_FROM` (used **only** for invite emails; unset ⇒ the invite
+   dialog shows the link to copy manually).
 4. One-time Nhost setup (Settings → Auth):
    - **Allowed Redirect URLs** must contain every origin you use, with the
      `/login/reset` path — production, `http://localhost:3000`, and a

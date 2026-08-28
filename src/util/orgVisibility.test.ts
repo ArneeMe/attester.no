@@ -1,24 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { parseUnlistedSlugs, withoutUnlisted } from './orgVisibility';
+import {
+    UNLISTED_ORG_SLUGS,
+    isUnlisted,
+    normalizeSlugs,
+    withoutUnlisted,
+} from './orgVisibility';
 
-describe('parseUnlistedSlugs', () => {
-    it('returns an empty set when the variable is unset', () => {
-        expect(parseUnlistedSlugs(undefined).size).toBe(0);
-        expect(parseUnlistedSlugs(null).size).toBe(0);
-        expect(parseUnlistedSlugs('').size).toBe(0);
+describe('normalizeSlugs', () => {
+    it('trims and lowercases so casing in the constant does not matter', () => {
+        expect([...normalizeSlugs([' Test-Org ', 'DEMO'])].sort()).toEqual(['demo', 'test-org']);
     });
 
-    it('splits on commas and trims surrounding whitespace', () => {
-        const set = parseUnlistedSlugs('test-org, staging-org ,demo');
-        expect([...set].sort()).toEqual(['demo', 'staging-org', 'test-org']);
+    it('drops blank entries', () => {
+        expect([...normalizeSlugs(['a', '', '  ', 'b'])].sort()).toEqual(['a', 'b']);
     });
 
-    it('drops blank entries from sloppy input', () => {
-        expect([...parseUnlistedSlugs('a,,b, ,')].sort()).toEqual(['a', 'b']);
-    });
-
-    it('lowercases entries so casing in the env var does not matter', () => {
-        expect(parseUnlistedSlugs('Test-Org').has('test-org')).toBe(true);
+    it('returns an empty set for an empty list', () => {
+        expect(normalizeSlugs([]).size).toBe(0);
     });
 });
 
@@ -29,31 +27,65 @@ describe('withoutUnlisted', () => {
         { slug: 'brodkokeri', name: 'Brødkokeri' },
     ];
 
-    it('returns the list untouched when nothing is unlisted', () => {
+    it('returns the same array instance when nothing is unlisted', () => {
         expect(withoutUnlisted(orgs, new Set())).toBe(orgs);
     });
 
     it('removes only the named slugs', () => {
-        const result = withoutUnlisted(orgs, new Set(['test-org']));
+        const result = withoutUnlisted(orgs, normalizeSlugs(['test-org']));
         expect(result.map((o) => o.slug)).toEqual(['echo', 'brodkokeri']);
     });
 
-    it('preserves the incoming order so order_by still holds', () => {
-        const result = withoutUnlisted(orgs, new Set(['echo']));
+    it('preserves the incoming order so the query order_by still holds', () => {
+        const result = withoutUnlisted(orgs, normalizeSlugs(['echo']));
         expect(result.map((o) => o.slug)).toEqual(['test-org', 'brodkokeri']);
     });
 
     it('matches case-insensitively against the org slug', () => {
-        const result = withoutUnlisted([{ slug: 'Test-Org', name: 'Test' }], new Set(['test-org']));
+        const result = withoutUnlisted(
+            [{ slug: 'Test-Org', name: 'Test' }],
+            normalizeSlugs(['test-org']),
+        );
         expect(result).toEqual([]);
     });
 
-    it('ignores slugs in the denylist that match no org', () => {
-        expect(withoutUnlisted(orgs, new Set(['nope'])).length).toBe(3);
+    it('ignores unlisted slugs that match no org', () => {
+        expect(withoutUnlisted(orgs, normalizeSlugs(['nope'])).length).toBe(3);
     });
 
     it('can empty the list entirely', () => {
-        const all = new Set(orgs.map((o) => o.slug));
-        expect(withoutUnlisted(orgs, all)).toEqual([]);
+        expect(withoutUnlisted(orgs, normalizeSlugs(orgs.map((o) => o.slug)))).toEqual([]);
+    });
+
+    it('does not mutate the input', () => {
+        const input = [...orgs];
+        withoutUnlisted(input, normalizeSlugs(['echo']));
+        expect(input).toEqual(orgs);
+    });
+});
+
+describe('the shipped UNLISTED_ORG_SLUGS constant', () => {
+    it('holds only lowercase, trimmed, non-empty slugs', () => {
+        // Guards the one failure mode a constant has: an entry that looks
+        // right in the diff but never matches, silently leaving a test org
+        // on the front page.
+        for (const slug of UNLISTED_ORG_SLUGS) {
+            expect(slug).toBe(slug.trim().toLowerCase());
+            expect(slug.length).toBeGreaterThan(0);
+        }
+    });
+
+    it('has no duplicates', () => {
+        expect(new Set(UNLISTED_ORG_SLUGS).size).toBe(UNLISTED_ORG_SLUGS.length);
+    });
+
+    it('agrees with isUnlisted for every entry', () => {
+        for (const slug of UNLISTED_ORG_SLUGS) {
+            expect(isUnlisted(slug)).toBe(true);
+        }
+    });
+
+    it('does not hide an org that is not in the list', () => {
+        expect(isUnlisted('an-org-that-is-not-listed-anywhere')).toBe(false);
     });
 });
