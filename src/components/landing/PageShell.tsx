@@ -6,10 +6,6 @@ import { c, gutter, mono, pageMaxWidth } from '@/app/style/tokens';
 
 type Props = { lang?: string; children: React.ReactNode };
 
-// The body margin reset and the paper background used to live here as scoped
-// GlobalStyles, because the app shipped no CssBaseline. Both are now global:
-// CssBaseline is mounted in src/app/style/rootLayout.tsx and paints
-// palette.background.default, which is the same token.
 const PageShell: React.FC<Props> = ({ lang, children }) => (
     <Box sx={{ minHeight: '100vh', background: c.paper, color: c.ink }}>
         <Box sx={{ maxWidth: pageMaxWidth, mx: 'auto' }}>

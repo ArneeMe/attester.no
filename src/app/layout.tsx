@@ -30,9 +30,6 @@ export const metadata: Metadata = {
     },
 };
 
-// The font-variable class sits on <html> so every page can use the typography,
-// not just the ones wrapped in PageShell. The MUI theme reads these variables,
-// so without it the admin and auth pages fall back to Helvetica.
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="no" className={landingFontClass}>

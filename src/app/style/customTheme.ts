@@ -2,18 +2,8 @@ import { createTheme } from "@mui/material/styles";
 import { c } from "@/app/style/tokens";
 import { fontBody, fontSerif } from "@/app/style/landingFonts";
 
-// The MUI theme is derived from the same tokens the landing page uses
-// (src/app/style/tokens.ts), so the two styling routes cannot drift apart.
-//
-// This is where design consistency is cheapest to buy: the admin, auth and
-// form pages are built almost entirely from stock MUI components — ~80
-// <Typography>, ~44 <Button>, ~30 <TextField>, ~27 <Paper>, and only two
-// hardcoded colours between them. Setting palette, typography and component
-// defaults here restyles all of it without touching those files. Prefer
-// adding a default here over sx overrides scattered across pages.
-//
-// Font variables come from landingFonts and are attached to <html> in
-// src/app/layout.tsx — not in PageShell — so they resolve on every page.
+// Admin and auth are built from stock MUI, so component defaults here restyle
+// them without touching those files. Prefer adding a default over per-page sx.
 
 export const customTheme = createTheme({
     palette: {
@@ -26,14 +16,10 @@ export const customTheme = createTheme({
         divider: c.rule,
     },
 
-    // 2px, matching the `field` token. The landing page's flat, papery look
-    // depends on corners staying nearly square.
     shape: { borderRadius: 2 },
 
     typography: {
         fontFamily: fontBody,
-        // Headings are the serif; body copy is not. Sizes track the landing
-        // page's h1/h2 rather than MUI's defaults, which run much larger.
         h1: { fontFamily: fontSerif, fontWeight: 400, fontSize: 'clamp(28px, 4vw, 40px)', lineHeight: 1.15, letterSpacing: '-0.01em' },
         h2: { fontFamily: fontSerif, fontWeight: 400, fontSize: 26, lineHeight: 1.25 },
         h3: { fontFamily: fontSerif, fontWeight: 400, fontSize: 22, lineHeight: 1.3 },
@@ -48,18 +34,12 @@ export const customTheme = createTheme({
     components: {
         MuiCssBaseline: {
             styleOverrides: {
-                // Plain <a> and next/link render real anchors, which MuiLink's
-                // overrides never touch — without this they stay browser-blue
-                // on every page that does not set a colour by hand (all of
-                // admin and auth). Only the colour is set: anchors keep the
-                // browser's underline, which is the accessible default and
-                // what the landing page already looks like.
+                // Plain <a>/next/link are not MuiLink; without this they render
+                // browser-blue. Underline left to the browser default.
                 a: { color: c.accent, '&:hover': { color: c.accentHover } },
             },
         },
 
-        // Flat by default. The design has no elevation; borders carry the
-        // structure instead, so shadows read as a different product.
         MuiPaper: {
             defaultProps: { elevation: 0 },
             styleOverrides: {
