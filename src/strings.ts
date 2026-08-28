@@ -12,6 +12,14 @@ import { ISSUED_RETENTION_HOURS } from '@/util/retention';
 
 export type Lang = 'no' | 'en';
 
+/**
+ * A landing-page FAQ entry. `email` is optional: when set, the page renders it
+ * as a mailto link under the answer. Declared as a named type so the `no`
+ * literal widens to a single shape — without it TypeScript infers a union of
+ * "with email" and "without email" objects and `item.email` stops resolving.
+ */
+type FaqItem = { q: string; a: string; email?: string };
+
 const no = {
     common: {
         cancel: 'Avbryt',
@@ -19,7 +27,7 @@ const no = {
     },
     landing: {
         tagline: 'Digitalt verifiserbare attester for frivillige, uten at personopplysninger lagres.',
-        heroTitle: 'En attest er verdt noe bare hvis den kan etterprøves.',
+        heroTitle: 'Attester som er etterprøvbare.',
         heroLede: 'attester.no gir deg dokumentasjon på verv, arbeid eller kurs du har fullført. Hver attest har en QR-kode, så alle kan se at den er ekte.',
         steps: [
             { numeral: 'I', title: 'Send inn', text: 'Fyll ut navn, verv og tidsperiode i skjemaet til organisasjonen din.' },
@@ -31,8 +39,6 @@ const no = {
         orgsCta: 'Søk om attest',
         orgsEmpty: 'Ingen organisasjon heter det. Er den ikke satt opp ennå, send oss en epost på',
         orgsFailed: 'Fikk ikke hentet organisasjonene akkurat nå. Last siden på nytt, eller gå rett til adressen til organisasjonen din.',
-        forOrgsTitle: 'For organisasjoner',
-        forOrgsBody: 'Vil dere utstede attester til deres frivillige? Vi setter opp organisasjon, maler og administratorer.',
         verifyTitle: 'Har du fått en attest?',
         verifyBody: 'Skann QR-koden på attesten, eller lim inn lenken her for å sjekke at den er ekte.',
         verifyPlaceholder: 'attester.no/org/…/verify?…',
@@ -40,8 +46,8 @@ const no = {
         verifyError: 'Dette ser ikke ut som en attestlenke. Den skal inneholde /verify og en kode.',
         faq: [
             { q: 'Hva lagrer dere om meg?', a: 'Et fingeravtrykk av innholdet, hvilken mal som ble brukt, organisasjonen og tidspunktet. Ingen navn, verv eller datoer.' },
-            { q: 'Organisasjonen min mangler', a: 'Da er de ikke satt opp ennå. Send oss en epost, eller be dem gjøre det.' },
-        ],
+            { q: 'Organisasjonen min mangler', a: 'Vil dere utstede attester til deres frivillige? Sett opp en mal og kom i gang!', email: 'hei@attester.no' },
+        ] as FaqItem[],
         aboutLink: 'Les mer om hvordan attester.no fungerer og hva som lagres',
         adminLogin: 'Innlogging for admin',
     },
@@ -439,7 +445,7 @@ const en: Strings = {
     },
     landing: {
         tagline: 'Digitally verifiable certificates for volunteers, without storing personal data.',
-        heroTitle: 'A certificate is only worth something if it can be checked.',
+        heroTitle: 'Certificates that can be checked.',
         heroLede: 'attester.no gives you documentation for roles, work or courses you have completed. Every certificate carries a QR code, so anyone can see that it is genuine.',
         steps: [
             { numeral: 'I', title: 'Send it in', text: 'Fill in your name, role and dates in your organization’s form.' },
@@ -451,8 +457,6 @@ const en: Strings = {
         orgsCta: 'Request a certificate',
         orgsEmpty: 'No organization by that name. If they are not set up yet, send us an email at',
         orgsFailed: 'Could not load the organizations right now. Reload the page, or go straight to your organization’s address.',
-        forOrgsTitle: 'For organizations',
-        forOrgsBody: 'Do you want to issue certificates to your volunteers? We set up the organization, templates and administrators.',
         verifyTitle: 'Received a certificate?',
         verifyBody: 'Scan the QR code on the certificate, or paste the link here to check that it is genuine.',
         verifyPlaceholder: 'attester.no/org/…/verify?…',
@@ -460,7 +464,7 @@ const en: Strings = {
         verifyError: 'That does not look like a certificate link. It should contain /verify and a code.',
         faq: [
             { q: 'What do you store about me?', a: 'A fingerprint of the contents, which template was used, the organization and the time. No names, roles or dates.' },
-            { q: 'My organization is missing', a: 'Then they are not set up yet. Send us an email, or ask them to get in touch.' },
+            { q: 'My organization is missing', a: 'Do you want to issue certificates to your volunteers? Set up a template and get started!', email: 'hei@attester.no' },
         ],
         aboutLink: 'Read more about how attester.no works and what is stored',
         adminLogin: 'Admin login',

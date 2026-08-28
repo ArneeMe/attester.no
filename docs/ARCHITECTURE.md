@@ -85,6 +85,11 @@ URL param, for the same reason.
 - Platform-level actions (`/api/admin/*`) additionally require the caller's
   `auth.users` email to be on the `PLATFORM_ADMIN_EMAILS` env allowlist
   (`src/lib/server/platformAdmin.ts`). Unset ⇒ surface disabled.
+- `UNLISTED_ORG_SLUGS` (a constant in `src/util/orgVisibility.ts`, applied in
+  `listPublicOrgs`) hides orgs from the front-page picker and the sitemap.
+  Edit the list and deploy. It is a **discovery** filter, not access control:
+  `/org/<slug>` still serves an unlisted org, by design, so test orgs stay
+  testable. Never treat an unlisted slug as secret.
 - The anonymous submissions POST is size-capped (64 KB body, per-field
   length limit) and enforces a flat string→string data shape. There is no
   rate limiter: the in-memory one was dropped because per-isolate state on
