@@ -10,7 +10,7 @@ import PageShell from '@/components/landing/PageShell';
 import OrgPicker from '@/components/landing/OrgPicker';
 import SplitSection from '@/components/landing/SplitSection';
 import VerifyLinkForm from '@/components/landing/VerifyLinkForm';
-import { body, c, dividedRows, gutter, lede } from '@/components/landing/tokens';
+import { body, c, dividedRows, gutter, lede } from '@/app/style/tokens';
 
 export const runtime = 'edge';
 

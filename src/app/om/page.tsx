@@ -7,7 +7,7 @@ import { publicPageMetadata } from '@/util/seo';
 import { fontSerif } from '@/app/style/landingFonts';
 import PageShell from '@/components/landing/PageShell';
 import SplitSection from '@/components/landing/SplitSection';
-import { body, c, dividedRows, gutter, h2, lede } from '@/components/landing/tokens';
+import { body, c, dividedRows, gutter, h2, lede } from '@/app/style/tokens';
 
 export const runtime = 'edge';
 

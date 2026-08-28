@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 import Link from 'next/link';
 import LanguageToggle from '@/components/LanguageToggle';
 import { fontSerif } from '@/app/style/landingFonts';
-import { c, gutter } from './tokens';
+import { c, gutter } from '@/app/style/tokens';
 
 type Props = { adminLogin: string; lang?: string };
 
