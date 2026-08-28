@@ -23,8 +23,9 @@
  * the slug column. Empty means every org is listed.
  */
 export const UNLISTED_ORG_SLUGS: readonly string[] = [
-    // 'brodkokeri',
-    // 'melbod',
+    'brodkokeri', // Arnes Brødkokeri AS — test org
+    'melbod', // Arnes Melbod OY — test org
+    'test', // Test Organisation
 ];
 
 /** Normalize a slug list into a lookup set: trimmed, lowercased, blanks dropped. */

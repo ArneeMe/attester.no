@@ -88,4 +88,16 @@ describe('the shipped UNLISTED_ORG_SLUGS constant', () => {
     it('does not hide an org that is not in the list', () => {
         expect(isUnlisted('an-org-that-is-not-listed-anywhere')).toBe(false);
     });
+
+    it('hides the three known test orgs and nothing else', () => {
+        // Regression guard: if one of these is dropped from the constant by
+        // accident, a test org reappears on the front page and in the sitemap.
+        const orgs = [
+            { slug: 'brodkokeri', name: 'Arnes Brødkokeri AS' },
+            { slug: 'melbod', name: 'Arnes Melbod OY' },
+            { slug: 'test', name: 'Test Organisation' },
+            { slug: 'echo', name: 'echo' },
+        ];
+        expect(withoutUnlisted(orgs).map((o) => o.slug)).toEqual(['echo']);
+    });
 });
