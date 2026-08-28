@@ -10,7 +10,7 @@ import PageShell from '@/components/landing/PageShell';
 import OrgPicker from '@/components/landing/OrgPicker';
 import SplitSection from '@/components/landing/SplitSection';
 import VerifyLinkForm from '@/components/landing/VerifyLinkForm';
-import { body, c, dividedRows, gutter, h2, lede } from '@/components/landing/tokens';
+import { body, c, dividedRows, gutter, lede } from '@/components/landing/tokens';
 
 export const runtime = 'edge';
 
@@ -105,22 +105,6 @@ export default async function Home({
                                 </Box>
                             ))}
                         </Box>
-
-                        <Box sx={{ mt: 5, pt: 3.5, borderTop: `1px solid ${c.ruleSoft}` }}>
-                            <Box component="h2" sx={h2}>
-                                {s.forOrgsTitle}
-                            </Box>
-                            <Box component="p" sx={{ ...body, mt: 1.25, mb: 1.75 }}>
-                                {s.forOrgsBody}
-                            </Box>
-                            <Box
-                                component="a"
-                                href="mailto:hei@attester.no"
-                                sx={{ fontSize: 14.5, color: c.accent }}
-                            >
-                                hei@attester.no
-                            </Box>
-                        </Box>
                     </>
                 }
                 right={
@@ -164,6 +148,15 @@ export default async function Home({
                                     sx={{ ...body, fontSize: 14, mt: 0.75, mx: 0, mb: 0 }}
                                 >
                                     {item.a}
+                                    {item.email && (
+                                        <Box
+                                            component="a"
+                                            href={`mailto:${item.email}`}
+                                            sx={{ display: 'block', mt: 1, color: c.accent }}
+                                        >
+                                            {item.email}
+                                        </Box>
+                                    )}
                                 </Box>
                             </Box>
                         ))}

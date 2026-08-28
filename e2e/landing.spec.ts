@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
 test('landing page renders without a database', async ({ page }) => {
     await page.goto('/');
     await expect(
-        page.getByRole('heading', { name: 'En attest er verdt noe bare hvis den kan etterprøves.' }),
+        page.getByRole('heading', { name: 'Attester som er etterprøvbare.' }),
     ).toBeVisible();
     await expect(page.getByText('Fikk ikke hentet organisasjonene')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Innlogging for admin' })).toBeVisible();
@@ -15,7 +15,7 @@ test('landing page renders without a database', async ({ page }) => {
 test('?lang=en renders the English strings and links to /om', async ({ page }) => {
     await page.goto('/?lang=en');
     await expect(
-        page.getByRole('heading', { name: 'A certificate is only worth something if it can be checked.' }),
+        page.getByRole('heading', { name: 'Certificates that can be checked.' }),
     ).toBeVisible();
 
     await page.getByRole('link', { name: /Read more about how attester.no works/ }).click();
