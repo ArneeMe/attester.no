@@ -31,6 +31,14 @@ describe('buildCertParams', () => {
         expect(p.get('name')).toBe('Ola');
     });
 
+    it('never bakes the reserved lang key into a cert', () => {
+        // 'lang' is the verify page's UI language switch; the verifier strips
+        // it before hashing, so the issuer must never include it.
+        const p = buildCertParams('tmpl-1', 'sub-1', { name: 'Ola', lang: 'en' });
+        expect(p.has('lang')).toBe(false);
+        expect(p.get('name')).toBe('Ola');
+    });
+
     it('produces the same params for the same input (deterministic)', () => {
         const a = buildCertParams('t', 's', { name: 'Ola', role: 'Leder' });
         const b = buildCertParams('t', 's', { name: 'Ola', role: 'Leder' });

@@ -1,9 +1,12 @@
 'use client'
 import React, { useEffect, useState } from 'react';
-import { login, useAuth } from '@/util/auth';
+import Link from 'next/link';
+import { login, redeemInvite, useAuth } from '@/util/auth';
 import { Box, Button, CircularProgress, Container, TextField, Typography } from '@mui/material';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/ToastProvider';
+import { getStrings } from '@/strings';
+import LanguageToggle from '@/components/LanguageToggle';
 
 const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -11,6 +14,11 @@ const LoginPage: React.FC = () => {
     const [busy, setBusy] = useState(false);
     const currentUser = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const lang = searchParams.get('lang');
+    const inviteToken = searchParams.get('invite');
+    const s = getStrings(lang).auth;
+    const withLang = (path: string) => (lang === 'en' ? `${path}?lang=en` : path);
     const toast = useToast();
 
     useEffect(() => {
@@ -25,10 +33,18 @@ const LoginPage: React.FC = () => {
         setBusy(true);
         try {
             await login(email, password);
+            if (inviteToken) {
+                try {
+                    const orgName = await redeemInvite(inviteToken);
+                    toast.success(s.inviteJoined(orgName));
+                } catch (e) {
+                    toast.error((e as Error).message);
+                }
+            }
             router.push('/login/adminpage');
         } catch (error) {
             console.error('Login failed:', error);
-            const msg = (error as { message?: string }).message ?? 'Innlogging feilet';
+            const msg = (error as { message?: string }).message ?? s.loginFailed;
             toast.error(msg);
         } finally {
             setBusy(false);
@@ -46,7 +62,7 @@ const LoginPage: React.FC = () => {
                 }}
             >
                 <Typography component="h1" variant="h5">
-                    Logg inn
+                    {s.loginTitle}
                 </Typography>
                 <Box component="form" onSubmit={handleLogin} sx={{ mt: 1, width: '100%' }}>
                     <TextField
@@ -54,7 +70,7 @@ const LoginPage: React.FC = () => {
                         margin="normal"
                         required
                         fullWidth
-                        label="E-post"
+                        label={s.email}
                         autoComplete="email"
                         autoFocus
                         value={email}
@@ -66,7 +82,7 @@ const LoginPage: React.FC = () => {
                         margin="normal"
                         required
                         fullWidth
-                        label="Passord"
+                        label={s.password}
                         type="password"
                         autoComplete="current-password"
                         value={password}
@@ -80,8 +96,19 @@ const LoginPage: React.FC = () => {
                         sx={{ mt: 3, mb: 2 }}
                         disabled={busy || !email || !password}
                     >
-                        {busy ? <CircularProgress size={20} /> : 'Logg Inn'}
+                        {busy ? <CircularProgress size={20} /> : s.loginButton}
                     </Button>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Link href={withLang('/login/glemt')} style={{ fontSize: '0.875rem' }}>
+                            {s.forgotPassword}
+                        </Link>
+                        <Link href={withLang('/registrer')} style={{ fontSize: '0.875rem' }}>
+                            {s.registerLink}
+                        </Link>
+                    </Box>
+                    <Box sx={{ mt: 2, textAlign: 'center' }}>
+                        <LanguageToggle />
+                    </Box>
                 </Box>
             </Box>
         </Container>

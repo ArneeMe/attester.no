@@ -30,6 +30,8 @@ import {
 import { getTemplates } from '@/util/databaseInteractions/templateService';
 import { countTemplatesUsingAsset } from '@/util/assetUsage';
 import type { PDFTemplate } from '@/types/templateTypes';
+import { useAdminLang } from '@/util/useAdminLang';
+import type { Strings } from '@/strings';
 import type {
     BodyTextContent,
     LogoContent,
@@ -57,16 +59,18 @@ function TabPanel({ children, value, index }: TabPanelProps) {
  * Wraps an async save with consistent toast + saving-flag handling so each
  * row component doesn't need its own try/catch/finally boilerplate.
  */
-function useSaveHandler(label: string, fn: () => Promise<void>) {
+type ContentStrings = Strings['admin']['content'];
+
+function useSaveHandler(label: string, c: ContentStrings, fn: () => Promise<void>) {
     const toast = useToast();
     const [saving, setSaving] = useState(false);
     const save = async () => {
         setSaving(true);
         try {
             await fn();
-            toast.success(`${label} lagret`);
+            toast.success(c.saved(label));
         } catch (e) {
-            toast.error(`Kunne ikke lagre ${label}: ${(e as Error).message}`);
+            toast.error(c.saveError(label) + (e as Error).message);
         } finally {
             setSaving(false);
         }
@@ -87,6 +91,8 @@ const TAB_BY_KIND: Record<string, number> = {
 const RedigerPage: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
     const searchParams = useSearchParams();
+    const { strings } = useAdminLang();
+    const c = strings.admin.content;
     const toast = useToast();
     const [tab, setTab] = useState(() => TAB_BY_KIND[searchParams.get('tab') ?? ''] ?? 0);
     const [loading, setLoading] = useState(true);
@@ -99,7 +105,7 @@ const RedigerPage: React.FC = () => {
             setAssets(a);
             setTemplates(t);
         } catch (e) {
-            toast.error('Kunne ikke laste innholdsbiblioteket: ' + (e as Error).message);
+            toast.error(c.loadError + (e as Error).message);
         }
     };
 
@@ -128,18 +134,17 @@ const RedigerPage: React.FC = () => {
     return (
         <Box>
             <Typography variant="h4" gutterBottom>
-                Innholdsbibliotek
+                {c.title}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Det du legger inn her kan gjenbrukes på tvers av maler. Sett ting som
-                «standard» for å bruke dem som default på nye attester.
+                {c.intro}
             </Typography>
 
             <Tabs value={tab} onChange={(_, v) => setTab(v)}>
-                <Tab label={`Signaturer (${signatures.length})`} />
-                <Tab label={`Logoer (${logos.length})`} />
-                <Tab label={`Tekstblokker (${bodyTexts.length})`} />
-                <Tab label={`Oppslagslister (${lookupLists.length})`} />
+                <Tab label={c.tabSignatures(signatures.length)} />
+                <Tab label={c.tabLogos(logos.length)} />
+                <Tab label={c.tabBodyTexts(bodyTexts.length)} />
+                <Tab label={c.tabLookupLists(lookupLists.length)} />
             </Tabs>
 
             <TabPanel value={tab} index={0}>
@@ -167,7 +172,7 @@ type PanelProps = {
     templates: PDFTemplate[];
 };
 
-function UsageBadge({ assetId, templates }: { assetId: string; templates: PDFTemplate[] }) {
+function UsageBadge({ assetId, templates, c }: { assetId: string; templates: PDFTemplate[]; c: ContentStrings }) {
     const n = countTemplatesUsingAsset(assetId, templates);
     if (n === 0) return null;
     return (
@@ -176,30 +181,27 @@ function UsageBadge({ assetId, templates }: { assetId: string; templates: PDFTem
             color="text.secondary"
             sx={{ ml: 1, px: 1, py: 0.25, bgcolor: 'action.hover', borderRadius: 1 }}
         >
-            i bruk av {n} {n === 1 ? 'mal' : 'maler'}
+            {c.usage(n)}
         </Typography>
     );
 }
 
-function EmptyAssetState({ label }: { label: string }) {
+function EmptyAssetState({ plural, c }: { plural: string; c: ContentStrings }) {
     return (
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
-            Ingen {label} enda. Legg til en under for å bruke i PDF-malene dine.
+            {c.emptyState(plural)}
         </Typography>
     );
 }
 
-function confirmDelete(thing: string, usage: number): boolean {
+function confirmDelete(definite: string, usage: number, c: ContentStrings): boolean {
     if (usage === 0) {
-        return confirm(`Slette denne ${thing}?`);
+        return confirm(c.confirmDelete(definite));
     }
-    const plural = usage === 1 ? 'mal' : 'maler';
-    return confirm(
-        `Denne ${thing} er i bruk av ${usage} ${plural}.\n\nSletting tømmer PDF-feltene som refererer til den. Sikker?`,
-    );
+    return confirm(c.confirmDeleteUsed(definite, usage));
 }
 
-function useAdd(orgSlug: string, reload: () => Promise<void>, label: string) {
+function useAdd(orgSlug: string, reload: () => Promise<void>, label: string, c: ContentStrings) {
     const toast = useToast();
     return async (
         body: { kind: OrgAsset['kind']; name: string; content: OrgAsset['content']; sortOrder?: number; isDefault?: boolean },
@@ -207,22 +209,22 @@ function useAdd(orgSlug: string, reload: () => Promise<void>, label: string) {
         try {
             await createOrgAsset(orgSlug, body);
             await reload();
-            toast.success(`${label} lagt til`);
+            toast.success(c.added(label));
         } catch (e) {
-            toast.error(`Kunne ikke legge til: ${(e as Error).message}`);
+            toast.error(c.addError + (e as Error).message);
         }
     };
 }
 
-function useDelete(orgSlug: string, reload: () => Promise<void>, label: string) {
+function useDelete(orgSlug: string, reload: () => Promise<void>, label: string, c: ContentStrings) {
     const toast = useToast();
     return async (id: string) => {
         try {
             await deleteOrgAsset(orgSlug, id);
             await reload();
-            toast.success(`${label} slettet`);
+            toast.success(c.deleted(label));
         } catch (e) {
-            toast.error(`Kunne ikke slette: ${(e as Error).message}`);
+            toast.error(c.deleteError + (e as Error).message);
         }
     };
 }
@@ -230,17 +232,19 @@ function useDelete(orgSlug: string, reload: () => Promise<void>, label: string) 
 // ───────────── Signatures ─────────────
 
 const SignaturesPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templates }) => {
-    const add = useAdd(orgSlug, reload, 'Signatur');
+    const { strings } = useAdminLang();
+    const c = strings.admin.content;
+    const add = useAdd(orgSlug, reload, c.kinds.signature.label, c);
     return (
         <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-                Signaturer
+                {c.signaturesTitle}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Personer som signerer attestene (navn, rolle, telefon, bilde).
+                {c.signaturesIntro}
             </Typography>
 
-            {assets.length === 0 && <EmptyAssetState label="signaturer" />}
+            {assets.length === 0 && <EmptyAssetState plural={c.kinds.signature.plural} c={c} />}
 
             {assets.map((a) => (
                 <SignatureRow key={a.id} orgSlug={orgSlug} asset={a} reload={reload} templates={templates} />
@@ -251,14 +255,14 @@ const SignaturesPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templa
                 onClick={() =>
                     add({
                         kind: 'signature',
-                        name: 'Ny signatur',
+                        name: c.kinds.signature.newName,
                         content: { photo: '', role: '', phone: '' } as SignatureContent,
                         isDefault: true,
                         sortOrder: assets.length,
                     })
                 }
             >
-                Legg til signatur
+                {c.kinds.signature.addButton}
             </Button>
         </Paper>
     );
@@ -270,14 +274,16 @@ const SignatureRow: React.FC<{
     reload: () => Promise<void>;
     templates: PDFTemplate[];
 }> = ({ orgSlug, asset, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const cs = strings.admin.content;
     const c = asset.content as SignatureContent;
     const [name, setName] = useState(asset.name);
     const [role, setRole] = useState(c.role ?? '');
     const [phone, setPhone] = useState(c.phone ?? '');
     const [photo, setPhoto] = useState(c.photo ?? '');
     const [isDefault, setIsDefault] = useState(asset.isDefault);
-    const remove = useDelete(orgSlug, reload, 'Signatur');
-    const { saving, save } = useSaveHandler('Signatur', () =>
+    const remove = useDelete(orgSlug, reload, cs.kinds.signature.label, cs);
+    const { saving, save } = useSaveHandler(cs.kinds.signature.label, cs, () =>
         updateOrgAsset(orgSlug, asset.id, { name, content: { photo, role, phone }, isDefault }).then(() => undefined),
     );
 
@@ -287,22 +293,22 @@ const SignatureRow: React.FC<{
                 <Grid size={{ xs: 12 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="subtitle1">{name || 'Uten navn'}</Typography>
-                            <UsageBadge assetId={asset.id} templates={templates} />
+                            <Typography variant="subtitle1">{name || cs.unnamed}</Typography>
+                            <UsageBadge assetId={asset.id} templates={templates} c={cs} />
                         </Box>
                         <Box>
                             <FormControlLabel
                                 control={<Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />}
-                                label="Standard"
+                                label={cs.standard}
                             />
                             <Button size="small" onClick={save} disabled={saving}>
-                                {saving ? 'Lagrer...' : 'Lagre'}
+                                {saving ? cs.savingBtn : cs.saveBtn}
                             </Button>
                             <IconButton
                                 color="error"
                                 onClick={() => {
                                     const usage = countTemplatesUsingAsset(asset.id, templates);
-                                    if (!confirmDelete('signaturen', usage)) return;
+                                    if (!confirmDelete(cs.kinds.signature.definite, usage, cs)) return;
                                     remove(asset.id);
                                 }}
                             >
@@ -312,16 +318,16 @@ const SignatureRow: React.FC<{
                     </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
-                    <TextField fullWidth label="Navn" value={name} onChange={(e) => setName(e.target.value)} />
+                    <TextField fullWidth label={cs.name} value={name} onChange={(e) => setName(e.target.value)} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
-                    <TextField fullWidth label="Rolle" value={role} onChange={(e) => setRole(e.target.value)} />
+                    <TextField fullWidth label={cs.role} value={role} onChange={(e) => setRole(e.target.value)} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
-                    <TextField fullWidth label="Telefon" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    <TextField fullWidth label={cs.phone} value={phone} onChange={(e) => setPhone(e.target.value)} />
                 </Grid>
                 <Grid size={{ xs: 12 }}>
-                    <ImageUpload label="Signaturbilde" value={photo} onChange={setPhoto} maxSizeKB={500} />
+                    <ImageUpload label={cs.signatureImage} value={photo} onChange={setPhoto} maxSizeKB={500} />
                 </Grid>
             </Grid>
         </Paper>
@@ -331,17 +337,19 @@ const SignatureRow: React.FC<{
 // ───────────── Logos ─────────────
 
 const LogosPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templates }) => {
-    const add = useAdd(orgSlug, reload, 'Logo');
+    const { strings } = useAdminLang();
+    const c = strings.admin.content;
+    const add = useAdd(orgSlug, reload, c.kinds.logo.label, c);
     return (
         <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-                Logoer
+                {c.logosTitle}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Bilder du vil plassere på attestene som logoer.
+                {c.logosIntro}
             </Typography>
 
-            {assets.length === 0 && <EmptyAssetState label="logoer" />}
+            {assets.length === 0 && <EmptyAssetState plural={c.kinds.logo.plural} c={c} />}
 
             {assets.map((a) => (
                 <LogoRow key={a.id} orgSlug={orgSlug} asset={a} reload={reload} templates={templates} />
@@ -352,14 +360,14 @@ const LogosPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templates }
                 onClick={() =>
                     add({
                         kind: 'logo',
-                        name: 'Ny logo',
+                        name: c.kinds.logo.newName,
                         content: { image: '' } as LogoContent,
                         isDefault: true,
                         sortOrder: assets.length,
                     })
                 }
             >
-                Legg til logo
+                {c.kinds.logo.addButton}
             </Button>
         </Paper>
     );
@@ -371,12 +379,14 @@ const LogoRow: React.FC<{
     reload: () => Promise<void>;
     templates: PDFTemplate[];
 }> = ({ orgSlug, asset, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const cs = strings.admin.content;
     const c = asset.content as LogoContent;
     const [name, setName] = useState(asset.name);
     const [image, setImage] = useState(c.image ?? '');
     const [isDefault, setIsDefault] = useState(asset.isDefault);
-    const remove = useDelete(orgSlug, reload, 'Logo');
-    const { saving, save } = useSaveHandler('Logo', () =>
+    const remove = useDelete(orgSlug, reload, cs.kinds.logo.label, cs);
+    const { saving, save } = useSaveHandler(cs.kinds.logo.label, cs, () =>
         updateOrgAsset(orgSlug, asset.id, { name, content: { image }, isDefault }).then(() => undefined),
     );
 
@@ -386,22 +396,22 @@ const LogoRow: React.FC<{
                 <Grid size={{ xs: 12 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <TextField label="Navn" value={name} onChange={(e) => setName(e.target.value)} size="small" />
-                            <UsageBadge assetId={asset.id} templates={templates} />
+                            <TextField label={cs.name} value={name} onChange={(e) => setName(e.target.value)} size="small" />
+                            <UsageBadge assetId={asset.id} templates={templates} c={cs} />
                         </Box>
                         <Box>
                             <FormControlLabel
                                 control={<Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />}
-                                label="Standard"
+                                label={cs.standard}
                             />
                             <Button size="small" onClick={save} disabled={saving}>
-                                {saving ? 'Lagrer...' : 'Lagre'}
+                                {saving ? cs.savingBtn : cs.saveBtn}
                             </Button>
                             <IconButton
                                 color="error"
                                 onClick={() => {
                                     const usage = countTemplatesUsingAsset(asset.id, templates);
-                                    if (!confirmDelete('logoen', usage)) return;
+                                    if (!confirmDelete(cs.kinds.logo.definite, usage, cs)) return;
                                     remove(asset.id);
                                 }}
                             >
@@ -411,7 +421,7 @@ const LogoRow: React.FC<{
                     </Box>
                 </Grid>
                 <Grid size={{ xs: 12 }}>
-                    <ImageUpload label="Logobilde" value={image} onChange={setImage} maxSizeKB={500} />
+                    <ImageUpload label={cs.logoImage} value={image} onChange={setImage} maxSizeKB={500} />
                 </Grid>
             </Grid>
         </Paper>
@@ -421,17 +431,19 @@ const LogoRow: React.FC<{
 // ───────────── Body Texts ─────────────
 
 const BodyTextsPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templates }) => {
-    const add = useAdd(orgSlug, reload, 'Tekstblokk');
+    const { strings } = useAdminLang();
+    const c = strings.admin.content;
+    const add = useAdd(orgSlug, reload, c.kinds.body_text.label, c);
     return (
         <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-                Tekstblokker
+                {c.bodyTextsTitle}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Lengre tekstavsnitt du vil gjenbruke i attester (organisasjonsinfo, ansvarsfraskrivelser, osv.).
+                {c.bodyTextsIntro}
             </Typography>
 
-            {assets.length === 0 && <EmptyAssetState label="tekstblokker" />}
+            {assets.length === 0 && <EmptyAssetState plural={c.kinds.body_text.plural} c={c} />}
 
             {assets.map((a) => (
                 <BodyTextRow key={a.id} orgSlug={orgSlug} asset={a} reload={reload} templates={templates} />
@@ -442,14 +454,14 @@ const BodyTextsPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templat
                 onClick={() =>
                     add({
                         kind: 'body_text',
-                        name: 'Ny tekstblokk',
+                        name: c.kinds.body_text.newName,
                         content: { text: '' } as BodyTextContent,
                         isDefault: true,
                         sortOrder: assets.length,
                     })
                 }
             >
-                Legg til tekstblokk
+                {c.kinds.body_text.addButton}
             </Button>
         </Paper>
     );
@@ -461,12 +473,14 @@ const BodyTextRow: React.FC<{
     reload: () => Promise<void>;
     templates: PDFTemplate[];
 }> = ({ orgSlug, asset, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const cs = strings.admin.content;
     const c = asset.content as BodyTextContent;
     const [name, setName] = useState(asset.name);
     const [text, setText] = useState(c.text ?? '');
     const [isDefault, setIsDefault] = useState(asset.isDefault);
-    const remove = useDelete(orgSlug, reload, 'Tekstblokk');
-    const { saving, save } = useSaveHandler('Tekstblokk', () =>
+    const remove = useDelete(orgSlug, reload, cs.kinds.body_text.label, cs);
+    const { saving, save } = useSaveHandler(cs.kinds.body_text.label, cs, () =>
         updateOrgAsset(orgSlug, asset.id, { name, content: { text }, isDefault }).then(() => undefined),
     );
 
@@ -476,22 +490,22 @@ const BodyTextRow: React.FC<{
                 <Grid size={{ xs: 12 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <TextField label="Tittel" value={name} onChange={(e) => setName(e.target.value)} size="small" />
-                            <UsageBadge assetId={asset.id} templates={templates} />
+                            <TextField label={cs.titleLabel} value={name} onChange={(e) => setName(e.target.value)} size="small" />
+                            <UsageBadge assetId={asset.id} templates={templates} c={cs} />
                         </Box>
                         <Box>
                             <FormControlLabel
                                 control={<Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />}
-                                label="Standard"
+                                label={cs.standard}
                             />
                             <Button size="small" onClick={save} disabled={saving}>
-                                {saving ? 'Lagrer...' : 'Lagre'}
+                                {saving ? cs.savingBtn : cs.saveBtn}
                             </Button>
                             <IconButton
                                 color="error"
                                 onClick={() => {
                                     const usage = countTemplatesUsingAsset(asset.id, templates);
-                                    if (!confirmDelete('tekstblokken', usage)) return;
+                                    if (!confirmDelete(cs.kinds.body_text.definite, usage, cs)) return;
                                     remove(asset.id);
                                 }}
                             >
@@ -507,7 +521,7 @@ const BodyTextRow: React.FC<{
                         rows={6}
                         value={text}
                         onChange={(e) => setText(e.target.value)}
-                        placeholder="Tekst..."
+                        placeholder={cs.textPlaceholder}
                     />
                 </Grid>
             </Grid>
@@ -518,19 +532,19 @@ const BodyTextRow: React.FC<{
 // ───────────── Lookup Lists ─────────────
 
 const LookupListsPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templates }) => {
-    const add = useAdd(orgSlug, reload, 'Liste');
+    const { strings } = useAdminLang();
+    const c = strings.admin.content;
+    const add = useAdd(orgSlug, reload, c.kinds.lookup_list.label, c);
     return (
         <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-                Oppslagslister
+                {c.lookupListsTitle}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Lister med navngitte oppføringer som hver kan ha en beskrivelse. Brukes
-                til nedtrekkslister i skjemaet hvor valget kan trekke inn ekstra tekst
-                på attesten (f.eks. echo sine undergrupper med beskrivelse).
+                {c.lookupListsIntro}
             </Typography>
 
-            {assets.length === 0 && <EmptyAssetState label="oppslagslister" />}
+            {assets.length === 0 && <EmptyAssetState plural={c.kinds.lookup_list.plural} c={c} />}
 
             {assets.map((a) => (
                 <LookupListRow key={a.id} orgSlug={orgSlug} asset={a} reload={reload} templates={templates} />
@@ -541,14 +555,14 @@ const LookupListsPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templ
                 onClick={() =>
                     add({
                         kind: 'lookup_list',
-                        name: 'Ny liste',
+                        name: c.kinds.lookup_list.newName,
                         content: { items: [] } as LookupListContent,
                         isDefault: true,
                         sortOrder: assets.length,
                     })
                 }
             >
-                Legg til liste
+                {c.kinds.lookup_list.addButton}
             </Button>
         </Paper>
     );
@@ -560,12 +574,14 @@ const LookupListRow: React.FC<{
     reload: () => Promise<void>;
     templates: PDFTemplate[];
 }> = ({ orgSlug, asset, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const cs = strings.admin.content;
     const initial = asset.content as LookupListContent;
     const [name, setName] = useState(asset.name);
     const [items, setItems] = useState<LookupItem[]>(initial.items ?? []);
     const [isDefault, setIsDefault] = useState(asset.isDefault);
-    const remove = useDelete(orgSlug, reload, 'Liste');
-    const { saving, save } = useSaveHandler('Liste', () =>
+    const remove = useDelete(orgSlug, reload, cs.kinds.lookup_list.label, cs);
+    const { saving, save } = useSaveHandler(cs.kinds.lookup_list.label, cs, () =>
         updateOrgAsset(orgSlug, asset.id, { name, content: { items }, isDefault }).then(() => undefined),
     );
 
@@ -579,22 +595,22 @@ const LookupListRow: React.FC<{
         <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <TextField label="Navn på liste" value={name} onChange={(e) => setName(e.target.value)} size="small" />
-                    <UsageBadge assetId={asset.id} templates={templates} />
+                    <TextField label={cs.listName} value={name} onChange={(e) => setName(e.target.value)} size="small" />
+                    <UsageBadge assetId={asset.id} templates={templates} c={cs} />
                 </Box>
                 <Box>
                     <FormControlLabel
                         control={<Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />}
-                        label="Standard"
+                        label={cs.standard}
                     />
                     <Button size="small" onClick={save} disabled={saving}>
-                        {saving ? 'Lagrer...' : 'Lagre'}
+                        {saving ? cs.savingBtn : cs.saveBtn}
                     </Button>
                     <IconButton
                         color="error"
                         onClick={() => {
                             const usage = countTemplatesUsingAsset(asset.id, templates);
-                            if (!confirmDelete('listen', usage)) return;
+                            if (!confirmDelete(cs.kinds.lookup_list.definite, usage, cs)) return;
                             remove(asset.id);
                         }}
                     >
@@ -608,7 +624,7 @@ const LookupListRow: React.FC<{
                     <Grid size={{ xs: 12, sm: 3 }}>
                         <TextField
                             fullWidth
-                            label="Navn"
+                            label={cs.name}
                             value={it.name}
                             onChange={(e) => setItem(i, 'name', e.target.value)}
                             size="small"
@@ -617,7 +633,7 @@ const LookupListRow: React.FC<{
                     <Grid size={{ xs: 12, sm: 8 }}>
                         <TextField
                             fullWidth
-                            label="Beskrivelse"
+                            label={cs.description}
                             value={it.description ?? ''}
                             onChange={(e) => setItem(i, 'description', e.target.value)}
                             size="small"
@@ -638,7 +654,7 @@ const LookupListRow: React.FC<{
                 size="small"
                 onClick={() => setItems([...items, { name: '', description: '' }])}
             >
-                Legg til oppføring
+                {cs.addEntry}
             </Button>
         </Paper>
     );

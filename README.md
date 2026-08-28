@@ -27,12 +27,15 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
   et `form_schema` (skjemaet innsenderen ser), og `field_bindings`
   (hvor hvert PDF-felt henter sin verdi: skjema, system, asset,
   oppslag, sammensatt tekst, …).
-- `submissions` — innsendte data, slettes manuelt etter PDF-generering.
+- `submissions` — innsendte data. Slettes automatisk 24 timer etter at
+  attesten er utstedt (`issued_at`). Ubehandlede innsendinger slettes
+  ikke automatisk — de venter på administratoren (se CLAUDE.md).
 - `certificates` — kun id, hash, template-id, org-id, tidsstempel.
   Ingen personalia.
 
 Se [CLAUDE.md](CLAUDE.md) for personvernsmodellen og hvorfor det er
-viktig at strukturen forblir slik.
+viktig at strukturen forblir slik. Utfyllende dokumentasjon ligger i
+[docs/](docs/): arkitektur, utviklingsguide og roadmap.
 
 ## Struktur
 
@@ -51,6 +54,10 @@ types/       — formSchema, fieldBindings, orgAssets, templateTypes
 
 SQL-filer i `scripts/migrations/` kjøres i Hasura SQL-konsollen, så
 sporer du de nye/endrede tabellene i Hasura-grafQL-skjemaet.
+
+Ny installasjon: kjør kun `0000-baseline-schema.sql` — den inneholder
+hele skjemaet. `2026-05-*`-filene er historiske migrasjoner av den gamle
+echo-databasen.
 
 ## Kjøre lokalt
 

@@ -21,23 +21,22 @@ import type { FormSchema } from '@/types/formSchema';
 import { listTemplateFieldNames } from '@/util/templateFields';
 import { resolveBinding, type ResolveContext } from '@/util/resolveBinding';
 import { buildSampleSubmission } from '@/util/sampleSubmission';
+import { useAdminLang } from '@/util/useAdminLang';
+import type { Strings } from '@/strings';
 
 const SOURCE_OPTIONS = [
-    { value: 'submission_implicit', label: 'Skjemafelt (samme navn)' },
-    { value: 'submission', label: 'Skjemafelt (annet navn)' },
-    { value: 'composite', label: 'Sammensatt tekst' },
-    { value: 'system', label: 'Systemverdi (QR, dato …)' },
-    { value: 'asset', label: 'Spesifikk asset' },
-    { value: 'asset_default', label: 'Standard asset av type' },
-    { value: 'lookup', label: 'Oppslag i liste' },
+    { value: 'submission_implicit' },
+    { value: 'submission' },
+    { value: 'composite' },
+    { value: 'system' },
+    { value: 'asset' },
+    { value: 'asset_default' },
+    { value: 'lookup' },
 ] as const;
 
-const SYSTEM_SLOTS: { value: SystemSlot; label: string }[] = [
-    { value: 'qr_code', label: 'QR-kode (URL)' },
-    { value: 'qr_info', label: 'QR-info-tekst' },
-    { value: 'qr_page', label: 'QR-side-URL' },
-    { value: 'today', label: 'Dagens dato (dd.mm.yyyy)' },
-];
+const SYSTEM_SLOT_VALUES: SystemSlot[] = ['qr_code', 'qr_info', 'qr_page', 'today'];
+
+type DesignerStrings = Strings['admin']['designer'];
 
 const SYSTEM_FIELD_NAMES = new Set(['qr_code', 'qr_info', 'qr_page', 'today']);
 
@@ -50,6 +49,8 @@ type Props = {
 };
 
 export default function BindingsEditor({ schemas, bindings, assets, formSchema, onChange }: Props) {
+    const { strings } = useAdminLang();
+    const d = strings.admin.designer;
     const fieldNames = listTemplateFieldNames(schemas);
 
     // Resolve every binding against placeholder data so the admin sees a
@@ -72,8 +73,7 @@ export default function BindingsEditor({ schemas, bindings, assets, formSchema, 
         return (
             <Paper sx={{ p: 2 }}>
                 <Typography variant="body2" color="text.secondary">
-                    Ingen felter i malen ennå. Legg til tekst-, bilde-, eller QR-felter
-                    i designeren over.
+                    {d.noFieldsInTemplate}
                 </Typography>
             </Paper>
         );
@@ -82,10 +82,7 @@ export default function BindingsEditor({ schemas, bindings, assets, formSchema, 
     return (
         <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                For hvert felt i PDF-en, bestem hvor verdien skal komme fra. Lar du
-                den stå på «Skjemafelt (samme navn)» blir verdien hentet fra
-                innsenderens skjema med samme nøkkel. Forhåndsvisningen viser
-                hva som ville stått der med eksempeldata.
+                {d.bindingsIntro}
             </Typography>
             {fieldNames.map((name) => (
                 <BindingRow
@@ -94,6 +91,7 @@ export default function BindingsEditor({ schemas, bindings, assets, formSchema, 
                     binding={bindings[name]}
                     assets={assets}
                     previewCtx={previewCtx}
+                    d={d}
                     onChange={(b) => {
                         if (b === null) {
                             const { [name]: _removed, ...rest } = bindings;
@@ -114,6 +112,7 @@ type BindingRowProps = {
     binding: FieldBinding | undefined;
     assets: OrgAsset[];
     previewCtx: ResolveContext;
+    d: DesignerStrings;
     onChange: (next: FieldBinding | null) => void;
 };
 
@@ -123,7 +122,7 @@ function inferSourceKind(name: string, binding: FieldBinding | undefined): (type
     return 'submission_implicit';
 }
 
-function BindingRow({ name, binding, assets, previewCtx, onChange }: BindingRowProps) {
+function BindingRow({ name, binding, assets, previewCtx, d, onChange }: BindingRowProps) {
     const source = inferSourceKind(name, binding);
 
     // Live preview: what would this field render to with the placeholder
@@ -181,31 +180,31 @@ function BindingRow({ name, binding, assets, previewCtx, onChange }: BindingRowP
                     sx={{ fontFamily: 'monospace', minWidth: 180, alignSelf: 'center' }}
                 />
                 <FormControl size="small" sx={{ minWidth: 220 }}>
-                    <InputLabel>Kilde</InputLabel>
+                    <InputLabel>{d.sourceLabel}</InputLabel>
                     <Select
-                        label="Kilde"
+                        label={d.sourceLabel}
                         value={source}
                         onChange={(e) => handleSource(e.target.value as typeof source)}
                     >
                         {SOURCE_OPTIONS.map((o) => (
                             <MenuItem key={o.value} value={o.value}>
-                                {o.label}
+                                {d.sourceLabels[o.value]}
                             </MenuItem>
                         ))}
                     </Select>
                 </FormControl>
                 <Box sx={{ flex: 1, minWidth: 260 }}>
-                    <BindingConfig binding={binding} assets={assets} onChange={onChange} />
+                    <BindingConfig binding={binding} assets={assets} d={d} onChange={onChange} />
                 </Box>
                 {binding && (
                     <Button size="small" onClick={() => onChange(null)}>
-                        Tilbakestill
+                        {d.reset}
                     </Button>
                 )}
             </Box>
             <Box sx={{ mt: 1.5, pl: 0.5 }}>
                 <Typography variant="caption" color="text.secondary" component="span">
-                    Forhåndsvisning:{' '}
+                    {d.previewLabel}{' '}
                 </Typography>
                 <Typography
                     variant="caption"
@@ -217,8 +216,8 @@ function BindingRow({ name, binding, assets, previewCtx, onChange }: BindingRowP
                     }}
                 >
                     {preview.startsWith('data:image/')
-                        ? `(bilde – ${Math.round(preview.length / 1024)} KB)`
-                        : previewTruncated || '(tom)'}
+                        ? d.imagePreview(Math.round(preview.length / 1024))
+                        : previewTruncated || d.emptyPreview}
                 </Typography>
             </Box>
         </Paper>
@@ -228,16 +227,18 @@ function BindingRow({ name, binding, assets, previewCtx, onChange }: BindingRowP
 function BindingConfig({
     binding,
     assets,
+    d,
     onChange,
 }: {
     binding: FieldBinding | undefined;
     assets: OrgAsset[];
+    d: DesignerStrings;
     onChange: (next: FieldBinding) => void;
 }) {
     if (!binding) {
         return (
             <Typography variant="caption" color="text.secondary">
-                Henter verdien direkte fra skjemafeltet med samme navn.
+                {d.implicitHint}
             </Typography>
         );
     }
@@ -246,17 +247,17 @@ function BindingConfig({
         case 'system':
             return (
                 <FormControl size="small" fullWidth>
-                    <InputLabel>System</InputLabel>
+                    <InputLabel>{d.systemLabel}</InputLabel>
                     <Select
-                        label="System"
+                        label={d.systemLabel}
                         value={binding.system}
                         onChange={(e) =>
                             onChange({ source: 'system', system: e.target.value as SystemSlot })
                         }
                     >
-                        {SYSTEM_SLOTS.map((s) => (
-                            <MenuItem key={s.value} value={s.value}>
-                                {s.label}
+                        {SYSTEM_SLOT_VALUES.map((s) => (
+                            <MenuItem key={s} value={s}>
+                                {d.systemLabels[s]}
                             </MenuItem>
                         ))}
                     </Select>
@@ -268,10 +269,10 @@ function BindingConfig({
                 <TextField
                     size="small"
                     fullWidth
-                    label="Skjemanøkkel"
+                    label={d.submissionKeyLabel}
                     value={binding.key}
                     onChange={(e) => onChange({ source: 'submission', key: e.target.value })}
-                    helperText='F.eks. "name", "role" – nøkkelen fra skjemaet'
+                    helperText={d.submissionKeyHelper}
                 />
             );
 
@@ -281,17 +282,17 @@ function BindingConfig({
                     <TextField
                         size="small"
                         fullWidth
-                        label="Tekst-mal"
+                        label={d.compositeLabel}
                         value={binding.template}
                         onChange={(e) =>
                             onChange({ ...binding, template: e.target.value })
                         }
-                        helperText="Bruk {key} for å sette inn skjemaverdier, {key:date} for datoformat"
+                        helperText={d.compositeHelper}
                     />
                     <TextField
                         size="small"
                         fullWidth
-                        label="Krev disse nøklene (kommaseparert)"
+                        label={d.requireAllLabel}
                         value={(binding.requireAll ?? []).join(', ')}
                         onChange={(e) =>
                             onChange({
@@ -302,7 +303,7 @@ function BindingConfig({
                                     .filter(Boolean),
                             })
                         }
-                        helperText="Hvis noen av disse mangler i innsendingen, vises feltet som tomt"
+                        helperText={d.requireAllHelper}
                     />
                 </Box>
             );
@@ -311,9 +312,9 @@ function BindingConfig({
             return (
                 <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
                     <FormControl size="small" fullWidth>
-                        <InputLabel>Asset</InputLabel>
+                        <InputLabel>{d.assetLabel}</InputLabel>
                         <Select
-                            label="Asset"
+                            label={d.assetLabel}
                             value={binding.assetId}
                             onChange={(e) =>
                                 onChange({ ...binding, assetId: e.target.value })
@@ -329,10 +330,10 @@ function BindingConfig({
                     <TextField
                         size="small"
                         fullWidth
-                        label="Sub-felt"
+                        label={d.subFieldLabel}
                         value={binding.subField ?? ''}
                         onChange={(e) => onChange({ ...binding, subField: e.target.value })}
-                        helperText='"name" gir asset-navnet. For signaturer: photo/role/phone. For tekstblokker: text. For logoer: image.'
+                        helperText={d.subFieldHelper}
                     />
                 </Box>
             );
@@ -342,34 +343,34 @@ function BindingConfig({
             return (
                 <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
                     <FormControl size="small" fullWidth>
-                        <InputLabel>Type</InputLabel>
+                        <InputLabel>{d.typeLabel}</InputLabel>
                         <Select
-                            label="Type"
+                            label={d.typeLabel}
                             value={binding.kind}
                             onChange={(e) =>
                                 onChange({ ...binding, kind: e.target.value as 'signature' | 'logo' | 'body_text' })
                             }
                         >
-                            <MenuItem value="signature">Signatur</MenuItem>
-                            <MenuItem value="logo">Logo</MenuItem>
-                            <MenuItem value="body_text">Tekstblokk</MenuItem>
+                            <MenuItem value="signature">{d.assetKindSignature}</MenuItem>
+                            <MenuItem value="logo">{d.assetKindLogo}</MenuItem>
+                            <MenuItem value="body_text">{d.assetKindBodyText}</MenuItem>
                         </Select>
                     </FormControl>
                     <TextField
                         size="small"
                         fullWidth
                         type="number"
-                        label="Posisjon (0-indeks)"
+                        label={d.positionLabel}
                         value={binding.position ?? 0}
                         onChange={(e) =>
                             onChange({ ...binding, position: Number(e.target.value) })
                         }
-                        helperText="0 = første standard-asset av denne typen, 1 = andre osv."
+                        helperText={d.positionHelper}
                     />
                     <TextField
                         size="small"
                         fullWidth
-                        label="Sub-felt"
+                        label={d.subFieldLabel}
                         value={binding.subField ?? ''}
                         onChange={(e) => onChange({ ...binding, subField: e.target.value })}
                     />
@@ -382,13 +383,13 @@ function BindingConfig({
                 <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
                     {lists.length === 0 && (
                         <Alert severity="info" sx={{ mb: 1 }}>
-                            Ingen oppslagslister enda. Opprett en i «Innhold».
+                            {d.noLists}
                         </Alert>
                     )}
                     <FormControl size="small" fullWidth>
-                        <InputLabel>Liste</InputLabel>
+                        <InputLabel>{d.listLabel}</InputLabel>
                         <Select
-                            label="Liste"
+                            label={d.listLabel}
                             value={binding.assetId}
                             onChange={(e) => onChange({ ...binding, assetId: e.target.value })}
                         >
@@ -402,18 +403,18 @@ function BindingConfig({
                     <TextField
                         size="small"
                         fullWidth
-                        label="Match med skjemanøkkel"
+                        label={d.byKeyLabel}
                         value={binding.byKey}
                         onChange={(e) => onChange({ ...binding, byKey: e.target.value })}
-                        helperText='F.eks. "group" – verdien i skjemaet brukes til å finne riktig oppføring i listen'
+                        helperText={d.byKeyHelper}
                     />
                     <TextField
                         size="small"
                         fullWidth
-                        label="Sub-felt fra oppføringen"
+                        label={d.lookupSubFieldLabel}
                         value={binding.subField}
                         onChange={(e) => onChange({ ...binding, subField: e.target.value })}
-                        helperText='F.eks. "description"'
+                        helperText={d.lookupSubFieldHelper}
                     />
                 </Box>
             );

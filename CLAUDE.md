@@ -4,6 +4,23 @@ This file exists so you don't accidentally "clean up" the things that
 make the system work. Read it before touching certificate verification,
 data retention, or the legacy `/verify` route.
 
+Companion docs (read as needed):
+
+- `docs/ARCHITECTURE.md` — system map: stack, data model, the three core
+  flows, security model, and things that look wrong but are deliberate.
+- `docs/DEVELOPMENT.md` — commands, verification checklist, conventions
+  (strings/i18n pattern, API route pattern, migrations workflow, test
+  placement), and the gotchas that have cost real time.
+- `docs/ROADMAP.md` — parked work with the reasoning captured, so options
+  don't get re-litigated or rebuilt by accident.
+- `docs/IDEAS.md` — feature ideas not built yet, with the open questions, so
+  they get built deliberately instead of guessed at.
+
+Keep all five documents truthful in the SAME commit as any change that
+affects what they say. A doc that describes a superseded model is worse than
+no doc: it is actively misleading, and this repo has already shipped copy
+that told users something false because the docs lagged the code.
+
 ## Security model: the hash IS the certificate
 
 The point of attester.no is to prove a certificate exists without storing
@@ -18,8 +35,9 @@ Data flow:
 3. The server stores ONLY: `cert_id`, `hash(URL params)`, `template_id`,
    `organization_id`, `created_at`. Never the name, dates, group, role, or
    any other identifying field.
-4. The admin deletes the volunteer row (manual today; meant to happen
-   immediately after PDF issuance).
+4. Issuance stamps `submissions.issued_at`. A sweep deletes the row
+   `ISSUED_RETENTION_HOURS` after that stamp. Submissions that were never
+   issued are never swept (see "Volunteer deletion" below).
 5. To verify: anyone with the QR code opens the URL. The verify page
    recomputes the canonical hash from the URL params, fetches the stored
    hash from the API, compares them.
@@ -48,11 +66,38 @@ What IS acceptable:
 
 ### Volunteer deletion
 
-The admin UI has a per-volunteer "Slett data" button and a batch one. The
-intended workflow is: generate PDF → confirm everything looks right →
-delete the volunteer. Automating this deletion (e.g. on successful cert
-insertion) is a reasonable future change. Storing volunteer data
-indefinitely is NOT.
+The deletion clock starts at **issuance**, not submission. Issuing a
+certificate stamps `submissions.issued_at`; a lazy sweep
+(`src/lib/server/retention.ts`, window in `src/util/retention.ts`) then
+deletes rows whose `issued_at` is older than `ISSUED_RETENTION_HOURS`. The
+sweep runs whenever the submissions API is touched (GET or POST) — no
+scheduler exists on the edge runtime, and none is needed, because the
+window only starts when an admin acts and admin activity is exactly what
+triggers the sweep. Do not remove the sweep calls from the submissions
+GET/POST routes.
+
+**Unissued submissions are never swept.** The `issued_at IS NOT NULL`
+guard in the sweep is load-bearing. An earlier version deleted every
+submission 24h after *creation*, which meant an org reviewing its queue
+weekly lost applications before anyone read them, and the volunteer waited
+for a certificate that had been silently deleted. Do NOT "simplify" the
+sweep back to a `created_at` comparison. Clearing an unissued submission is
+the admin's explicit action — the per-submission "Slett data" button or the
+batch one — and a volunteer can ask the org to do it at any time.
+
+The trade-off this accepts (product decision, 2026-08): an org that never
+processes its queue accumulates volunteer data indefinitely. That is
+deliberate — losing a volunteer's application is worse than holding it
+until a human decides — but it means "we don't store personal data for
+long" is NOT automatic for unissued rows, and copy must not claim it is.
+
+**Issuing a certificate does NOT immediately delete the submission.** The
+window is the point: if a PDF is lost, misprinted, or a mistake is spotted
+late, "Generer PDF" can be run again any time before the sweep. The
+certificates POST route is idempotent per submission (returns the existing
+cert instead of minting a duplicate) and deliberately does **not**
+re-stamp `issued_at`, so regenerating cannot be used to extend retention
+indefinitely.
 
 ## The legacy `/verify` route
 
