@@ -77,8 +77,11 @@ async function main() {
     };
 
     await gql(
-        `mutation ClearDefaults($orgId: uuid!) {
-            update_templates(where: { organization_id: { _eq: $orgId } }, _set: { is_default: false }) { affected_rows }
+        `mutation RetireOlderRevisions($orgId: uuid!) {
+            update_templates(
+                where: { organization_id: { _eq: $orgId }, name: { _eq: "echo attest v1" } },
+                _set: { is_offered: false }
+            ) { affected_rows }
         }`,
         { orgId }
     );
@@ -93,7 +96,7 @@ async function main() {
                 schemas: $schemas,
                 form_schema: $formSchema,
                 field_bindings: $fieldBindings,
-                is_default: true
+                is_offered: true
             }) { id }
         }`,
         {

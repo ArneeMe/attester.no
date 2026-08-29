@@ -66,16 +66,16 @@ function makeSubmissionData(): Record<string, string> {
     };
 }
 
-async function ensureDefaultTemplate(organizationId: string, orgSlug: string): Promise<{ id: string; name: string }> {
+async function ensureOfferedTemplate(organizationId: string, orgSlug: string): Promise<{ id: string; name: string }> {
     const existing = await gql<{ templates: { id: string; name: string }[] }>(
-        `query GetDefault($organizationId: uuid!) {
-            templates(where: { organization_id: { _eq: $organizationId }, is_default: { _eq: true } }, limit: 1) { id name }
+        `query GetOffered($organizationId: uuid!) {
+            templates(where: { organization_id: { _eq: $organizationId }, is_offered: { _eq: true } }, limit: 1) { id name }
         }`,
         { organizationId },
     );
     if (existing.templates[0]) return existing.templates[0];
 
-    console.log(`  no default template for ${orgSlug}, seeding one...`);
+    console.log(`  no offered template for ${orgSlug}, seeding one...`);
     const created = await gql<{ insert_templates_one: { id: string; name: string } }>(
         `mutation Insert($organizationId: uuid!, $name: String!, $basePdf: String!, $schemas: jsonb!, $formSchema: jsonb!, $fieldBindings: jsonb!) {
             insert_templates_one(object: {
@@ -86,7 +86,7 @@ async function ensureDefaultTemplate(organizationId: string, orgSlug: string): P
                 schemas: $schemas,
                 form_schema: $formSchema,
                 field_bindings: $fieldBindings,
-                is_default: true
+                is_offered: true
             }) { id name }
         }`,
         {
@@ -115,7 +115,7 @@ async function seedOrg(slug: string): Promise<void> {
         return;
     }
 
-    const tmpl = await ensureDefaultTemplate(org.id, slug);
+    const tmpl = await ensureOfferedTemplate(org.id, slug);
     console.log(`  using template: ${tmpl.name} (${tmpl.id})`);
 
     for (let i = 0; i < SUBMISSIONS_PER_ORG; i++) {

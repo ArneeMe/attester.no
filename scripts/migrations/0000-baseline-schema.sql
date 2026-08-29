@@ -45,11 +45,14 @@ CREATE TABLE IF NOT EXISTS templates (
     schemas jsonb NOT NULL DEFAULT '[]'::jsonb,
     form_schema jsonb,
     field_bindings jsonb NOT NULL DEFAULT '{}'::jsonb,
-    is_default boolean NOT NULL DEFAULT false,
+    is_offered boolean NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS templates_org_idx ON templates(organization_id);
+CREATE INDEX IF NOT EXISTS templates_offered_idx
+    ON templates(organization_id)
+    WHERE is_offered;
 
 -- Per-org content library. Content shapes per kind:
 --   signature    { photo, role, phone }        -- name = the person's name

@@ -148,9 +148,20 @@ Consequence: editing a template (= inserting a new row) does NOT
 invalidate any already-issued certificates, because the old template row
 still exists and the old certs reference it by id.
 
-`is_default` lets one template per org be the default selection on the
-admin "Generer PDF" UI. Saving a new template with `is_default=true`
-flips the previous default off (handled in the templates POST route).
+`is_offered` marks a template as choosable on the org's public form. Any
+number can be offered at once: with one the volunteer never sees a
+chooser, with several they pick. Because saving a template inserts a new
+row, the templates POST route retires superseded revisions by clearing
+`is_offered` on older rows with the same `name`
+(`src/lib/server/templateOffering.ts`) — otherwise every past revision
+would pile up in the chooser. The selection rule lives in
+`src/util/offeredTemplates.ts` and is served publicly by
+`/api/org/[slug]/offered-templates`, which exposes id, name and
+description only.
+
+Verification never consults `is_offered`: `templates/[id]` fetches by id
+without filtering, so un-offering a template cannot break certificates
+already issued from it.
 
 The cert hash deliberately **excludes** `t` (template id) from the hash
 inputs — `canonicalHash` drops it before sorting. This means the hash
@@ -254,9 +265,9 @@ per-org PDF rules go into `field_bindings` (data in the DB), not code.
 
 `FormFieldSchema` types: `text | date | dropdown | long_text | number`.
 Dropdowns can specify static `options` or `optionsFromAsset` (a
-`lookup_list` id). The public template API (`templates/[id]` and
-`default-template`) resolves `optionsFromAsset` → `options` so the
-volunteer sees a static dropdown without ever seeing the asset id.
+`lookup_list` id). The public template API (`templates/[id]`) resolves
+`optionsFromAsset` → `options` so the volunteer sees a static dropdown
+without ever seeing the asset id.
 
 The Designer page's `SchemaEditor` lets admins edit the form_schema; the
 `fromPdfmeTemplate` helper auto-derives a starter schema from the
