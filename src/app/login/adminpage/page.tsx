@@ -6,11 +6,11 @@ import { useUserOrgs } from './UserOrgsProvider';
 import { useAdminLang } from '@/util/useAdminLang';
 
 const AdminOrgPicker: React.FC = () => {
-    const { orgs } = useUserOrgs();
+    const { orgs, status } = useUserOrgs();
     const { strings } = useAdminLang();
     const a = strings.admin.picker;
 
-    if (orgs === null) {
+    if (status === 'loading') {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
                 <CircularProgress />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { authHeader, nhost, type NhostUser } from '@/lib/nhost';
 
 // Must match the Nhost project's "Minimum password length" setting
@@ -86,3 +86,37 @@ export const useAuth = (): NhostUser | null | undefined => {
     }, []);
     return user;
 };
+
+const REFRESH_MARGIN_SECONDS = 300;
+const REFRESH_INTERVAL_MS = 4 * 60 * 1000;
+
+// Nhost's SDK refreshes tokens through its own HTTP clients, but the admin
+// area talks to our API routes with a hand-built header, so that middleware
+// never runs and the access token just goes stale.
+export function useSessionKeepAlive(): boolean {
+    const [expired, setExpired] = useState(false);
+
+    const tick = useCallback(async () => {
+        if (!nhost.getUserSession()) return;
+        const session = await nhost.refreshSession(REFRESH_MARGIN_SECONDS);
+        // A null result also covers the auth endpoint being briefly
+        // unreachable, so only a session the SDK itself discarded proves the
+        // refresh token is dead. Anything else retries on the next tick.
+        if (!session && !nhost.getUserSession()) setExpired(true);
+    }, []);
+
+    useEffect(() => {
+        void tick();
+        const timer = setInterval(() => void tick(), REFRESH_INTERVAL_MS);
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') void tick();
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, [tick]);
+
+    return expired;
+}
