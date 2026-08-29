@@ -437,6 +437,10 @@ const no = {
             imageTooLarge: (kb: number) => `Bildet må være mindre enn ${kb}KB`,
             readError: 'Kunne ikke lese filen',
             removeImage: 'Fjern',
+            pickImage: 'Velg bilde',
+            useOriginal: 'Bruk originalbildet uendret',
+            normalizeHint: 'Signaturen beskjæres til blekket og settes på et fast lerret, slik at to signaturer havner i samme høyde i PDF-en.',
+            normalizeFailed: 'Fant ingen signatur i bildet. Originalen brukes uendret.',
         },
     },
 };
@@ -858,6 +862,10 @@ const en: Strings = {
             imageTooLarge: (kb: number) => `The image must be smaller than ${kb}KB`,
             readError: 'Could not read the file',
             removeImage: 'Remove',
+            pickImage: 'Choose image',
+            useOriginal: 'Use the original image unchanged',
+            normalizeHint: 'The signature is cropped to the ink and placed on a fixed canvas, so two signatures land at the same height in the PDF.',
+            normalizeFailed: 'No signature found in the image. Using the original unchanged.',
         },
     },
 };

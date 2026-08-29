@@ -327,7 +327,7 @@ const SignatureRow: React.FC<{
                     <TextField fullWidth label={cs.phone} value={phone} onChange={(e) => setPhone(e.target.value)} />
                 </Grid>
                 <Grid size={{ xs: 12 }}>
-                    <ImageUpload label={cs.signatureImage} value={photo} onChange={setPhoto} maxSizeKB={500} />
+                    <ImageUpload label={cs.signatureImage} value={photo} onChange={setPhoto} maxSizeKB={500} normalize="signature" />
                 </Grid>
             </Grid>
         </Paper>
