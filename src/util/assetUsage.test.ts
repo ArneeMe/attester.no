@@ -7,7 +7,7 @@ function tmpl(over: Partial<PDFTemplate>): PDFTemplate {
         name: 'T',
         basePdf: '',
         schemas: [[]],
-        isDefault: false,
+        isOffered: false,
         createdAt: new Date(),
         updatedAt: new Date(),
         ...over,

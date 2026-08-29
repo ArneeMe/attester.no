@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
+import { clearOfferedForName } from "@/lib/server/templateOffering";
 import type { FormSchema } from "@/types/formSchema";
 import type { FieldBindings } from "@/types/fieldBindings";
 
@@ -15,7 +16,7 @@ type TemplateRow = {
     schemas: unknown;
     form_schema: FormSchema;
     field_bindings: FieldBindings;
-    is_default: boolean;
+    is_offered: boolean;
     created_at: string;
     updated_at: string;
 };
@@ -32,7 +33,7 @@ export async function GET(
         const data = await hasuraAdmin<{ templates: TemplateRow[] }>(
             `query GetTemplates($organizationId: uuid!) {
                 templates(where: { organization_id: { _eq: $organizationId } }, order_by: { created_at: asc }) {
-                    id organization_id name description base_pdf schemas form_schema field_bindings is_default created_at updated_at
+                    id organization_id name description base_pdf schemas form_schema field_bindings is_offered created_at updated_at
                 }
             }`,
             { organizationId: auth.organizationId },
@@ -59,7 +60,7 @@ export async function POST(
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
 
-    const { name, description, basePdf, schemas, formSchema, fieldBindings, isDefault } = await req.json();
+    const { name, description, basePdf, schemas, formSchema, fieldBindings, isOffered } = await req.json();
     if (typeof name !== "string" || !name.trim()) {
         return NextResponse.json({ error: "Missing or invalid name" }, { status: 400 });
     }
@@ -96,30 +97,18 @@ export async function POST(
     }
 
     try {
-        if (isDefault) {
-            await hasuraAdmin<{ update_templates: { affected_rows: number } }>(
-                `mutation ClearDefaults($organizationId: uuid!) {
-                    update_templates(
-                        where: { organization_id: { _eq: $organizationId } }
-                        _set: { is_default: false }
-                    ) { affected_rows }
-                }`,
-                { organizationId: auth.organizationId },
-            );
-        }
-
         const data = await hasuraAdmin<{
             insert_templates_one: { id: string; created_at: string; updated_at: string };
         }>(
             `mutation InsertTemplate(
                 $organizationId: uuid!, $name: String!, $description: String,
                 $basePdf: String!, $schemas: jsonb!, $formSchema: jsonb,
-                $fieldBindings: jsonb!, $isDefault: Boolean!
+                $fieldBindings: jsonb!, $isOffered: Boolean!
             ) {
                 insert_templates_one(object: {
                     organization_id: $organizationId, name: $name, description: $description,
                     base_pdf: $basePdf, schemas: $schemas, form_schema: $formSchema,
-                    field_bindings: $fieldBindings, is_default: $isDefault
+                    field_bindings: $fieldBindings, is_offered: $isOffered
                 }) { id created_at updated_at }
             }`,
             {
@@ -130,9 +119,18 @@ export async function POST(
                 schemas,
                 formSchema: formSchema ?? null,
                 fieldBindings: fieldBindings ?? {},
-                isDefault: isDefault ?? false,
+                isOffered: isOffered ?? false,
             },
         );
+
+        if (isOffered) {
+            await clearOfferedForName(
+                auth.organizationId,
+                name.trim(),
+                data.insert_templates_one.id,
+            );
+        }
+
         return NextResponse.json({ template: data.insert_templates_one });
     } catch (e) {
         return NextResponse.json({ error: (e as Error).message }, { status: 500 });

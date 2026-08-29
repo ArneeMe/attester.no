@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { resolveOrgIdBySlug, requireOrgMemberBySlug } from "@/lib/server/apiAuth";
+import { clearOfferedForName } from "@/lib/server/templateOffering";
 import { templateBelongsToOrg } from "@/lib/server/ownership";
 import type { FormFieldSchema, FormSchema } from "@/types/formSchema";
 import type { LookupListContent } from "@/types/orgAssets";
@@ -60,13 +61,12 @@ export async function GET(
 }
 
 /**
- * Toggle is_default on a template. Templates are otherwise immutable
- * (editing creates a new row), but is_default is metadata about which one
- * the admin UI auto-loads — not part of the cert rendering — so flipping it
- * is safe and doesn't break previously-issued certs.
+ * Toggle is_offered on a template. Templates are otherwise immutable (editing
+ * creates a new row), but which ones volunteers may pick is metadata, not part
+ * of cert rendering, so flipping it cannot break issued certs.
  *
- * Setting is_default=true clears it on all other templates in the same org,
- * matching the POST route's behaviour.
+ * Offering one retires other revisions of the same name, or the public form
+ * would list the same attest type twice.
  */
 export async function PATCH(
     req: NextRequest,
@@ -81,31 +81,28 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    if (typeof body.isDefault !== "boolean") {
-        return NextResponse.json({ error: "isDefault (boolean) is required" }, { status: 400 });
+    if (typeof body.isOffered !== "boolean") {
+        return NextResponse.json({ error: "isOffered (boolean) is required" }, { status: 400 });
     }
 
     try {
-        if (body.isDefault) {
-            await hasuraAdmin(
-                `mutation ClearDefaults($organizationId: uuid!) {
-                    update_templates(
-                        where: { organization_id: { _eq: $organizationId } }
-                        _set: { is_default: false }
-                    ) { affected_rows }
-                }`,
-                { organizationId: auth.organizationId },
-            );
-        }
-        const data = await hasuraAdmin<{ update_templates_by_pk: { id: string; is_default: boolean } }>(
-            `mutation SetDefault($id: uuid!, $isDefault: Boolean!) {
-                update_templates_by_pk(pk_columns: { id: $id }, _set: { is_default: $isDefault }) {
-                    id is_default
+        const data = await hasuraAdmin<{
+            update_templates_by_pk: { id: string; name: string; is_offered: boolean };
+        }>(
+            `mutation SetTemplateOffered($id: uuid!, $isOffered: Boolean!) {
+                update_templates_by_pk(pk_columns: { id: $id }, _set: { is_offered: $isOffered }) {
+                    id name is_offered
                 }
             }`,
-            { id, isDefault: body.isDefault },
+            { id, isOffered: body.isOffered },
         );
-        return NextResponse.json({ template: data.update_templates_by_pk });
+
+        const updated = data.update_templates_by_pk;
+        if (body.isOffered) {
+            await clearOfferedForName(auth.organizationId, updated.name, updated.id);
+        }
+
+        return NextResponse.json({ template: updated });
     } catch (e) {
         return NextResponse.json({ error: (e as Error).message }, { status: 500 });
     }

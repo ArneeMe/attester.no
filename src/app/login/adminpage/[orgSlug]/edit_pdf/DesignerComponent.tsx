@@ -32,18 +32,18 @@ interface Props {
     orgSlug: string;
     templateName: string;
     templateDescription: string;
-    isDefault: boolean;
+    isOffered: boolean;
     initialTemplateId?: string | null;
     onError: (msg: string | null) => void;
     onSuccess: (msg: string | null) => void;
-    onTemplateLoad: (name: string, desc: string, isDefault: boolean) => void;
+    onTemplateLoad: (name: string, desc: string, isOffered: boolean) => void;
 }
 
 export default function DesignerComponent({
                                               orgSlug,
                                               templateName,
                                               templateDescription,
-                                              isDefault,
+                                              isOffered,
                                               initialTemplateId,
                                               onError,
                                               onSuccess,
@@ -127,7 +127,7 @@ export default function DesignerComponent({
         setBindings(found.fieldBindings ?? {});
         setFormSchema(found.formSchema ?? []);
         setSchemaRev((r) => r + 1);
-        onTemplateLoad(found.name, found.description || '', found.isDefault);
+        onTemplateLoad(found.name, found.description || '', found.isOffered);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialTemplateId, existingTemplates]);
 
@@ -164,7 +164,7 @@ export default function DesignerComponent({
             }
             const data = fromPdfmeTemplate(pdfmeTemplate, templateName.trim(), {
                 description: templateDescription || undefined,
-                isDefault,
+                isOffered,
                 fieldBindings: bindings,
                 formSchema: formSchema.length > 0 ? formSchema : undefined,
             });
@@ -192,7 +192,7 @@ export default function DesignerComponent({
         setFormSchema(template.formSchema ?? []);
         setSchemaRev((r) => r + 1);
 
-        onTemplateLoad(template.name, template.description || '', template.isDefault);
+        onTemplateLoad(template.name, template.description || '', template.isOffered);
     };
 
     const handlePickStarter = (starter: StarterTemplate) => {
@@ -291,12 +291,12 @@ export default function DesignerComponent({
                         {existingTemplates.map((template) => (
                             <Button
                                 key={template.id}
-                                variant={template.isDefault ? 'contained' : 'outlined'}
+                                variant={template.isOffered ? 'contained' : 'outlined'}
                                 size="small"
                                 onClick={() => handleLoadTemplate(template)}
                             >
                                 {template.name}
-                                {template.isDefault && d.defaultSuffix}
+                                {template.isOffered && d.offeredSuffix}
                             </Button>
                         ))}
                     </Box>

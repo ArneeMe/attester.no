@@ -10,7 +10,7 @@ export interface PDFTemplate {
     schemas: Schema[][];
     formSchema?: FormSchema;
     fieldBindings?: FieldBindings;
-    isDefault: boolean;
+    isOffered: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

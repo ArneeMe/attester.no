@@ -35,7 +35,7 @@ export default function TemplateEditorPage() {
     const d = strings.admin.designer;
     const [templateName, setTemplateName] = useState('');
     const [templateDescription, setTemplateDescription] = useState('');
-    const [isDefault, setIsDefault] = useState(false);
+    const [isOffered, setIsOffered] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -79,11 +79,11 @@ export default function TemplateEditorPage() {
                     <FormControlLabel
                         control={
                             <Switch
-                                checked={isDefault}
-                                onChange={(e) => setIsDefault(e.target.checked)}
+                                checked={isOffered}
+                                onChange={(e) => setIsOffered(e.target.checked)}
                             />
                         }
-                        label={d.defaultLabel}
+                        label={d.offeredLabel}
                     />
                 </Box>
             </Paper>
@@ -92,14 +92,14 @@ export default function TemplateEditorPage() {
                 orgSlug={orgSlug}
                 templateName={templateName}
                 templateDescription={templateDescription}
-                isDefault={isDefault}
+                isOffered={isOffered}
                 initialTemplateId={loadTemplateId}
                 onError={setError}
                 onSuccess={setSuccessMessage}
                 onTemplateLoad={(name, desc, def) => {
                     setTemplateName(name);
                     setTemplateDescription(desc);
-                    setIsDefault(def);
+                    setIsOffered(def);
                 }}
             />
 
