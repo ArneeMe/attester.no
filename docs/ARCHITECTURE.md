@@ -98,6 +98,27 @@ URL param, for the same reason.
 - All Hasura access goes through `hasuraAdmin()` (`src/lib/server/hasura.ts`)
   with GraphQL **variables only** — never interpolate values into query text.
 
+### Client session lifetime
+
+The admin area calls our own API routes with a header built by `authHeader()`
+(`src/lib/nhost.ts`), not through Nhost's HTTP clients — so the SDK's automatic
+token refresh, which is installed on those clients, never runs. Without help the
+access token simply expires (~15 min) while the refresh token stays valid for
+weeks, and every request 401s.
+
+`useSessionKeepAlive()` (`src/util/auth.ts`) is that help: it refreshes on
+mount, on an interval, and whenever the tab becomes visible again — the last one
+being the case that actually bites, a tab left open overnight. It reports the
+session as expired only when the SDK has discarded the stored session, because a
+null refresh result also covers the auth endpoint being briefly unreachable.
+
+`UserOrgsProvider` carries a four-way `status` (`loading` / `ok` /
+`unauthenticated` / `error`) rather than an org array that is empty for all
+three failure modes. That distinction is load-bearing: collapsing a 401 into an
+empty list is what once made an expired session render as a fully working admin
+shell saying "you are not connected to any organization yet". If you add a state
+here, keep the failure modes distinguishable.
+
 ## Things that look wrong but are deliberate
 
 - Two verify routes (`/verify` legacy vs `/org/[slug]/verify`) that share no

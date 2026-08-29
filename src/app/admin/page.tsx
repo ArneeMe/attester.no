@@ -24,6 +24,7 @@ const PlatformAdminPage: React.FC = () => {
 
     const [orgs, setOrgs] = useState<Org[] | null>(null);
     const [forbidden, setForbidden] = useState(false);
+    const [expired, setExpired] = useState(false);
     const [slug, setSlug] = useState('');
     const [name, setName] = useState('');
     const [adminEmail, setAdminEmail] = useState('');
@@ -32,7 +33,11 @@ const PlatformAdminPage: React.FC = () => {
     const load = useCallback(async () => {
         try {
             const res = await fetch('/api/admin/orgs', { headers: authHeader() });
-            if (res.status === 401 || res.status === 403) {
+            if (res.status === 401) {
+                setExpired(true);
+                return;
+            }
+            if (res.status === 403) {
                 setForbidden(true);
                 return;
             }
@@ -73,10 +78,24 @@ const PlatformAdminPage: React.FC = () => {
         }
     };
 
-    if (user === undefined || (user && orgs === null && !forbidden)) {
+    if (user === undefined || (user && orgs === null && !forbidden && !expired)) {
         return (
             <Container maxWidth="md" sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
                 <CircularProgress />
+            </Container>
+        );
+    }
+
+    if (expired) {
+        return (
+            <Container maxWidth="md" sx={{ py: 6 }}>
+                <Typography variant="h5" gutterBottom>{strings.admin.session.expiredTitle}</Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                    {strings.admin.session.expiredBody}
+                </Typography>
+                <Button component={Link} href="/login" variant="contained">
+                    {strings.admin.session.loginButton}
+                </Button>
             </Container>
         );
     }
