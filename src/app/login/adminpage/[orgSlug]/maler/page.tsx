@@ -13,15 +13,15 @@ import {
     Stack,
     Typography,
 } from '@mui/material';
-import StarIcon from '@mui/icons-material/Star';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
 import EditIcon from '@mui/icons-material/Edit';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useToast } from '@/components/ToastProvider';
 import {
     getTemplates,
     saveTemplate,
-    setTemplateDefault,
+    setTemplateOffered,
 } from '@/util/databaseInteractions/templateService';
 import type { PDFTemplate } from '@/types/templateTypes';
 import { useAdminLang } from '@/util/useAdminLang';
@@ -47,11 +47,12 @@ export default function MalerPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orgSlug]);
 
-    const handleSetDefault = async (t: PDFTemplate) => {
+    const handleToggleOffered = async (t: PDFTemplate) => {
         if (!t.id) return;
+        const next = !t.isOffered;
         try {
-            await setTemplateDefault(orgSlug, t.id, true);
-            toast.success(a.nowDefault(t.name));
+            await setTemplateOffered(orgSlug, t.id, next);
+            toast.success(next ? a.nowOffered(t.name) : a.noLongerOffered(t.name));
             await reload();
         } catch (e) {
             toast.error((e as Error).message);
@@ -67,7 +68,7 @@ export default function MalerPage() {
                 schemas: t.schemas,
                 formSchema: t.formSchema,
                 fieldBindings: t.fieldBindings,
-                isDefault: false,
+                isOffered: false,
             });
             toast.success(a.copyCreated(t.name));
             await reload();
@@ -117,10 +118,10 @@ export default function MalerPage() {
                                 <Box sx={{ flex: 1 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                                         <Typography variant="h6">{t.name}</Typography>
-                                        {t.isDefault && (
+                                        {t.isOffered && (
                                             <Chip
-                                                icon={<StarIcon />}
-                                                label={a.standard}
+                                                icon={<VisibilityIcon />}
+                                                label={a.offered}
                                                 size="small"
                                                 color="primary"
                                             />
@@ -151,15 +152,13 @@ export default function MalerPage() {
                                     >
                                         {a.duplicate}
                                     </Button>
-                                    {!t.isDefault && (
-                                        <Button
-                                            startIcon={<StarBorderIcon />}
-                                            size="small"
-                                            onClick={() => handleSetDefault(t)}
-                                        >
-                                            {a.setDefault}
-                                        </Button>
-                                    )}
+                                    <Button
+                                        startIcon={t.isOffered ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                        size="small"
+                                        onClick={() => handleToggleOffered(t)}
+                                    >
+                                        {t.isOffered ? a.unofferToggle : a.offerToggle}
+                                    </Button>
                                 </Box>
                             </Box>
                         </Paper>
