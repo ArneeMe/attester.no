@@ -15,8 +15,17 @@ CREATE INDEX IF NOT EXISTS templates_offered_idx
     WHERE is_offered;
 
 -- 2. Carry the old default over, or every existing org's public form would
---    find nothing to offer. Must run before step 3.
-UPDATE templates SET is_offered = true WHERE is_default = true;
+--    find nothing to offer. Must run before step 3. Guarded so the file stays
+--    re-runnable after step 3 has already dropped the column.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'templates' AND column_name = 'is_default'
+    ) THEN
+        UPDATE templates SET is_offered = true WHERE is_default = true;
+    END IF;
+END $$;
 
 -- 3. Drop the old column. Nothing reads it any more.
 ALTER TABLE templates DROP COLUMN IF EXISTS is_default;

@@ -38,7 +38,7 @@ never be broken, read [CLAUDE.md](../CLAUDE.md) first — this file explains
 ## The three core flows
 
 ### 1. Submit
-`/org/[slug]` → public form (schema from the org's default template) →
+`/org/[slug]` → public form (schema from the chosen offered template) →
 `POST /api/org/[slug]/submissions` (size-capped, flat-string-shape enforced,
 template-ownership-checked) → row in `submissions` with `issued_at` NULL.
 

@@ -150,10 +150,10 @@ BEGIN
             jsonb_build_object('key','end',  'label','Sluttdato',    'type','date')
         );
 
-        -- Fresh default template.
+        -- Fresh offered template.
         INSERT INTO templates (
             organization_id, name, description, base_pdf,
-            schemas, form_schema, field_bindings, is_default
+            schemas, form_schema, field_bindings, is_offered
         ) VALUES (
             org_id,
             initcap(target_slug) || ' attest',
