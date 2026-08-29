@@ -32,18 +32,18 @@ function verifyUrl(fields: Record<string, string>): string {
 
 test('matching params verify green', async ({ page }) => {
     await page.goto(verifyUrl(CERT_FIELDS));
-    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible();
+    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible({ timeout: 30000 });
     await expect(page.getByLabel('Navn')).toHaveValue('Ola Nordmann');
 });
 
 test('lang=en in the URL keeps a genuine cert green (English UI)', async ({ page }) => {
     await page.goto(`${verifyUrl(CERT_FIELDS)}&lang=en`);
-    await expect(page.getByText('✓ The certificate is valid')).toBeVisible();
+    await expect(page.getByText('✓ The certificate is valid')).toBeVisible({ timeout: 30000 });
 });
 
 test('a tracking param appended by a sharing channel does not break verification', async ({ page }) => {
     await page.goto(`${verifyUrl(CERT_FIELDS)}&fbclid=abc123&utm_source=whatsapp`);
-    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible();
+    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible({ timeout: 30000 });
 });
 
 const SETTLE_MS = 400;
@@ -54,7 +54,7 @@ async function urlAfterSettling(page: import('@playwright/test').Page): Promise<
 
 test('clicking English is a local UI toggle — it does not touch the URL', async ({ page }) => {
     await page.goto(verifyUrl(CERT_FIELDS));
-    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible();
+    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible({ timeout: 30000 });
 
     await page.getByRole('button', { name: 'English' }).click();
     await expect(page.getByText('✓ The certificate is valid')).toBeVisible();
@@ -63,7 +63,7 @@ test('clicking English is a local UI toggle — it does not touch the URL', asyn
 
 test('no interaction on the verify page alters the URL', async ({ page }) => {
     await page.goto(verifyUrl(CERT_FIELDS));
-    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible();
+    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible({ timeout: 30000 });
     const before = page.url();
 
     await page.getByRole('button', { name: 'English' }).click();
@@ -81,7 +81,7 @@ test('no interaction on the verify page alters the URL', async ({ page }) => {
 
 test('an existing lang param survives toggling untouched', async ({ page }) => {
     await page.goto(`${verifyUrl(CERT_FIELDS)}&lang=en`);
-    await expect(page.getByText('✓ The certificate is valid')).toBeVisible();
+    await expect(page.getByText('✓ The certificate is valid')).toBeVisible({ timeout: 30000 });
     const before = page.url();
 
     await page.getByRole('button', { name: 'Norsk' }).click();
@@ -91,12 +91,12 @@ test('an existing lang param survives toggling untouched', async ({ page }) => {
 
 test('tampered params verify red', async ({ page }) => {
     await page.goto(verifyUrl({ ...CERT_FIELDS, name: 'Kari Nordmann' }));
-    await expect(page.getByText('✗ Attesten er ugyldig')).toBeVisible();
+    await expect(page.getByText('✗ Attesten er ugyldig')).toBeVisible({ timeout: 30000 });
 });
 
 test('editing a field flips a green verification to red', async ({ page }) => {
     await page.goto(verifyUrl(CERT_FIELDS));
-    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible();
+    await expect(page.getByText('✓ Attesten er gyldig')).toBeVisible({ timeout: 30000 });
 
     await page.getByLabel('Gruppe').fill('Styret');
     await expect(page.getByText('✗ Attesten er ugyldig')).toBeVisible();

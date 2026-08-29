@@ -31,7 +31,6 @@ type SubmissionRow = {
 type FullTemplate = TemplateData & {
     name: string;
     form_schema: FormSchema | null;
-    is_default: boolean;
 };
 
 const AdminPage: React.FC = () => {

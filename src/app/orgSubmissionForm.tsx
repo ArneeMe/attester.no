@@ -1,10 +1,11 @@
 'use client'
 import React, { useEffect, useState } from 'react';
-import { Button, CircularProgress, Container, Grid, Paper, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Container, Grid, Paper, Stack, Typography } from '@mui/material';
 import Link from "next/link";
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getOrgBySlug } from '@/lib/nhost';
 import type { FormSchema } from '@/types/formSchema';
+import type { OfferedTemplate } from '@/util/offeredTemplates';
 import SchemaForm from '@/components/SchemaForm';
 import SchemaDetails from '@/components/SchemaDetails';
 import { useToast } from '@/components/ToastProvider';
@@ -27,6 +28,7 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
     const s = strings.form;
     const withLang = (path: string) => (lang === 'en' ? `${path}?lang=en` : path);
     const toast = useToast();
+    const router = useRouter();
 
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
     const [openHelpDialog, setOpenHelpDialog] = useState(false);
@@ -34,6 +36,8 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
 
     const [orgName, setOrgName] = useState<string>(orgSlug);
     const [template, setTemplate] = useState<TemplateForForm | null>(null);
+    const [offered, setOffered] = useState<OfferedTemplate[]>([]);
+    const [chosenId, setChosenId] = useState<string | null>(templateIdOverride);
     const [loading, setLoading] = useState(true);
     const [formData, setFormData] = useState<Record<string, string>>({});
 
@@ -42,14 +46,30 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
             setLoading(true);
             try {
                 const orgPromise = getOrgBySlug(orgSlug).catch(() => null);
+                const offeredPromise = fetch(
+                    `/api/org/${encodeURIComponent(orgSlug)}/offered-templates`,
+                )
+                    .then((r) => (r.ok ? r.json() : { templates: [] }))
+                    .catch(() => ({ templates: [] }));
 
-                const templateUrl = templateIdOverride
-                    ? `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateIdOverride)}`
-                    : `/api/org/${encodeURIComponent(orgSlug)}/default-template`;
-
-                const [org, tmplRes] = await Promise.all([orgPromise, fetch(templateUrl)]);
-
+                const [org, offeredJson] = await Promise.all([orgPromise, offeredPromise]);
                 if (org?.name) setOrgName(org.name);
+
+                const list: OfferedTemplate[] = offeredJson.templates ?? [];
+                setOffered(list);
+
+                // One offering, or the visitor arrived with ?t= — load straight
+                // into the form. Only a genuine choice shows the chooser.
+                const only = list.length === 1 ? list[0].id : null;
+                const target = chosenId ?? only;
+                if (!target) {
+                    setLoading(false);
+                    return;
+                }
+
+                const tmplRes = await fetch(
+                    `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(target)}`,
+                );
                 if (tmplRes.ok) {
                     const json = await tmplRes.json();
                     if (json.template) setTemplate(json.template);
@@ -60,9 +80,27 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
             setLoading(false);
         };
         fetchData();
-    }, [orgSlug, templateIdOverride]);
+    }, [orgSlug, chosenId]);
 
     const schema = template?.form_schema ?? null;
+
+    const setTemplateParam = (id: string | null) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (id) params.set('t', id); else params.delete('t');
+        const qs = params.toString();
+        router.replace(qs ? `?${qs}` : window.location.pathname);
+    };
+
+    const chooseTemplate = (id: string) => {
+        setChosenId(id);
+        setTemplateParam(id);
+    };
+
+    const backToChooser = () => {
+        setTemplate(null);
+        setChosenId(null);
+        setTemplateParam(null);
+    };
 
     const handleSubmit = (data: Record<string, string>) => {
         setFormData(data);
@@ -92,6 +130,45 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
         return (
             <Container component="main">
                 <CircularProgress sx={{ mt: 4 }} />
+            </Container>
+        );
+    }
+
+    if (!chosenId && offered.length > 1) {
+        return (
+            <Container component="main" maxWidth="sm">
+                <OrgLogo orgSlug={orgSlug} />
+                <Grid container spacing={0} alignItems="baseline">
+                    <Grid size={{ xs: 8 }}>
+                        <Typography variant="h5">{s.chooseTitle}</Typography>
+                    </Grid>
+                    <Grid size={{ xs: 4 }} sx={{ textAlign: 'right' }}>
+                        <LanguageToggle />
+                    </Grid>
+                </Grid>
+                <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>
+                    {s.chooseIntro(orgName)}
+                </Typography>
+                <Stack spacing={1.5}>
+                    {offered.map((t) => (
+                        <Button
+                            key={t.id}
+                            onClick={() => chooseTemplate(t.id)}
+                            variant="outlined"
+                            fullWidth
+                            sx={{ justifyContent: 'flex-start', textAlign: 'left', py: 1.5 }}
+                        >
+                            <Box>
+                                <Typography sx={{ fontWeight: 500 }}>{t.name}</Typography>
+                                {t.description && (
+                                    <Typography variant="body2" color="text.secondary">
+                                        {t.description}
+                                    </Typography>
+                                )}
+                            </Box>
+                        </Button>
+                    ))}
+                </Stack>
             </Container>
         );
     }
@@ -149,6 +226,12 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
                     </Link>
                 </Grid>
             </Grid>
+
+            {offered.length > 1 && (
+                <Button variant="text" size="small" onClick={backToChooser} sx={{ px: 0, mb: 1 }}>
+                    ← {s.chooseBack}
+                </Button>
+            )}
 
             <SchemaForm
                 schema={schema}

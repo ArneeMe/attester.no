@@ -14,7 +14,7 @@ type TemplateRow = {
     schemas: Template['schemas'];
     form_schema: FormSchema | null;
     field_bindings: FieldBindings | null;
-    is_default: boolean;
+    is_offered: boolean;
     created_at: string;
     updated_at: string;
 };
@@ -33,24 +33,24 @@ export async function getTemplates(orgSlug: string): Promise<PDFTemplate[]> {
         schemas: row.schemas,
         formSchema: row.form_schema ?? undefined,
         fieldBindings: row.field_bindings ?? undefined,
-        isDefault: row.is_default,
+        isOffered: row.is_offered,
         createdAt: new Date(row.created_at),
         updatedAt: new Date(row.updated_at),
     }));
 }
 
-export async function setTemplateDefault(orgSlug: string, templateId: string, isDefault: boolean): Promise<void> {
+export async function setTemplateOffered(orgSlug: string, templateId: string, isOffered: boolean): Promise<void> {
     const res = await fetch(
         `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`,
         {
             method: 'PATCH',
             headers: { 'content-type': 'application/json', ...authHeader() },
-            body: JSON.stringify({ isDefault }),
+            body: JSON.stringify({ isOffered }),
         },
     );
     if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        throw new Error(json.error ?? 'Failed to update template default');
+        throw new Error(json.error ?? 'Failed to update template offering');
     }
 }
 
@@ -79,7 +79,7 @@ export async function saveTemplate(
             schemas: template.schemas,
             formSchema: template.formSchema,
             fieldBindings: template.fieldBindings ?? {},
-            isDefault: template.isDefault,
+            isOffered: template.isOffered,
         }),
     });
     const json = await res.json();
@@ -104,7 +104,7 @@ export function fromPdfmeTemplate(
     name: string,
     options?: {
         description?: string;
-        isDefault?: boolean;
+        isOffered?: boolean;
         fieldBindings?: FieldBindings;
         formSchema?: FormSchema;
     },
@@ -118,6 +118,6 @@ export function fromPdfmeTemplate(
         schemas: pdfmeTemplate.schemas,
         formSchema,
         fieldBindings,
-        isDefault: options?.isDefault ?? false,
+        isOffered: options?.isOffered ?? true,
     };
 }
