@@ -4,27 +4,39 @@ import { authHeader, nhost } from '@/lib/nhost';
 
 export type UserOrg = { id: string; slug: string; name: string; role: string };
 
+export type OrgsStatus = 'loading' | 'ok' | 'unauthenticated' | 'error';
+
 type Ctx = {
-    orgs: UserOrg[] | null; // null = still loading
+    orgs: UserOrg[];
+    status: OrgsStatus;
     refresh: () => Promise<void>;
 };
 
 const UserOrgsContext = createContext<Ctx | null>(null);
 
 export function UserOrgsProvider({ children }: { children: React.ReactNode }) {
-    const [orgs, setOrgs] = useState<UserOrg[] | null>(null);
+    const [orgs, setOrgs] = useState<UserOrg[]>([]);
+    const [status, setStatus] = useState<OrgsStatus>('loading');
 
     const refresh = useCallback(async () => {
         try {
             const res = await fetch('/api/me/organizations', { headers: authHeader() });
+            if (res.status === 401 || res.status === 403) {
+                setOrgs([]);
+                setStatus('unauthenticated');
+                return;
+            }
             if (!res.ok) {
                 setOrgs([]);
+                setStatus('error');
                 return;
             }
             const json = await res.json();
             setOrgs(json.organizations ?? []);
+            setStatus('ok');
         } catch {
             setOrgs([]);
+            setStatus('error');
         }
     }, []);
 
@@ -35,12 +47,16 @@ export function UserOrgsProvider({ children }: { children: React.ReactNode }) {
         // the initial refresh() sends no auth header, gets 401, and the
         // user sees "no orgs" until they log out and back in.
         return nhost.sessionStorage.onChange((session) => {
-            if (session) refresh();
-            else setOrgs([]);
+            if (session) {
+                refresh();
+            } else {
+                setOrgs([]);
+                setStatus('unauthenticated');
+            }
         });
     }, [refresh]);
 
-    return <UserOrgsContext.Provider value={{ orgs, refresh }}>{children}</UserOrgsContext.Provider>;
+    return <UserOrgsContext.Provider value={{ orgs, status, refresh }}>{children}</UserOrgsContext.Provider>;
 }
 
 export function useUserOrgs(): Ctx {
@@ -49,13 +65,8 @@ export function useUserOrgs(): Ctx {
     return ctx;
 }
 
-/**
- * Returns the membership for the given slug, or:
- *   - undefined while memberships are still loading
- *   - null if the caller doesn't belong to the org
- */
 export function useCurrentOrg(slug: string): UserOrg | null | undefined {
-    const { orgs } = useUserOrgs();
-    if (orgs === null) return undefined;
+    const { orgs, status } = useUserOrgs();
+    if (status !== 'ok') return undefined;
     return orgs.find((o) => o.slug === slug) ?? null;
 }

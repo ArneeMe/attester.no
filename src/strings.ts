@@ -168,6 +168,15 @@ const no = {
             title: 'Velg organisasjon',
             empty: 'Du er ikke koblet til noen organisasjon ennå. Be en eksisterende admin om å legge deg til, eller be om en invitasjonslenke.',
         },
+        session: {
+            signedOutTitle: 'Du må være logget inn for å se denne siden',
+            expiredTitle: 'Økten din er utløpt',
+            expiredBody: 'Du har blitt logget ut. Logg inn på nytt for å fortsette.',
+            loginButton: 'Gå til innlogging',
+            loadFailedTitle: 'Fikk ikke kontakt med serveren',
+            loadFailedBody: 'Vi klarte ikke å hente organisasjonene dine. Sjekk nettforbindelsen og prøv igjen.',
+            retry: 'Prøv igjen',
+        },
         dashboard: {
             title: 'Oversikt',
             batchIssue: 'Generer valgte',
@@ -590,6 +599,15 @@ const en: Strings = {
         picker: {
             title: 'Choose organization',
             empty: 'You are not connected to any organization yet. Ask an existing admin to add you, or request an invite link.',
+        },
+        session: {
+            signedOutTitle: 'You must be signed in to see this page',
+            expiredTitle: 'Your session has expired',
+            expiredBody: 'You have been signed out. Sign in again to continue.',
+            loginButton: 'Go to sign-in',
+            loadFailedTitle: 'Could not reach the server',
+            loadFailedBody: 'We could not load your organizations. Check your connection and try again.',
+            retry: 'Try again',
         },
         dashboard: {
             title: 'Overview',
