@@ -7,16 +7,15 @@ import { useParams } from 'next/navigation';
 import {
     Box,
     Button,
-    Chip,
     CircularProgress,
+    FormControlLabel,
     Paper,
     Stack,
+    Switch,
     Typography,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useToast } from '@/components/ToastProvider';
 import {
     getTemplates,
@@ -32,6 +31,7 @@ export default function MalerPage() {
     const a = strings.admin.templates;
     const toast = useToast();
     const [templates, setTemplates] = useState<PDFTemplate[] | null>(null);
+    const [pendingId, setPendingId] = useState<string | null>(null);
 
     const reload = async () => {
         try {
@@ -50,12 +50,15 @@ export default function MalerPage() {
     const handleToggleOffered = async (t: PDFTemplate) => {
         if (!t.id) return;
         const next = !t.isOffered;
+        setPendingId(t.id);
         try {
             await setTemplateOffered(orgSlug, t.id, next);
             toast.success(next ? a.nowOffered(t.name) : a.noLongerOffered(t.name));
             await reload();
         } catch (e) {
             toast.error((e as Error).message);
+        } finally {
+            setPendingId(null);
         }
     };
 
@@ -116,17 +119,7 @@ export default function MalerPage() {
                         <Paper key={t.id} sx={{ p: 2 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Box sx={{ flex: 1 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                        <Typography variant="h6">{t.name}</Typography>
-                                        {t.isOffered && (
-                                            <Chip
-                                                icon={<VisibilityIcon />}
-                                                label={a.offered}
-                                                size="small"
-                                                color="primary"
-                                            />
-                                        )}
-                                    </Box>
+                                    <Typography variant="h6" sx={{ mb: 0.5 }}>{t.name}</Typography>
                                     {t.description && (
                                         <Typography variant="body2" color="text.secondary">
                                             {t.description}
@@ -152,13 +145,19 @@ export default function MalerPage() {
                                     >
                                         {a.duplicate}
                                     </Button>
-                                    <Button
-                                        startIcon={t.isOffered ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                                        size="small"
-                                        onClick={() => handleToggleOffered(t)}
-                                    >
-                                        {t.isOffered ? a.unofferToggle : a.offerToggle}
-                                    </Button>
+                                    <FormControlLabel
+                                        sx={{ ml: 1, mr: 0 }}
+                                        control={
+                                            <Switch
+                                                checked={t.isOffered}
+                                                disabled={pendingId === t.id}
+                                                onChange={() => handleToggleOffered(t)}
+                                            />
+                                        }
+                                        label={
+                                            <Typography variant="body2">{a.visibleLabel}</Typography>
+                                        }
+                                    />
                                 </Box>
                             </Box>
                         </Paper>
