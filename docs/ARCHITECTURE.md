@@ -97,6 +97,16 @@ URL param, for the same reason.
   becomes real.
 - All Hasura access goes through `hasuraAdmin()` (`src/lib/server/hasura.ts`)
   with GraphQL **variables only** — never interpolate values into query text.
+- Outbound email is optional and has one chokepoint, `sendEmail()`
+  (`src/lib/server/notify.ts`). Without `RESEND_API_KEY` and
+  `NOTIFY_EMAIL_FROM` nothing is sent and the platform runs normally. It
+  returns *why* a send failed — a rejected sender domain used to be
+  indistinguishable from email being switched off, so a broken configuration
+  looked deliberate. "Send testvarsel" on `/admin` exercises the path and
+  reports the reason. **Owner notifications carry org-level business data
+  only** — never volunteer fields or submission content, or the platform owner
+  becomes an accidental holder of the personal data the design exists to avoid
+  holding.
 
 ## Things that look wrong but are deliberate
 

@@ -292,6 +292,11 @@ const no = {
             forbiddenTitle: 'Ingen tilgang',
             forbiddenBody: 'Denne siden er kun for plattform-administratorer (styrt av PLATFORM_ADMIN_EMAILS).',
             loadError: 'Kunne ikke laste organisasjoner',
+            notifyTest: 'Send testvarsel',
+            notifySent: (to: string) => `Testvarsel sendt til ${to}`,
+            notifyNotConfigured: (detail: string) => `E-post er ikke satt opp. ${detail}`,
+            notifyRejected: (detail: string) => `E-postleverandøren avviste sendingen. ${detail}`,
+            notifyError: (detail: string) => `Kunne ikke sende testvarsel. ${detail}`,
         },
         designer: {
             title: 'PDF Mal Editor',
@@ -717,6 +722,11 @@ const en: Strings = {
             forbiddenTitle: 'No access',
             forbiddenBody: 'This page is only for platform administrators (controlled by PLATFORM_ADMIN_EMAILS).',
             loadError: 'Could not load organizations',
+            notifyTest: 'Send test notification',
+            notifySent: (to: string) => `Test notification sent to ${to}`,
+            notifyNotConfigured: (detail: string) => `Email is not configured. ${detail}`,
+            notifyRejected: (detail: string) => `The email provider rejected the send. ${detail}`,
+            notifyError: (detail: string) => `Could not send the test notification. ${detail}`,
         },
         designer: {
             title: 'PDF Template Editor',

@@ -28,6 +28,7 @@ const PlatformAdminPage: React.FC = () => {
     const [name, setName] = useState('');
     const [adminEmail, setAdminEmail] = useState('');
     const [busy, setBusy] = useState(false);
+    const [testingNotify, setTestingNotify] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -50,6 +51,28 @@ const PlatformAdminPage: React.FC = () => {
         if (user === null) router.replace('/login');
         if (user) load();
     }, [user, router, load]);
+
+    const handleNotifyTest = async () => {
+        if (testingNotify) return;
+        setTestingNotify(true);
+        try {
+            const res = await fetch('/api/admin/notify-test', { method: 'POST', headers: authHeader() });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+            if (json.sent) {
+                toast.success(a.notifySent(json.to));
+                return;
+            }
+            const detail = json.detail ?? '';
+            if (json.reason === 'not_configured') toast.error(a.notifyNotConfigured(detail));
+            else if (json.reason === 'rejected') toast.error(a.notifyRejected(detail));
+            else toast.error(a.notifyError(detail));
+        } catch (err) {
+            toast.error(a.notifyError((err as Error).message));
+        } finally {
+            setTestingNotify(false);
+        }
+    };
 
     const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -96,9 +119,14 @@ const PlatformAdminPage: React.FC = () => {
         <Container maxWidth="md" sx={{ py: 6 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 2 }}>
                 <Typography variant="h4" gutterBottom>{a.title}</Typography>
-                <Button size="small" variant="text" onClick={() => setLang(lang === 'no' ? 'en' : 'no')}>
-                    {lang === 'no' ? 'EN' : 'NO'}
-                </Button>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Button size="small" variant="outlined" onClick={handleNotifyTest} disabled={testingNotify}>
+                        {testingNotify ? <CircularProgress size={18} /> : a.notifyTest}
+                    </Button>
+                    <Button size="small" variant="text" onClick={() => setLang(lang === 'no' ? 'en' : 'no')}>
+                        {lang === 'no' ? 'EN' : 'NO'}
+                    </Button>
+                </Box>
             </Box>
 
             <Paper sx={{ p: 3, mb: 3 }}>
