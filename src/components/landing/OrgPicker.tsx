@@ -15,6 +15,7 @@ type Props = {
         count: string;
         cta: string;
         empty: string;
+        emptyCta: string;
         failed: string;
     };
 };
@@ -113,8 +114,12 @@ const OrgPicker: React.FC<Props> = ({ orgs, failed, lang, t }) => {
                 {!failed && !visible.length && query.trim() !== '' && (
                     <Box sx={{ ...row, ...body, borderBottom: 0 }}>
                         {t.empty}&nbsp;
-                        <Box component="a" href="mailto:hei@attester.no" sx={{ color: c.accent }}>
-                            hei@attester.no
+                        <Box
+                            component={Link}
+                            href={`/ny-organisasjon${lang === 'en' ? '?lang=en' : ''}`}
+                            sx={{ color: c.accent }}
+                        >
+                            {t.emptyCta} →
                         </Box>
                     </Box>
                 )}

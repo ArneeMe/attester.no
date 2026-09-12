@@ -117,6 +117,7 @@ export default async function Home({
                             count: s.orgsCount(orgs.length),
                             cta: s.orgsCta,
                             empty: s.orgsEmpty,
+                            emptyCta: s.orgsEmptyCta,
                             failed: s.orgsFailed,
                         }}
                     />
@@ -148,6 +149,15 @@ export default async function Home({
                                     sx={{ ...body, fontSize: 14, mt: 0.75, mx: 0, mb: 0 }}
                                 >
                                     {item.a}
+                                    {item.href && (
+                                        <Box
+                                            component={Link}
+                                            href={withLang(item.href)}
+                                            sx={{ display: 'block', mt: 1, color: c.accent }}
+                                        >
+                                            {item.cta} →
+                                        </Box>
+                                    )}
                                     {item.email && (
                                         <Box
                                             component="a"

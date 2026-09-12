@@ -106,7 +106,9 @@ URL param, for the same reason.
   string validation (`src/util/orgRequest.ts`) — plus a honeypot field that
   returns the same success a real submission gets, so a bot has nothing to
   tune against. It writes a `pending` row and nothing else: creating the
-  organisation requires a platform admin approving it at `/admin`.
+  organisation requires a platform admin approving it at `/admin`, where the
+  slug can be edited first — that edit is the veto on a squatted or
+  misleading one.
 - **Nobody self-serves an organisation.** Approval is manual because the slug
   is a permanent public URL and the product's value rests on an attest being
   verifiable — an unvetted org issuing official-looking certificates attacks
