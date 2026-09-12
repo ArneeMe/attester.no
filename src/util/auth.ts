@@ -1,22 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { authHeader, nhost, type NhostUser } from '@/lib/nhost';
 
-// Must match the Nhost project's "Minimum password length" setting
-// (Settings → Sign-In Methods → Email and Password). Checked client-side
-// too, so a too-short password gets a clear inline message instead of
-// whatever raw error Nhost's API returns.
+// Must match the Nhost project's "Minimum password length"
+// (Settings → Sign-In Methods → Email and Password).
 export const PASSWORD_MIN_LENGTH = 10;
 
 export const login = async (email: string, password: string): Promise<void> => {
     await nhost.auth.signInEmailPassword({ email, password });
 };
 
-/**
- * Self-signup. A fresh account carries zero org memberships, so it grants
- * no access by itself — an existing member must add the address via the
- * Medlemmer page. Returns true if a session was established immediately,
- * false when Nhost requires email verification first.
- */
+// A fresh account has no org memberships, so signing up grants no access.
 export const signup = async (
     email: string,
     password: string,
@@ -35,11 +28,6 @@ export const logout = async (): Promise<void> => {
     await nhost.auth.signOut({ refreshToken: session?.refreshToken });
 };
 
-/**
- * Redeem an org invite token for the logged-in user. Returns the org name
- * on success; throws with the server's message otherwise. Callable right
- * after signup/login once the session is established.
- */
 export const redeemInvite = async (token: string): Promise<string> => {
     const res = await fetch('/api/invites/redeem', {
         method: 'POST',
@@ -58,12 +46,8 @@ export const requestPasswordReset = async (email: string): Promise<void> => {
     });
 };
 
-/**
- * Completes the email reset flow: the link from Nhost redirects here with a
- * refreshToken in the URL; exchanging it establishes a session, and the
- * password change then revokes every session (including this one), so the
- * user must sign in again with the new password.
- */
+// Changing the password revokes every session, including the one established
+// here, so the user has to sign in again afterwards.
 export const completePasswordReset = async (
     refreshToken: string,
     newPassword: string,
@@ -76,9 +60,8 @@ export const completePasswordReset = async (
 export const useAuth = (): NhostUser | null | undefined => {
     const [user, setUser] = useState<NhostUser | null | undefined>(undefined);
     useEffect(() => {
-        // Read once synchronously, then subscribe — Nhost's client-side
-        // middleware updates session storage *after* signInEmailPassword
-        // resolves, so a one-shot read on mount races with login.
+        // Nhost writes the session to storage after signInEmailPassword
+        // resolves, so a read on mount alone races with login.
         setUser(nhost.getUserSession()?.user ?? null);
         return nhost.sessionStorage.onChange((session) => {
             setUser(session?.user ?? null);
@@ -86,3 +69,35 @@ export const useAuth = (): NhostUser | null | undefined => {
     }, []);
     return user;
 };
+
+const REFRESH_MARGIN_SECONDS = 300;
+const REFRESH_INTERVAL_MS = 4 * 60 * 1000;
+
+// The SDK refreshes only on its own HTTP clients, and the admin area builds
+// its own auth header, so without this nothing refreshes the token.
+export function useSessionKeepAlive(): boolean {
+    const [expired, setExpired] = useState(false);
+
+    const tick = useCallback(async () => {
+        if (!nhost.getUserSession()) return;
+        const session = await nhost.refreshSession(REFRESH_MARGIN_SECONDS);
+        // null also means the endpoint was unreachable; only a session the
+        // SDK discarded proves the refresh token is dead.
+        if (!session && !nhost.getUserSession()) setExpired(true);
+    }, []);
+
+    useEffect(() => {
+        void tick();
+        const timer = setInterval(() => void tick(), REFRESH_INTERVAL_MS);
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') void tick();
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, [tick]);
+
+    return expired;
+}
