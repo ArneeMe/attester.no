@@ -48,19 +48,3 @@ export async function requireOrgMemberBySlug(
     }
     return { userId: session.userId, organizationId };
 }
-
-/**
- * Verify membership by an already-known org id. Use when the org id is loaded
- * from another row first (e.g. the DELETE volunteer flow).
- */
-export async function requireOrgMemberById(
-    req: NextRequest,
-    organizationId: string,
-): Promise<JwtClaims | NextResponse> {
-    const session = await requireSession(req);
-    if (session instanceof NextResponse) return session;
-    if (!(await userBelongsToOrg(session.userId, organizationId))) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    return session;
-}

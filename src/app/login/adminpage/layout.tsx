@@ -43,6 +43,7 @@ function AdminShell({
     const { status, refresh } = useUserOrgs();
     const { strings } = useAdminLang();
     const s = strings.admin.session;
+    const shell = strings.admin.shell;
 
     if (status === 'unauthenticated') {
         return (
@@ -75,13 +76,13 @@ function AdminShell({
     return (
         <Container component="main" maxWidth="lg">
             <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                <Typography variant="h6">Velkommen, {email}</Typography>
+                <Typography variant="h6">{shell.welcome(email ?? '')}</Typography>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button component={Link} href="/login/adminpage" variant="outlined" size="small">
-                        Bytt organisasjon
+                        {shell.switchOrg}
                     </Button>
                     <Button onClick={onLogout} variant="outlined" size="small" color="error">
-                        Logg ut
+                        {shell.logOut}
                     </Button>
                 </Box>
             </Box>

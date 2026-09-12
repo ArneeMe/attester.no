@@ -16,8 +16,11 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DeleteIcon from '@mui/icons-material/Delete';
+import ConfirmDialog from '@/util/confirmDialog';
 import { useToast } from '@/components/ToastProvider';
 import {
+    deleteTemplate,
     getTemplates,
     saveTemplate,
     setTemplateOffered,
@@ -32,6 +35,7 @@ export default function MalerPage() {
     const toast = useToast();
     const [templates, setTemplates] = useState<PDFTemplate[] | null>(null);
     const [pendingId, setPendingId] = useState<string | null>(null);
+    const [toDelete, setToDelete] = useState<PDFTemplate | null>(null);
 
     const reload = async () => {
         try {
@@ -59,6 +63,18 @@ export default function MalerPage() {
             toast.error((e as Error).message);
         } finally {
             setPendingId(null);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!toDelete?.id) return;
+        try {
+            await deleteTemplate(orgSlug, toDelete.id);
+            toast.success(a.deleted(toDelete.name));
+            setToDelete(null);
+            await reload();
+        } catch (e) {
+            toast.error((e as Error).message);
         }
     };
 
@@ -145,6 +161,15 @@ export default function MalerPage() {
                                     >
                                         {a.duplicate}
                                     </Button>
+                                    <Button
+                                        startIcon={<DeleteIcon />}
+                                        size="small"
+                                        color="error"
+                                        aria-label={a.deleteAria(t.name)}
+                                        onClick={() => setToDelete(t)}
+                                    >
+                                        {a.delete}
+                                    </Button>
                                     <FormControlLabel
                                         sx={{ ml: 1, mr: 0 }}
                                         control={
@@ -164,6 +189,15 @@ export default function MalerPage() {
                     ))}
                 </Stack>
             )}
+
+            <ConfirmDialog
+                open={!!toDelete}
+                title={a.deleteTitle}
+                message={toDelete ? a.deleteMessage(toDelete.name) : ''}
+                confirmButtonText={a.deleteConfirm}
+                onConfirm={handleDelete}
+                onClose={() => setToDelete(null)}
+            />
         </Box>
     );
 }
