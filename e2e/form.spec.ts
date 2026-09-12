@@ -77,6 +77,22 @@ test('a single offered template loads straight into the form, no chooser', async
     await expect(page.getByRole('button', { name: /Velg en annen attest/ })).not.toBeVisible();
 });
 
+test('a dropdown field is reachable by its label', async ({ page }) => {
+    const DROPDOWN = {
+        id: TEMPLATE.id,
+        name: TEMPLATE.name,
+        form_schema: [
+            { key: 'gruppe', label: 'Gruppe', type: 'dropdown', options: ['Styret', 'Kjelleren'] },
+        ],
+    };
+    await page.route(`**/api/org/${ORG}/templates/${TEMPLATE.id}*`, (route) =>
+        route.fulfill({ json: { template: DROPDOWN } }),
+    );
+
+    await page.goto(`/org/${ORG}`);
+    await expect(page.getByLabel('Gruppe')).toBeVisible({ timeout: 30000 });
+});
+
 test('several offered templates show a chooser, and picking one loads that form', async ({ page }) => {
     await mockOffered(page, [TEMPLATE, SECOND]);
 

@@ -106,7 +106,11 @@ export default function SchemaEditor({ orgSlug, schema, assets, onChange }: Prop
                             }
                             label={d.optionalLabel}
                         />
-                        <IconButton color="error" onClick={() => removeField(i)}>
+                        <IconButton
+                            color="error"
+                            aria-label={d.removeFieldAria(field.label || field.key)}
+                            onClick={() => removeField(i)}
+                        >
                             <DeleteIcon />
                         </IconButton>
                     </Box>

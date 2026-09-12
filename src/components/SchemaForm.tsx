@@ -115,8 +115,11 @@ function FieldInput({
             }
             return (
                 <FormControl fullWidth required={!field.optional} margin="normal" error={!!error}>
-                    <InputLabel>{field.label}</InputLabel>
+                    <InputLabel id={`${field.key}-label`}>{field.label}</InputLabel>
                     <Select
+                        labelId={`${field.key}-label`}
+                        id={field.key}
+                        name={field.key}
                         label={field.label}
                         value={value}
                         onChange={(e) => onChange(String(e.target.value))}
