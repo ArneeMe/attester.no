@@ -306,6 +306,7 @@ const SignatureRow: React.FC<{
                             </Button>
                             <IconButton
                                 color="error"
+                                aria-label={cs.deleteAria(cs.kinds.signature.label, asset.name)}
                                 onClick={() => {
                                     const usage = countTemplatesUsingAsset(asset.id, templates);
                                     if (!confirmDelete(cs.kinds.signature.definite, usage, cs)) return;
@@ -409,6 +410,7 @@ const LogoRow: React.FC<{
                             </Button>
                             <IconButton
                                 color="error"
+                                aria-label={cs.deleteAria(cs.kinds.logo.label, asset.name)}
                                 onClick={() => {
                                     const usage = countTemplatesUsingAsset(asset.id, templates);
                                     if (!confirmDelete(cs.kinds.logo.definite, usage, cs)) return;
@@ -503,6 +505,7 @@ const BodyTextRow: React.FC<{
                             </Button>
                             <IconButton
                                 color="error"
+                                aria-label={cs.deleteAria(cs.kinds.body_text.label, asset.name)}
                                 onClick={() => {
                                     const usage = countTemplatesUsingAsset(asset.id, templates);
                                     if (!confirmDelete(cs.kinds.body_text.definite, usage, cs)) return;
@@ -608,6 +611,7 @@ const LookupListRow: React.FC<{
                     </Button>
                     <IconButton
                         color="error"
+                        aria-label={cs.deleteAria(cs.kinds.lookup_list.label, asset.name)}
                         onClick={() => {
                             const usage = countTemplatesUsingAsset(asset.id, templates);
                             if (!confirmDelete(cs.kinds.lookup_list.definite, usage, cs)) return;
@@ -642,7 +646,10 @@ const LookupListRow: React.FC<{
                         />
                     </Grid>
                     <Grid size={{ xs: 12, sm: 1 }}>
-                        <IconButton onClick={() => setItems(items.filter((_, idx) => idx !== i))}>
+                        <IconButton
+                            aria-label={cs.removeItemAria}
+                            onClick={() => setItems(items.filter((_, idx) => idx !== i))}
+                        >
                             <DeleteIcon />
                         </IconButton>
                     </Grid>
