@@ -33,6 +33,11 @@ never be broken, read [CLAUDE.md](../CLAUDE.md) first — this file explains
   `id=` param — NOT a personal reference), `hash`, `template_id`,
   `organization_id`, `issued_by`, `created_at`. Never anything personal.
 - `invites` — 7-day tokens; redemption requires session email == invited email.
+- `org_requests` — organisations asking to be set up, pending until a platform
+  admin approves or rejects. `org_number` (organisasjonsnummer) is optional:
+  many student societies and local chapters are not registered. Contact
+  details here are business records, not volunteer data, so the retention
+  sweep does not touch them and handled rows are kept.
 - `legacy_certificates` — frozen pre-migration echo certs (until ~2030).
 
 ## The three core flows
@@ -95,6 +100,20 @@ URL param, for the same reason.
   rate limiter: the in-memory one was dropped because per-isolate state on
   the edge runtime made it best-effort theatre. See ROADMAP if abuse ever
   becomes real.
+- There are exactly **two** unauthenticated write paths. The second is
+  `POST /api/org-requests`, where an organisation asks to be set up. Same
+  shape of defence as the submissions POST — body cap, per-field caps, strict
+  string validation (`src/util/orgRequest.ts`) — plus a honeypot field that
+  returns the same success a real submission gets, so a bot has nothing to
+  tune against. It writes a `pending` row and nothing else: creating the
+  organisation requires a platform admin approving it at `/admin`.
+- **Nobody self-serves an organisation.** Approval is manual because the slug
+  is a permanent public URL and the product's value rests on an attest being
+  verifiable — an unvetted org issuing official-looking certificates attacks
+  the core proposition, not just the signup flow. Approving mints an invite
+  rather than attaching a member, so the applicant needs no prior account and
+  a leaked link still grants nothing (redeem requires the session email to
+  match).
 - All Hasura access goes through `hasuraAdmin()` (`src/lib/server/hasura.ts`)
   with GraphQL **variables only** — never interpolate values into query text.
 
