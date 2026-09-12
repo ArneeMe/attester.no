@@ -3,6 +3,7 @@ import { hasuraAdmin } from "@/lib/server/hasura";
 import { requirePlatformAdmin } from "@/lib/server/platformAdmin";
 import { createInvite, createOrganization, slugIsTaken } from "@/lib/server/createOrg";
 import { MAX_NAME_LEN, MAX_SLUG_LEN, SLUG_RE } from "@/util/orgRequest";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -103,7 +104,6 @@ export async function POST(
             inviteEmail: request.contact_email,
         });
     } catch (e) {
-        console.error("Handling org request failed:", (e as Error).message);
-        return NextResponse.json({ error: "server_error" }, { status: 500 });
+        return serverError(e, "api/admin/org-requests/[id]");
     }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
 import { getUserByEmail, getUsersByIds } from "@/lib/server/authUsers";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -40,7 +41,7 @@ export async function GET(
         }));
         return NextResponse.json({ members });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/members");
     }
 }
 
@@ -84,7 +85,7 @@ export async function POST(
             member: { userId: user.id, email: user.email, displayName: user.displayName, role: "admin", isSelf: false },
         });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/members");
     }
 }
 
@@ -126,6 +127,6 @@ export async function DELETE(
         );
         return NextResponse.json({ ok: true });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/members");
     }
 }

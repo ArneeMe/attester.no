@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requirePlatformAdmin } from "@/lib/server/platformAdmin";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -48,7 +49,6 @@ export async function GET(req: NextRequest) {
             })),
         });
     } catch (e) {
-        console.error("Listing org requests failed:", (e as Error).message);
-        return NextResponse.json({ error: "server_error" }, { status: 500 });
+        return serverError(e, "api/admin/org-requests");
     }
 }

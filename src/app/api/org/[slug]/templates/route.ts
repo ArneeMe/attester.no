@@ -4,6 +4,7 @@ import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
 import { clearOfferedForName } from "@/lib/server/templateOffering";
 import type { FormSchema } from "@/types/formSchema";
 import type { FieldBindings } from "@/types/fieldBindings";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -40,7 +41,7 @@ export async function GET(
         );
         return NextResponse.json({ templates: data.templates });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/templates");
     }
 }
 
@@ -133,6 +134,6 @@ export async function POST(
 
         return NextResponse.json({ template: data.insert_templates_one });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/templates");
     }
 }

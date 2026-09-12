@@ -4,6 +4,7 @@ import { requirePlatformAdmin } from "@/lib/server/platformAdmin";
 import { getUserByEmail } from "@/lib/server/authUsers";
 import { createOrganizationWithMember, slugIsTaken } from "@/lib/server/createOrg";
 import { MAX_NAME_LEN, MAX_SLUG_LEN, SLUG_RE } from "@/util/orgRequest";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
         );
         return NextResponse.json({ organizations: data.organizations });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/admin/orgs");
     }
 }
 
@@ -62,6 +63,6 @@ export async function POST(req: NextRequest) {
             firstMember: user.email,
         });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/admin/orgs");
     }
 }

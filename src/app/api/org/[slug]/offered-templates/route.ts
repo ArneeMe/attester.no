@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { resolveOrgIdBySlug } from "@/lib/server/apiAuth";
 import { selectOfferedTemplates, type OfferableTemplate } from "@/util/offeredTemplates";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -34,6 +35,6 @@ export async function GET(
 
         return NextResponse.json({ templates: selectOfferedTemplates(data.templates) });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/offered-templates");
     }
 }

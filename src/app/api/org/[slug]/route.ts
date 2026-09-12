@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -27,6 +28,6 @@ export async function GET(
         if (!org) return NextResponse.json({ error: "Not found" }, { status: 404 });
         return NextResponse.json({ organization: org });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]");
     }
 }

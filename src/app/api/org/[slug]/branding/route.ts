@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { resolveOrgIdBySlug } from "@/lib/server/apiAuth";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -42,6 +43,6 @@ export async function GET(
             logo: data.org_assets[0]?.content?.image ?? null,
         });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/branding");
     }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { slugIsTaken } from "@/lib/server/createOrg";
 import { validateOrgRequest } from "@/util/orgRequest";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -66,7 +67,6 @@ export async function POST(req: NextRequest) {
         );
         return NextResponse.json({ received: true });
     } catch (e) {
-        console.error("Org request failed:", (e as Error).message);
-        return NextResponse.json({ error: "server_error" }, { status: 500 });
+        return serverError(e, "api/org-requests");
     }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/server/apiAuth";
 import { getUserOrgs } from "@/lib/server/membership";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -12,6 +13,6 @@ export async function GET(req: NextRequest) {
         const orgs = await getUserOrgs(auth.userId);
         return NextResponse.json({ organizations: orgs });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/me/organizations");
     }
 }
