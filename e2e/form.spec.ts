@@ -70,6 +70,27 @@ test('valid submission reaches the confirmation screen', async ({ page }) => {
     await expect(page.getByText(/slettes opplysningene dine automatisk/)).toBeVisible();
 });
 
+test('double-clicking confirm sends one submission, not two', async ({ page }) => {
+    let posts = 0;
+    await page.route(`**/api/org/${ORG}/submissions`, async (route) => {
+        posts += 1;
+        await new Promise((r) => setTimeout(r, 600));
+        await route.fulfill({ json: { submission: { id: 'sub-1', created_at: '2026-07-11T00:00:00Z' } } });
+    });
+
+    await page.goto(`/org/${ORG}`);
+    await page.getByLabel('Navn').fill('Ola Nordmann');
+    await page.getByLabel('Fra dato').fill('2026-01-15');
+    await page.getByRole('button', { name: 'Send inn' }).click();
+
+    const confirm = page.getByRole('button', { name: 'Ja, lagre' });
+    await expect(confirm).toBeVisible();
+    await confirm.dblclick();
+
+    await expect(page.getByText('Innsendingen er mottatt')).toBeVisible({ timeout: 30000 });
+    expect(posts).toBe(1);
+});
+
 test('a single offered template loads straight into the form, no chooser', async ({ page }) => {
     await page.goto(`/org/${ORG}`);
     await expect(page.getByText('Søk om attest til Testorg')).toBeVisible({ timeout: 30000 });
