@@ -15,9 +15,13 @@ Companion docs (read as needed):
   don't get re-litigated or rebuilt by accident.
 - `docs/IDEAS.md` — feature ideas not built yet, with the open questions, so
   they get built deliberately instead of guessed at.
+- `docs/NEXT_STEPS.md` — what is worth doing next and why, sequenced across
+  the two above, with every claim cited to a file and line.
+- `docs/SEO.md` — how the site gets found, and the owner actions that matter
+  more than the code.
 
-Keep all five documents truthful in the SAME commit as any change that
-affects what they say. A doc that describes a superseded model is worse than
+Keep every one of these documents truthful in the SAME commit as any change
+that affects what they say. A doc that describes a superseded model is worse than
 no doc: it is actively misleading, and this repo has already shipped copy
 that told users something false because the docs lagged the code.
 

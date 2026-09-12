@@ -125,12 +125,14 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 - Small, independently shippable slices; stacked PRs when they depend on each
   other (base each PR on its parent branch, retarget as parents merge).
 - **`main` auto-deploys to production** via the Cloudflare Pages Git
-  integration. Feature work therefore lands on **`develop`** first and reaches
-  `main` in one deliberate merge, so half-finished UI never goes live.
+  integration, so anything merged is live. Current practice is one small,
+  self-contained branch per change straight to `main`, each shippable on its
+  own. An earlier `develop` integration branch was dropped once the slices got
+  small enough that batching them added delay rather than safety.
 - When a stacked PR merges, its child does NOT auto-retarget unless the merged
   branch is deleted. Either delete the branch on merge or retarget the child
   by hand — otherwise the child quietly merges into a dead branch and its work
-  disappears from `develop`. This has happened once already.
+  disappears. This has happened once already.
 - Group changes by review difficulty: language/tests/UI polish are quick
   approvals; anything touching issuance, retention, auth, or tenancy gets its
   own clearly-labelled PR for deep review.
