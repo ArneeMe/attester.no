@@ -1,23 +1,14 @@
-// Every user-facing string on the PUBLIC surface (landing, /om, the
-// volunteer form, verify, and the auth pages) lives here, in Norwegian and
-// English. The admin UI is deliberately not localized yet — Norwegian orgs
-// administer it — but new public-surface text belongs in this file, both
-// languages, or it ships Norwegian-only by accident.
-//
-// Language selection is URL-based (?lang=en) so it works identically in
-// server and client components and survives link sharing. Norwegian is the
-// default for any other value.
+// Public-surface strings only (landing, /om, the volunteer form, verify, auth),
+// both languages. The admin UI is deliberately Norwegian-only for now.
+// Language is chosen by ?lang=en so it resolves identically in server and
+// client components and survives link sharing.
 
 import { ISSUED_RETENTION_HOURS } from '@/util/retention';
 
 export type Lang = 'no' | 'en';
 
-/**
- * A landing-page FAQ entry. `email` is optional: when set, the page renders it
- * as a mailto link under the answer. Declared as a named type so the `no`
- * literal widens to a single shape — without it TypeScript infers a union of
- * "with email" and "without email" objects and `item.email` stops resolving.
- */
+// Named so the `no` literal widens to one shape — inferred, TypeScript makes a
+// union of "with email" and "without email" and `item.email` stops resolving.
 type FaqItem = { q: string; a: string; email?: string };
 
 const no = {
