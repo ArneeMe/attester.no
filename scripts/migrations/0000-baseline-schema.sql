@@ -137,6 +137,26 @@ CREATE TABLE IF NOT EXISTS invites (
 CREATE INDEX IF NOT EXISTS invites_token_idx ON invites(token);
 CREATE INDEX IF NOT EXISTS invites_org_idx ON invites(organization_id);
 
+-- Organisations asking to be set up, pending until a platform admin approves.
+-- Contact details are business records, not volunteer data, so the retention
+-- sweep does not apply to them.
+CREATE TABLE IF NOT EXISTS org_requests (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    requested_slug text NOT NULL,
+    organization_name text NOT NULL,
+    org_number text,
+    contact_email text NOT NULL,
+    contact_name text,
+    message text,
+    status text NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'approved', 'rejected')),
+    organization_id uuid REFERENCES organizations(id) ON DELETE SET NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    handled_at timestamptz,
+    handled_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS org_requests_status_idx ON org_requests(status, created_at);
+
 -- Hasura console steps (fresh install):
 --   1. Data → "Untracked tables/views" → track every table above.
 --   2. Relationships: object relationships on each organization_id /

@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requirePlatformAdmin } from "@/lib/server/platformAdmin";
 import { getUserByEmail } from "@/lib/server/authUsers";
+import { createOrganizationWithMember, slugIsTaken } from "@/lib/server/createOrg";
+import { MAX_NAME_LEN, MAX_SLUG_LEN, SLUG_RE } from "@/util/orgRequest";
 
 export const runtime = "edge";
-
-const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
-const MAX_SLUG_LEN = 64;
-const MAX_NAME_LEN = 200;
 
 export async function GET(req: NextRequest) {
     const auth = await requirePlatformAdmin(req);
@@ -46,13 +44,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const existing = await hasuraAdmin<{ organizations: Array<{ id: string }> }>(
-            `query OrgExists($slug: String!) {
-                organizations(where: { slug: { _eq: $slug } }, limit: 1) { id }
-            }`,
-            { slug },
-        );
-        if (existing.organizations.length > 0) {
+        if (await slugIsTaken(slug)) {
             return NextResponse.json({ error: `Organisasjonen "${slug}" finnes allerede` }, { status: 409 });
         }
 
@@ -64,17 +56,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Client-generated org id lets both inserts share one mutation —
-        // Hasura runs the root fields in a single transaction, so we never
-        // end up with a memberless org on partial failure.
-        const orgId = crypto.randomUUID();
-        await hasuraAdmin(
-            `mutation CreateOrgWithMember($orgId: uuid!, $slug: String!, $name: String!, $userId: uuid!) {
-                insert_organizations_one(object: { id: $orgId, slug: $slug, name: $name }) { id }
-                insert_user_organizations_one(object: { user_id: $userId, organization_id: $orgId }) { user_id }
-            }`,
-            { orgId, slug, name: name.trim(), userId: user.id },
-        );
+        const orgId = await createOrganizationWithMember(slug, name.trim(), user.id);
         return NextResponse.json({
             organization: { id: orgId, slug, name: name.trim() },
             firstMember: user.email,
