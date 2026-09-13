@@ -23,6 +23,20 @@ that affects what they say. A doc that describes a superseded model is worse tha
 no doc: it is actively misleading, and this repo has already shipped copy
 that told users something false because the docs lagged the code.
 
+## How this repo is worked
+
+- **Comments: few or none.** Explain only what is genuinely surprising —
+  never what the code already says. Reasoning belongs in the commit message,
+  where it is read once by someone deciding, not every time by someone
+  scrolling. A comment restating its own function is worse than no comment.
+- **Small PRs, one squashed commit each, straight to `main`.** Each must be
+  shippable alone. Where a change is not, split it so the invisible half
+  (schema, API) merges first and nothing half-finished reaches production.
+- **Iterate.** Ship a step, look at it, decide the next one. Do not batch
+  several steps into one branch because they are related.
+- **Hygiene-only PRs get closed unreviewed.** Fold small fixes into whatever
+  larger change already touches those files, or leave them.
+
 ## Security model: the hash IS the certificate
 
 The point of attester.no is to prove a certificate exists without storing

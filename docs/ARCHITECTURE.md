@@ -85,30 +85,27 @@ URL param, for the same reason.
 
 Two styling systems coexist, deliberately.
 
-**The landing layer** — `src/app/style/tokens.ts` (colours, spacing, type
-scales) plus `src/components/landing/*`. Hand-built, warm paper background,
-serif wordmark. `SiteHeader` is the single header for the whole site:
-`LandingHeader` wraps it for public pages, `SignedInShell` wraps it for
-`/login/adminpage/**` and `/admin`. They share one component so the two sides
-cannot drift apart.
+**The landing layer** — `src/app/style/tokens.ts` plus
+`src/components/landing/*`. `SiteHeader` is the one header for the whole site:
+`LandingHeader` wraps it for public pages, `SignedInShell` for
+`/login/adminpage/**` and `/admin`. One component, so the two sides cannot
+drift apart.
 
-**Stock MUI** — everything inside an admin page: forms, tables, dialogs. The
-theme (`src/app/style/customTheme.ts`) derives its palette from the same
-tokens, so the two do not clash, but they are not the same system.
+**Stock MUI** — everything inside an admin page. The theme
+(`src/app/style/customTheme.ts`) takes its palette from the same tokens, so
+they do not clash, but they are not one system.
 
-Where the line currently falls: `/`, `/om` and `/ny-organisasjon` are fully
-landing-layer; the verify client uses tokens but is hand-rolled; the chrome
-around every signed-in page is landing-layer while its contents are MUI. The
-volunteer form and the four auth pages are still entirely MUI.
+Where the line falls: `/`, `/om` and `/ny-organisasjon` are fully
+landing-layer; the verify client uses tokens but is hand-rolled; signed-in
+pages have landing-layer chrome and MUI contents. The volunteer form and the
+four auth pages are still entirely MUI.
 
-**Do not reach for stock MUI when adding a public page** — use `PageShell`.
-Inside admin, MUI is correct until someone decides otherwise; converting a
-page is a deliberate act, not a drive-by.
+Use `PageShell` for a new public page. Inside admin, MUI is correct until
+someone decides otherwise — converting a page is a deliberate act.
 
-Typography variants in the theme must not hardcode `color`: `body1`/`body2`
-inherit, and a fixed colour there once overrode a contained button's
-`contrastText` through a nested `Typography`, making button labels
-unreadable. `customTheme.test.ts` pins that.
+Theme typography must not hardcode `color`: a fixed colour on `body1`/`body2`
+once overrode a contained button's `contrastText` through a nested
+`Typography`. `customTheme.test.ts` pins it.
 
 ## Security model
 

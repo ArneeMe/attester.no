@@ -65,11 +65,10 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
   with a message written for the reader.
 - Unexpected failures: `return serverError(e, "api/route/path")`
   (`src/lib/server/apiError.ts`). NEVER return the caught message — Hasura's
-  text names tables, columns and constraints, and one of these routes is the
-  anonymous volunteer POST. The helper logs the detail and returns
-  `{ code: "server_error" }`; it deliberately leaves `error` unset so the
-  many client call sites written as `json.error ?? "Kunne ikke laste maler"`
-  keep their own wording.
+  text names tables and constraints, and one of these routes is the anonymous
+  volunteer POST. It returns `{ code: "server_error" }`, leaving `error` unset
+  so callers written as `json.error ?? "Kunne ikke laste maler"` keep their
+  own wording.
 
 ### Database changes
 - Migrations are hand-run SQL in `scripts/migrations/`, executed in the
