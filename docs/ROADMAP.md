@@ -9,7 +9,10 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
   org: password reset email, signup, invite redemption, issue + verify one
   attest on paper, and confirm the sweep deletes an *issued* submission after
   the window while leaving an unissued one alone.
-- **Pilot**: echo + one external org through the full lifecycle.
+- **Pilot**: echo + one external org through the full lifecycle. The
+  onboarding path now exists end to end — a request at `/ny-organisasjon`,
+  approval at `/admin`, and an invite to the contact address — so the
+  external org no longer needs hand-holding through signup.
 
 ## Needs a decision or an account (owner: the human)
 
@@ -17,10 +20,21 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
   submission, backlinks from member orgs. Full playbook: docs/SEO.md.
 
 - **Error tracking** — the most important gap once strangers depend on the
-  product; today production failures are invisible (`console.error` only).
-  Sentry or Cloudflare-native. Do this before promoting beyond people you know.
-- **Email provider** — `RESEND_API_KEY`/`NOTIFY_EMAIL_FROM` currently power
-  invite emails only; without them the invite dialog just shows a link to copy.
+  product; production failures are invisible (`console.error` only, and
+  Cloudflare's log is not retained). Three options, separated by lock-in:
+  Workers Logs is Cloudflare config with no code; a `platform_errors` table
+  rides the `hasuraAdmin` seam and works anywhere Postgres does; Sentry is a
+  third vendor but host-agnostic. If a table, store message and route only —
+  never request bodies, or it becomes the volunteer-data store the privacy
+  model forbids. Do this before promoting beyond people you know.
+- **Notification channel** — the decision blocking every notification. Today
+  `RESEND_API_KEY`/`NOTIFY_EMAIL_FROM` power invite emails only, and without
+  them the invite dialog just shows a link to copy. ntfy is the alternative
+  worth weighing: no account, no API key (the topic name is the secret),
+  open source under Apache-2.0/GPLv2, and self-hostable — the only option
+  that survives leaving both Cloudflare and Nhost. Whatever is chosen,
+  reliability must come from the row plus a lazy retry, not from a send
+  succeeding.
 - **`hei@attester.no`** — referenced in the help dialog and /om. Must
   actually exist.
 - **Privacy policy** — deliberately NOT shipped. A drafted `/personvern` was
@@ -31,20 +45,22 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
 
 ## Known gaps
 
-- **Double-click can create a duplicate certificate row.** The issuance
-  confirm button isn't disabled while the request is in flight, so two rapid
-  clicks can both pass the API's check-then-insert. Harmless today — both
-  rows carry an identical hash and the verify route reads with `limit: 1` —
-  so this is hygiene, not a vulnerability. The cheap fix is a busy guard on
-  the button; a DB unique index was tried in #35 and rejected as more
-  complexity than the problem warrants (2026-08).
+- **Nothing notifies anyone, in any direction.** The owner is not told a new
+  organisation has applied; org admins are not told a submission is waiting;
+  the volunteer hears nothing after submitting and cannot check or chase.
+  Since unissued rows are never auto-deleted (see below) nothing is *lost*,
+  but an application can sit unseen for weeks. All three are blocked on the
+  same decision — which channel this platform uses — which is why they are one
+  gap and not three. Cheapest first move once that is settled: a pending count
+  in the org nav and the picker.
 
-- **Nothing tells an admin a submission is waiting.** No email, no badge, no
-  count — an org has to remember to log in. Since unissued rows are never
-  auto-deleted (see below) nothing is *lost*, but an application can sit
-  unseen for weeks. Cheapest fix is a pending count in the org nav; the
-  heavier one is reinstating a content-free email. Raised 2026-08, not yet
-  scheduled.
+- **A failed request is now invisible to everyone.** #61 stopped routes
+  returning the caught message, which was right — it was leaking Hasura's
+  table and constraint names to anonymous callers. The consequence is that
+  `console.error` into Cloudflare's ephemeral log is the only remaining
+  record, so miss the moment and the reason is gone. See "Error tracking"
+  above; #61 did not create this, but it removed the last accidental
+  workaround.
 
 ## Design options captured (build when the need is real)
 

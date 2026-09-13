@@ -48,4 +48,25 @@ conflate the two.
   accidental holder of volunteer information via a support message)? Worth
   a short reminder line in the UI either way.
 
+## Checking an applicant against Enhetsregisteret
+
+**Status:** not built, and the useful half may not be available.
+
+Manual approval exists because anyone could claim to be "Røde Kors Oslo", so
+checking the organisasjonsnummer is the obvious defence.
+
+Research (2026-09, confirm before relying on it): identity and **roles** are
+open data at `data.brreg.no/enhetsregisteret/api`, but **signatur and prokura
+are restricted** to public authorities and credit-information licensees, as is
+the national-ID-linked role data. So "is this person entitled to sign for the
+organisation" is probably out of reach — confirm eligibility with Brønnøysund
+before designing anything.
+
+Open data still supports showing the registered name beside the requested one
+at approval, and listing role-holders for the human already judging.
+
+**A signal, not a gate.** Many student societies are not registered at all and
+are exactly the audience — which is why `orgNumber` on `org_requests` is
+optional and MOD11-validated (`src/util/orgRequest.ts`).
+
 ## (add the next idea below this line)

@@ -15,11 +15,27 @@ Companion docs (read as needed):
   don't get re-litigated or rebuilt by accident.
 - `docs/IDEAS.md` — feature ideas not built yet, with the open questions, so
   they get built deliberately instead of guessed at.
+- `docs/SEO.md` — how the site gets found, and the owner actions that matter
+  more than the code.
 
-Keep all five documents truthful in the SAME commit as any change that
-affects what they say. A doc that describes a superseded model is worse than
+Keep every one of these documents truthful in the SAME commit as any change
+that affects what they say. A doc that describes a superseded model is worse than
 no doc: it is actively misleading, and this repo has already shipped copy
 that told users something false because the docs lagged the code.
+
+## How this repo is worked
+
+- **Comments: few or none.** Explain only what is genuinely surprising —
+  never what the code already says. Reasoning belongs in the commit message,
+  where it is read once by someone deciding, not every time by someone
+  scrolling. A comment restating its own function is worse than no comment.
+- **Small PRs, one squashed commit each, straight to `main`.** Each must be
+  shippable alone. Where a change is not, split it so the invisible half
+  (schema, API) merges first and nothing half-finished reaches production.
+- **Iterate.** Ship a step, look at it, decide the next one. Do not batch
+  several steps into one branch because they are related.
+- **Hygiene-only PRs get closed unreviewed.** Fold small fixes into whatever
+  larger change already touches those files, or leave them.
 
 ## Security model: the hash IS the certificate
 

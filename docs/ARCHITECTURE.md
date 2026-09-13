@@ -81,6 +81,32 @@ would otherwise change the digest and show a genuine certificate as invalid.
 The language toggle on this page is deliberately local React state, never a
 URL param, for the same reason.
 
+## The design layer
+
+Two styling systems coexist, deliberately.
+
+**The landing layer** — `src/app/style/tokens.ts` plus
+`src/components/landing/*`. `SiteHeader` is the one header for the whole site:
+`LandingHeader` wraps it for public pages, `SignedInShell` for
+`/login/adminpage/**` and `/admin`. One component, so the two sides cannot
+drift apart.
+
+**Stock MUI** — everything inside an admin page. The theme
+(`src/app/style/customTheme.ts`) takes its palette from the same tokens, so
+they do not clash, but they are not one system.
+
+Where the line falls: `/`, `/om` and `/ny-organisasjon` are fully
+landing-layer; the verify client uses tokens but is hand-rolled; signed-in
+pages have landing-layer chrome and MUI contents. The volunteer form and the
+four auth pages are still entirely MUI.
+
+Use `PageShell` for a new public page. Inside admin, MUI is correct until
+someone decides otherwise — converting a page is a deliberate act.
+
+Theme typography must not hardcode `color`: a fixed colour on `body1`/`body2`
+once overrode a contained button's `contrastText` through a nested
+`Typography`. `customTheme.test.ts` pins it.
+
 ## Security model
 
 - **Server is the only boundary.** Client-side guards are UX, not security.

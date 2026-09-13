@@ -61,8 +61,14 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
   variables, NEVER in the query string. Multiple root fields in one mutation
   run in a single transaction — use that for atomicity (see the /admin org
   creation for the client-generated-uuid trick).
-- Errors: `NextResponse.json({ error: message }, { status })`; catch and
-  return 500 with the message.
+- Deliberate failures: `NextResponse.json({ error: message }, { status })`
+  with a message written for the reader.
+- Unexpected failures: `return serverError(e, "api/route/path")`
+  (`src/lib/server/apiError.ts`). NEVER return the caught message — Hasura's
+  text names tables and constraints, and one of these routes is the anonymous
+  volunteer POST. It returns `{ code: "server_error" }`, leaving `error` unset
+  so callers written as `json.error ?? "Kunne ikke laste maler"` keep their
+  own wording.
 
 ### Database changes
 - Migrations are hand-run SQL in `scripts/migrations/`, executed in the
@@ -125,12 +131,18 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 - Small, independently shippable slices; stacked PRs when they depend on each
   other (base each PR on its parent branch, retarget as parents merge).
 - **`main` auto-deploys to production** via the Cloudflare Pages Git
-  integration. Feature work therefore lands on **`develop`** first and reaches
-  `main` in one deliberate merge, so half-finished UI never goes live.
-- When a stacked PR merges, its child does NOT auto-retarget unless the merged
-  branch is deleted. Either delete the branch on merge or retarget the child
-  by hand — otherwise the child quietly merges into a dead branch and its work
-  disappears from `develop`. This has happened once already.
+  integration, so anything merged is live. Current practice is one small
+  self-contained branch per change, straight to `main`, each shippable alone.
+  An earlier `develop` integration branch was dropped once the slices got
+  small enough that batching them added delay rather than safety. Where a
+  change genuinely is not shippable alone, split it so the invisible half
+  (schema, API) merges first — see the org request work, #59 then #60.
+- Stack only genuinely dependent work; unrelated branches go off `main` in
+  parallel. A stacked child does NOT auto-retarget unless the merged branch is
+  deleted, and a child that quietly merges into a dead branch loses its work.
+  This has happened once already.
+- Hygiene-only PRs get closed unreviewed. Fold small fixes into whatever
+  larger change already touches those files.
 - Group changes by review difficulty: language/tests/UI polish are quick
   approvals; anything touching issuance, retention, auth, or tenancy gets its
   own clearly-labelled PR for deep review.
