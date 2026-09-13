@@ -27,14 +27,19 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
   third vendor but host-agnostic. If a table, store message and route only —
   never request bodies, or it becomes the volunteer-data store the privacy
   model forbids. Do this before promoting beyond people you know.
-- **Notification channel** — the decision blocking every notification. Today
-  `RESEND_API_KEY`/`NOTIFY_EMAIL_FROM` power invite emails only, and without
-  them the invite dialog just shows a link to copy. ntfy is the alternative
-  worth weighing: no account, no API key (the topic name is the secret),
-  open source under Apache-2.0/GPLv2, and self-hostable — the only option
-  that survives leaving both Cloudflare and Nhost. Whatever is chosen,
-  reliability must come from the row plus a lazy retry, not from a send
-  succeeding.
+- **Email for notifications** — ntfy now pushes owner notifications
+  (`NTFY_TOPIC`, `src/lib/server/notifyOwner.ts`), which unblocked the owner
+  half without an account, an API key or a verified domain. Email is still
+  wanted as the durable second channel, and it needs a decision:
+  `RESEND_API_KEY`/`NOTIFY_EMAIL_FROM` power invite emails only, and a Resend
+  account means verifying `attester.no` as a sender via DNS first.
+  **Nhost cannot supply this**: its SMTP settings drive Hasura Auth's own mail
+  only — there is no generic send endpoint — and the edge runtime has no raw
+  TCP, so nothing here can speak SMTP at all. Any email must go over an HTTPS
+  API. When it lands, reliability must come from the row plus a lazy retry
+  (a `notified_at` column), not from a send succeeding; the ntfy step is
+  deliberately fire-and-forget, because a failed push costs a ping and never
+  the request.
 - **`hei@attester.no`** — referenced in the help dialog and /om. Must
   actually exist.
 - **Privacy policy** — deliberately NOT shipped. A drafted `/personvern` was
@@ -45,14 +50,13 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
 
 ## Known gaps
 
-- **Nothing notifies anyone, in any direction.** The owner is not told a new
-  organisation has applied; org admins are not told a submission is waiting;
-  the volunteer hears nothing after submitting and cannot check or chase.
-  Since unissued rows are never auto-deleted (see below) nothing is *lost*,
-  but an application can sit unseen for weeks. All three are blocked on the
-  same decision — which channel this platform uses — which is why they are one
-  gap and not three. Cheapest first move once that is settled: a pending count
-  in the org nav and the picker.
+- **Two of the three silences remain.** The owner is now pushed a notification
+  when an organisation applies. Org admins are still not told a submission is
+  waiting, and the volunteer still hears nothing after submitting and cannot
+  check or chase. Since unissued rows are never auto-deleted (see below)
+  nothing is *lost*, but a submission can sit unseen for weeks. Cheapest next
+  move, and it needs no channel at all: a pending count in the org nav and the
+  picker.
 
 - **A failed request is now invisible to everyone.** #61 stopped routes
   returning the caught message, which was right — it was leaking Hasura's

@@ -144,6 +144,12 @@ once overrode a contained button's `contrastText` through a nested
   match).
 - All Hasura access goes through `hasuraAdmin()` (`src/lib/server/hasura.ts`)
   with GraphQL **variables only** — never interpolate values into query text.
+- **Owner notifications say that something is waiting, never what.**
+  `notifyPlatformOwner()` (`src/lib/server/notifyOwner.ts`) pushes via ntfy,
+  where the topic name is the only secret and anyone who learns it reads every
+  message. So the payload carries no organisation name, slug, contact details
+  or message text — just a link to `/admin`. It never throws: a failed
+  notification must not fail the submission that triggered it.
 
 ### Client session lifetime
 

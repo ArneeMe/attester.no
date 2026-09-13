@@ -114,7 +114,10 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
    `NHOST_ADMIN_SECRET`, `NHOST_JWT_SECRET`, optional `PLATFORM_ADMIN_EMAILS`
    (unset ⇒ `/admin` disabled) and optional `RESEND_API_KEY` +
    `NOTIFY_EMAIL_FROM` (used **only** for invite emails; unset ⇒ the invite
-   dialog shows the link to copy manually).
+   dialog shows the link to copy manually) and optional `NTFY_TOPIC` (unset ⇒
+   the owner is not notified of new org requests). Set `NTFY_TOPIC` on
+   **Production**, not just Preview — the topic name is its only secret, so
+   generate one rather than choosing it.
 4. One-time Nhost setup (Settings → Auth):
    - **Allowed Redirect URLs** must contain every origin you use, with the
      `/login/reset` path — production, `http://localhost:3000`, and a
