@@ -3,6 +3,7 @@ import { hasuraAdmin } from "@/lib/server/hasura";
 import { slugIsTaken } from "@/lib/server/createOrg";
 import { validateOrgRequest } from "@/util/orgRequest";
 import { serverError } from "@/lib/server/apiError";
+import { notifyPlatformOwner } from "@/lib/server/notifyOwner";
 
 export const runtime = "edge";
 
@@ -64,6 +65,12 @@ export async function POST(req: NextRequest) {
                 }) { id }
             }`,
             { slug, organizationName, orgNumber, contactEmail, contactName, message },
+        );
+
+        await notifyPlatformOwner(
+            "Ny organisasjonsforespørsel",
+            "En organisasjon venter på godkjenning på attester.no.",
+            `${req.nextUrl.origin}/admin`,
         );
         return NextResponse.json({ received: true });
     } catch (e) {
