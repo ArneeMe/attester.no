@@ -48,4 +48,72 @@ conflate the two.
   accidental holder of volunteer information via a support message)? Worth
   a short reminder line in the UI either way.
 
+## What happens to an attest after it is issued
+
+**Status:** not built. The platform's involvement currently ends when the PDF
+lands in someone's downloads folder, and the volunteer's actual goal — proving
+the experience to an employer later — is one step further on.
+
+Three ideas, increasing in ambition. They are independent; (a) is worth doing
+whether or not the others ever are.
+
+**a. Share to LinkedIn.** LinkedIn's add-to-profile flow takes a certification
+name, issuing organisation, date, credential id and credential URL — and the
+verify URL *is* a credential URL, permanently checkable. No standard, no
+signing, no schema. Open question: the URL carries the holder's data in its
+query string, so publishing it must be an explicit, clearly-labelled choice,
+never a default.
+
+**b. A wallet with no server.** Volunteers lose PDFs. A page remembering the
+verify URLs someone has been given, in `localStorage` only, costs the privacy
+model nothing *precisely because* the server never learns anything. Open
+question: per-browser, and gone when site data is cleared — is a forgettable
+wallet better than none, or does it promise more than it keeps?
+
+**c. Sign the attest so it outlives the platform.** The deepest version.
+Verification today requires attester.no to be up and holding the hash. If the
+issuing organisation signed instead, a verifier could check against a public
+key with the platform gone entirely. For a one-person project asking
+organisations to depend on it, "your attests keep working if I stop paying the
+bills" is a stronger trust argument than any export button.
+
+This is a v2 of the hash contract, not an edit to v1 — CLAUDE.md already
+reserves the escape hatch (`v=2` in the URL and in the hash inputs, verifier
+dispatches on it, old certs stay v1 forever). Worth knowing the wider field
+solved this with Open Badges (1EdTech) and W3C Verifiable Credentials, used by
+Credly, Accredible, Canvas Credentials and others: credentials are
+cryptographically signed, verify without contacting the issuer, and import to
+LinkedIn natively. Adopting the standard rather than inventing a scheme is the
+obvious move if this is ever built — but it is a standard, and standards have
+surface, so scope it only when a real org asks.
+
+## Checking an applicant against Enhetsregisteret
+
+**Status:** not built, and **the useful half may not be available.**
+
+Manual approval exists because anyone could claim to be "Røde Kors Oslo".
+Checking the organisasjonsnummer against Brønnøysund is the obvious defence.
+
+What research found (2026-09, confirm before relying on it): organisation
+identity and **roles** are public open data via
+`data.brreg.no/enhetsregisteret/api`, but **signatur and prokura are
+restricted** — machine searches are limited to public authorities and
+enterprises licensed for credit-information services, and the
+national-ID-linked role data sits behind the same gate. There is a separate
+Fullmakttjenesten API under the same restriction.
+
+So "is this person entitled to sign for the organisation" is probably out of
+reach for this project. Confirm eligibility with Brønnøysund before designing
+anything.
+
+What open data alone supports, and is still worth having: look up the number
+at approval, show the registered name beside the requested one (a mismatch is
+the cheapest impersonation signal there is), and list role-holders by name so
+the human already making the judgement has the relevant fact in front of them.
+
+**Keep it a signal, not a gate.** Plenty of student societies and local
+chapters are not registered at all, and they are exactly the audience. The
+`orgNumber` field on `org_requests` is already optional and MOD11-validated
+(`src/util/orgRequest.ts`) for this reason.
+
 ## (add the next idea below this line)
