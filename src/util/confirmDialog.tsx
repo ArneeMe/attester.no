@@ -1,12 +1,12 @@
-import React from 'react';
-import {Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button} from '@mui/material';
+import React, { useState } from 'react';
+import {Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button, CircularProgress} from '@mui/material';
 
 interface ConfirmDialogProps {
     open: boolean;
     title: string;
     message: string;
     details?: React.ReactNode;
-    onConfirm: () => void;
+    onConfirm: () => void | Promise<void>;
     onClose: () => void;
     confirmButtonText?: string;
     cancelButtonText?: string;
@@ -33,8 +33,26 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                                                          showCancelButton = true,
                                                          secondaryAction,
                                                      }: ConfirmDialogProps) => {
+    const [busy, setBusy] = useState(false);
+
+    // The dialog owns the in-flight guard so no caller has to: a confirm that
+    // returns a promise locks every button until it settles. Without it two
+    // quick clicks both reach the server, which on issuance means two
+    // certificate rows.
+    const handleConfirm = async () => {
+        if (busy) return;
+        const result = onConfirm();
+        if (!(result instanceof Promise)) return;
+        setBusy(true);
+        try {
+            await result;
+        } finally {
+            setBusy(false);
+        }
+    };
+
     return (
-        <Dialog open={open} onClose={onClose}>
+        <Dialog open={open} onClose={busy ? undefined : onClose}>
             <DialogTitle>{title}</DialogTitle>
             <DialogContent>
                 <DialogContentText>{message}</DialogContentText>
@@ -42,19 +60,20 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             </DialogContent>
             <DialogActions>
                 {showCancelButton &&
-                    <Button onClick={onClose} color="primary">
+                    <Button onClick={onClose} color="primary" disabled={busy}>
                         {cancelButtonText ?? 'Avbryt'}
                     </Button>}
                 {secondaryAction && (
                     <Button
                         onClick={secondaryAction.onClick}
                         color={secondaryAction.color ?? 'primary'}
+                        disabled={busy}
                     >
                         {secondaryAction.label}
                     </Button>
                 )}
-                <Button variant="contained" onClick={onConfirm} color="primary">
-                    {confirmButtonText || 'Bekreft'}
+                <Button variant="contained" onClick={handleConfirm} color="primary" disabled={busy}>
+                    {busy ? <CircularProgress size={20} /> : (confirmButtonText || 'Bekreft')}
                 </Button>
             </DialogActions>
         </Dialog>
