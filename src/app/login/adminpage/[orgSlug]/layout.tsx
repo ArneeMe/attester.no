@@ -2,13 +2,17 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { Box, Button, CircularProgress, Typography } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
+import { usePathname } from 'next/navigation';
 import { useCurrentOrg } from '@/app/login/adminpage/UserOrgsProvider';
 import { useAdminLang } from '@/util/useAdminLang';
+import { headerLink } from '@/components/landing/SiteHeader';
+import { body, c, mono } from '@/app/style/tokens';
 
 export default function OrgAdminLayout({ children }: { children: React.ReactNode }) {
     const { orgSlug } = useParams<{ orgSlug: string }>();
     const router = useRouter();
+    const pathname = usePathname();
     const currentOrg = useCurrentOrg(orgSlug);
     const { lang, setLang, strings } = useAdminLang();
 
@@ -41,40 +45,65 @@ export default function OrgAdminLayout({ children }: { children: React.ReactNode
 
     return (
         <>
-            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    {currentOrg.name}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {items.map((item) => (
-                        <Button
-                            key={item.href}
-                            component={Link}
-                            href={item.href}
-                            variant="outlined"
-                            size="small"
-                        >
-                            {item.label}
-                        </Button>
-                    ))}
-                    <Button
+            <Box
+                sx={{
+                    mb: 3,
+                    pb: 2,
+                    borderBottom: `1px solid ${c.ruleSoft}`,
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    justifyContent: 'space-between',
+                    gap: 2,
+                    flexWrap: 'wrap',
+                }}
+            >
+                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2.5, flexWrap: 'wrap' }}>
+                    <Box sx={{ ...mono, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        {currentOrg.name}
+                    </Box>
+                    {items.map((item) => {
+                        const active = pathname === item.href;
+                        return (
+                            <Box
+                                key={item.href}
+                                component={Link}
+                                href={item.href}
+                                aria-current={active ? 'page' : undefined}
+                                sx={{
+                                    ...body,
+                                    fontSize: 14,
+                                    textDecoration: 'none',
+                                    color: active ? c.ink : c.inkSoft,
+                                    fontWeight: active ? 600 : 400,
+                                    borderBottom: `1px solid ${active ? c.ink : 'transparent'}`,
+                                    pb: '2px',
+                                    '&:hover': { color: c.ink },
+                                }}
+                            >
+                                {item.label}
+                            </Box>
+                        );
+                    })}
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2, fontSize: 13 }}>
+                    <Box
                         component={Link}
                         href={`/org/${orgSlug}`}
                         target="_blank"
                         rel="noreferrer"
-                        variant="text"
-                        size="small"
+                        sx={headerLink}
                     >
                         {nav.publicForm}
-                    </Button>
-                    <Button
-                        size="small"
-                        variant="text"
+                    </Box>
+                    <Box
+                        component="button"
+                        type="button"
                         onClick={() => setLang(lang === 'no' ? 'en' : 'no')}
                         aria-label="Bytt språk / switch language"
+                        sx={headerLink}
                     >
                         {lang === 'no' ? 'EN' : 'NO'}
-                    </Button>
+                    </Box>
                 </Box>
             </Box>
             {children}

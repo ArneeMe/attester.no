@@ -1,11 +1,14 @@
 'use client'
 import React from 'react';
 import { logout, useAuth, useSessionKeepAlive } from '@/util/auth';
-import { Box, Button, Container, Typography, CircularProgress } from '@mui/material';
+import { Box, Button, Typography, CircularProgress } from '@mui/material';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAdminLang } from '@/util/useAdminLang';
 import { UserOrgsProvider, useUserOrgs } from './UserOrgsProvider';
+import { headerLink } from '@/components/landing/SiteHeader';
+import Shell from '@/components/landing/SignedInShell';
+import { c } from '@/app/style/tokens';
 
 function Notice({
     title,
@@ -17,17 +20,19 @@ function Notice({
     action: React.ReactNode;
 }) {
     return (
-        <Container sx={{ mt: 8, textAlign: 'center' }}>
-            <Typography variant="h6" gutterBottom>
-                {title}
-            </Typography>
-            {body && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {body}
+        <Shell>
+            <Box sx={{ textAlign: 'center', mt: 6 }}>
+                <Typography variant="h6" gutterBottom>
+                    {title}
                 </Typography>
-            )}
-            {action}
-        </Container>
+                {body && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        {body}
+                    </Typography>
+                )}
+                {action}
+            </Box>
+        </Shell>
     );
 }
 
@@ -43,6 +48,7 @@ function AdminShell({
     const { status, refresh } = useUserOrgs();
     const { strings } = useAdminLang();
     const s = strings.admin.session;
+    const shell = strings.admin.shell;
 
     if (status === 'unauthenticated') {
         return (
@@ -73,20 +79,23 @@ function AdminShell({
     }
 
     return (
-        <Container component="main" maxWidth="lg">
-            <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                <Typography variant="h6">Velkommen, {email}</Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button component={Link} href="/login/adminpage" variant="outlined" size="small">
-                        Bytt organisasjon
-                    </Button>
-                    <Button onClick={onLogout} variant="outlined" size="small" color="error">
-                        Logg ut
-                    </Button>
-                </Box>
-            </Box>
+        <Shell
+            right={
+                <>
+                    <Box sx={{ color: c.inkFaint, display: { xs: 'none', sm: 'block' } }}>
+                        {shell.welcome(email ?? '')}
+                    </Box>
+                    <Box component={Link} href="/login/adminpage" sx={headerLink}>
+                        {shell.switchOrg}
+                    </Box>
+                    <Box component="button" type="button" onClick={onLogout} sx={headerLink}>
+                        {shell.logOut}
+                    </Box>
+                </>
+            }
+        >
             {children}
-        </Container>
+        </Shell>
     );
 }
 
@@ -104,9 +113,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     if (currentUser === undefined) {
         return (
-            <Container sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
-                <CircularProgress />
-            </Container>
+            <Shell>
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
+                    <CircularProgress />
+                </Box>
+            </Shell>
         );
     }
 

@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-    Box, Button, CircularProgress, Container, List, ListItem, ListItemText,
+    Box, Button, CircularProgress, List, ListItem, ListItemText,
     Paper, TextField, Typography,
 } from '@mui/material';
 import { authHeader } from '@/lib/nhost';
@@ -13,6 +13,8 @@ import { useAuth } from '@/util/auth';
 import { useToast } from '@/components/ToastProvider';
 import { useAdminLang } from '@/util/useAdminLang';
 import OrgRequests from './OrgRequests';
+import Shell from '@/components/landing/SignedInShell';
+import { headerLink } from '@/components/landing/SiteHeader';
 
 type Org = { id: string; slug: string; name: string };
 
@@ -81,15 +83,15 @@ const PlatformAdminPage: React.FC = () => {
 
     if (user === undefined || (user && orgs === null && !forbidden && !expired)) {
         return (
-            <Container maxWidth="md" sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
+            <Shell><Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
                 <CircularProgress />
-            </Container>
+            </Box></Shell>
         );
     }
 
     if (expired) {
         return (
-            <Container maxWidth="md" sx={{ py: 6 }}>
+            <Shell><Box>
                 <Typography variant="h5" gutterBottom>{strings.admin.session.expiredTitle}</Typography>
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
                     {strings.admin.session.expiredBody}
@@ -97,29 +99,36 @@ const PlatformAdminPage: React.FC = () => {
                 <Button component={Link} href="/login" variant="contained">
                     {strings.admin.session.loginButton}
                 </Button>
-            </Container>
+            </Box></Shell>
         );
     }
 
     if (forbidden) {
         return (
-            <Container maxWidth="md" sx={{ py: 6 }}>
+            <Shell><Box>
                 <Typography variant="h5" gutterBottom>{a.forbiddenTitle}</Typography>
                 <Typography variant="body1" color="text.secondary">
                     {a.forbiddenBody}
                 </Typography>
-            </Container>
+            </Box></Shell>
         );
     }
 
     return (
-        <Container maxWidth="md" sx={{ py: 6 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 2 }}>
-                <Typography variant="h4" gutterBottom>{a.title}</Typography>
-                <Button size="small" variant="text" onClick={() => setLang(lang === 'no' ? 'en' : 'no')}>
+        <Shell
+            right={
+                <Box
+                    component="button"
+                    type="button"
+                    onClick={() => setLang(lang === 'no' ? 'en' : 'no')}
+                    aria-label="Bytt språk / switch language"
+                    sx={headerLink}
+                >
                     {lang === 'no' ? 'EN' : 'NO'}
-                </Button>
-            </Box>
+                </Box>
+            }
+        >
+            <Typography variant="h4" gutterBottom>{a.title}</Typography>
 
             <OrgRequests strings={strings} lang={lang} onApproved={load} />
 
@@ -186,7 +195,7 @@ const PlatformAdminPage: React.FC = () => {
                     ))}
                 </List>
             </Paper>
-        </Container>
+        </Shell>
     );
 };
 
