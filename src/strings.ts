@@ -186,6 +186,11 @@ const no = {
             title: 'Velg organisasjon',
             empty: 'Du er ikke koblet til noen organisasjon ennå. Be en eksisterende admin om å legge deg til, eller be om en invitasjonslenke.',
         },
+        shell: {
+            welcome: (email: string) => `Logget inn som ${email}`,
+            switchOrg: 'Bytt organisasjon',
+            logOut: 'Logg ut',
+        },
         session: {
             signedOutTitle: 'Du må være logget inn for å se denne siden',
             expiredTitle: 'Økten din er utløpt',
@@ -661,6 +666,11 @@ const en: Strings = {
         picker: {
             title: 'Choose organization',
             empty: 'You are not connected to any organization yet. Ask an existing admin to add you, or request an invite link.',
+        },
+        shell: {
+            welcome: (email: string) => `Signed in as ${email}`,
+            switchOrg: 'Switch organization',
+            logOut: 'Sign out',
         },
         session: {
             signedOutTitle: 'You must be signed in to see this page',
