@@ -3,6 +3,7 @@ import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "@/lib/server/apiAuth";
 import { templateBelongsToOrg } from "@/lib/server/ownership";
 import { sweepExpiredSubmissions } from "@/lib/server/retention";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -47,7 +48,7 @@ export async function GET(
         );
         return NextResponse.json({ submissions: data.submissions });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/submissions");
     }
 }
 
@@ -119,6 +120,6 @@ export async function POST(
 
         return NextResponse.json({ submission: result.insert_submissions_one });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/submissions");
     }
 }

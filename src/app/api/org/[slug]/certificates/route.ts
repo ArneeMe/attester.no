@@ -3,6 +3,7 @@ import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
 import { submissionBelongsToOrg, templateBelongsToOrg } from "@/lib/server/ownership";
 import { getUsersByIds } from "@/lib/server/authUsers";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -54,7 +55,7 @@ export async function GET(
         }));
         return NextResponse.json({ certificates });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/certificates");
     }
 }
 
@@ -154,6 +155,6 @@ export async function POST(
         );
         return NextResponse.json({ id: data.insert_certificates_one.id });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/certificates");
     }
 }

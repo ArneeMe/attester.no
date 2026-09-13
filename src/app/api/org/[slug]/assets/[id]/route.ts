@@ -3,6 +3,7 @@ import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
 import { validateAssetContent } from "@/lib/server/validateAssetContent";
 import type { AssetKind, AssetRow } from "@/types/orgAssets";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -64,7 +65,7 @@ export async function PATCH(
         );
         return NextResponse.json({ asset: data.update_org_assets_by_pk });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/assets/[id]");
     }
 }
 
@@ -91,6 +92,6 @@ export async function DELETE(
         );
         return NextResponse.json({ ok: true });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/assets/[id]");
     }
 }

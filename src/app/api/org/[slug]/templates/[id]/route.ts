@@ -5,6 +5,7 @@ import { clearOfferedForName } from "@/lib/server/templateOffering";
 import { templateBelongsToOrg } from "@/lib/server/ownership";
 import type { FormFieldSchema, FormSchema } from "@/types/formSchema";
 import type { LookupListContent } from "@/types/orgAssets";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -56,7 +57,7 @@ export async function GET(
 
         return NextResponse.json({ template: { id: tmpl.id, name: tmpl.name, form_schema } });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/templates/[id]");
     }
 }
 
@@ -104,7 +105,7 @@ export async function PATCH(
 
         return NextResponse.json({ template: updated });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/templates/[id]");
     }
 }
 
@@ -166,7 +167,7 @@ export async function DELETE(
         );
         return NextResponse.json({ ok: true });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/templates/[id]");
     }
 }
 

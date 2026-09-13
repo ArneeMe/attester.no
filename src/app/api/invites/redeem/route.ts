@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireSession } from "@/lib/server/apiAuth";
 import { getUsersByIds } from "@/lib/server/authUsers";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -87,6 +88,6 @@ export async function POST(req: NextRequest) {
         );
         return NextResponse.json({ organization: org.organizations[0] ?? null });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/invites/redeem");
     }
 }

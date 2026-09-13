@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
 import { sendInviteEmail } from "@/lib/server/notify";
+import { serverError } from "@/lib/server/apiError";
 
 export const runtime = "edge";
 
@@ -45,6 +46,6 @@ export async function POST(
         const emailed = await sendInviteEmail(normalized, orgName, link);
         return NextResponse.json({ link, emailed });
     } catch (e) {
-        return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+        return serverError(e, "api/org/[slug]/invites");
     }
 }
