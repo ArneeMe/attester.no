@@ -12,6 +12,7 @@ import { authHeader } from '@/lib/nhost';
 import { useAuth } from '@/util/auth';
 import { useToast } from '@/components/ToastProvider';
 import { useAdminLang } from '@/util/useAdminLang';
+import OrgRequests from './OrgRequests';
 
 type Org = { id: string; slug: string; name: string };
 
@@ -119,6 +120,8 @@ const PlatformAdminPage: React.FC = () => {
                     {lang === 'no' ? 'EN' : 'NO'}
                 </Button>
             </Box>
+
+            <OrgRequests strings={strings} lang={lang} onApproved={load} />
 
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>{a.createTitle}</Typography>

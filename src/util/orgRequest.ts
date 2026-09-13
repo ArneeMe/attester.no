@@ -58,6 +58,8 @@ export function suggestSlug(organizationName: string): string {
         .replace(/-+$/g, '');
 }
 
+export const ORG_NUMBER_DIGITS = 9;
+
 const ORG_NUMBER_WEIGHTS = [3, 2, 7, 6, 5, 4, 3, 2];
 
 // Norwegian organisasjonsnummer: nine digits, last one a MOD11 check digit.

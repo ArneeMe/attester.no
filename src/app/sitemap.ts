@@ -8,6 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const statics: MetadataRoute.Sitemap = [
         { url: `${SITE_URL}/`, changeFrequency: 'weekly', priority: 1 },
         { url: `${SITE_URL}/om`, changeFrequency: 'monthly', priority: 0.9 },
+        { url: `${SITE_URL}/ny-organisasjon`, changeFrequency: 'monthly', priority: 0.8 },
     ];
 
     // Org form pages are public entry points; the sitemap must still render
