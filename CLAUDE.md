@@ -197,7 +197,7 @@ Algorithm:
 4. Join as `key=value&key=value&...`.
 5. SHA-512 hex over that UTF-8 byte sequence.
 
-Issuer (`submitHash`), verifier (`OrgVerifyClient`), and seed scripts
+Issuer (the certificates POST route), verifier (`OrgVerifyClient`), and seed scripts
 all import from these utilities. Do NOT inline the algorithm anywhere
 else — drift will silently invalidate certificates.
 

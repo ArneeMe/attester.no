@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { requireOrgMemberBySlug } from "@/lib/server/apiAuth";
-import { submissionBelongsToOrg, templateBelongsToOrg } from "@/lib/server/ownership";
 import { getUsersByIds } from "@/lib/server/authUsers";
 import { serverError } from "@/lib/server/apiError";
+import { buildCertParams } from "@/util/certParams";
+import { canonicalHash } from "@/util/canonicalHash";
 
 export const runtime = "edge";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type CertRow = {
     id: string;
@@ -59,11 +62,6 @@ export async function GET(
     }
 }
 
-// SHA-512 hex digest is 128 chars. Reject anything else early so we don't
-// stash junk strings in the hash column.
-const HASH_HEX_LEN = 128;
-const HEX_RE = /^[0-9a-f]+$/;
-
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ slug: string }> },
@@ -72,29 +70,29 @@ export async function POST(
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof NextResponse) return auth;
 
-    const { submissionId, hash, templateId } = await req.json();
-    if (typeof submissionId !== "string" || !submissionId) {
+    const { submissionId } = await req.json();
+    if (typeof submissionId !== "string" || !UUID_RE.test(submissionId)) {
         return NextResponse.json({ error: "Missing submissionId" }, { status: 400 });
-    }
-    if (typeof templateId !== "string" || !templateId) {
-        return NextResponse.json({ error: "Missing templateId" }, { status: 400 });
-    }
-    if (typeof hash !== "string" || hash.length !== HASH_HEX_LEN || !HEX_RE.test(hash)) {
-        return NextResponse.json({ error: "Hash must be a 128-char hex SHA-512 digest" }, { status: 400 });
-    }
-
-    // The admin is authed for this org via requireOrgMemberBySlug, but the
-    // submission_id and template_id come from their client. Verify both
-    // belong to this same org so a logged-in admin can't mint a cert
-    // referencing another org's data.
-    if (!(await templateBelongsToOrg(templateId, auth.organizationId))) {
-        return NextResponse.json({ error: "Template does not belong to this organization" }, { status: 400 });
-    }
-    if (!(await submissionBelongsToOrg(submissionId, auth.organizationId))) {
-        return NextResponse.json({ error: "Submission does not belong to this organization" }, { status: 400 });
     }
 
     try {
+        const found = await hasuraAdmin<{ submissions: Array<{ template_id: string; data: Record<string, string> }> }>(
+            `query SubmissionToIssue($id: uuid!, $organizationId: uuid!) {
+                submissions(
+                    where: { id: { _eq: $id }, organization_id: { _eq: $organizationId } },
+                    limit: 1
+                ) { template_id data }
+            }`,
+            { id: submissionId, organizationId: auth.organizationId },
+        );
+        const submission = found.submissions[0];
+        if (!submission) {
+            return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+        }
+        const templateId = submission.template_id;
+        const certParams = buildCertParams(templateId, submissionId, submission.data);
+        const verifyPath = `/org/${encodeURIComponent(slug)}/verify?${certParams.toString()}`;
+
         // Idempotent issuance: a submission is NOT deleted when its cert is
         // issued — issuance stamps `issued_at`, which starts the retention
         // window the sweep enforces (see CLAUDE.md "Volunteer deletion").
@@ -119,8 +117,10 @@ export async function POST(
             { organizationId: auth.organizationId, submissionId },
         );
         if (existing.certificates.length > 0) {
-            return NextResponse.json({ id: existing.certificates[0].id, alreadyIssued: true });
+            return NextResponse.json({ id: existing.certificates[0].id, alreadyIssued: true, verifyPath });
         }
+
+        const hash = await canonicalHash(certParams);
 
         // Insert the cert AND stamp the submission's issued_at in one
         // mutation — Hasura runs both root fields in a single transaction,
@@ -153,7 +153,7 @@ export async function POST(
                 issuedBy: auth.userId,
             },
         );
-        return NextResponse.json({ id: data.insert_certificates_one.id });
+        return NextResponse.json({ id: data.insert_certificates_one.id, verifyPath });
     } catch (e) {
         return serverError(e, "api/org/[slug]/certificates");
     }

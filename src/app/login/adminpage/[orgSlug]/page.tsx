@@ -166,7 +166,7 @@ const AdminPage: React.FC = () => {
             return;
         }
         try {
-            await submitHash(orgSlug, tmpl.id, selected.id, selected.data);
+            await submitHash(orgSlug, selected.id);
             markIssued(selected.id);
         } catch (error) {
             console.error(error);
@@ -210,7 +210,7 @@ const AdminPage: React.FC = () => {
                 continue;
             }
             try {
-                await submitHash(orgSlug, tmpl.id, sub.id, sub.data);
+                await submitHash(orgSlug, sub.id);
                 newlyIssued.push(sub.id);
                 const { blob, filename } = await buildAttestPdfBlob(orgSlug, tmpl, sub.id, sub.data);
                 const unique = zip.files[filename] ? `${id.slice(0, 8)}_${filename}` : filename;
