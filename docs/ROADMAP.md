@@ -28,7 +28,7 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
   never request bodies, or it becomes the volunteer-data store the privacy
   model forbids. Do this before promoting beyond people you know.
 - **Email for notifications** — ntfy now pushes owner notifications
-  (`NTFY_TOPIC`, `apps/web/src/lib/server/notifyOwner.ts`), which unblocked the owner
+  (`NTFY_TOPIC`, `functions/_api/src/lib/notifyOwner.ts`), which unblocked the owner
   half without an account, an API key or a verified domain. Email is still
   wanted as the durable second channel, and it needs a decision:
   `RESEND_API_KEY`/`NOTIFY_EMAIL_FROM` power invite emails only, and a Resend

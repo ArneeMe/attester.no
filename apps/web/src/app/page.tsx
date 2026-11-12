@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Box } from '@mui/material';
-import { listPublicOrgs, type PublicOrg } from '@/lib/server/orgs';
+import { listPublicOrgs, type PublicOrg } from '@/lib/publicOrgs';
 import { getStrings } from '@/strings';
 import JsonLd from '@/components/JsonLd';
 import { publicPageMetadata, SITE_URL } from '@/util/seo';

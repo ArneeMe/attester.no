@@ -33,8 +33,8 @@ const IssuedPage: React.FC = () => {
     const load = useCallback(async () => {
         try {
             const [certRes, tmplRes] = await Promise.all([
-                fetch(`/api/org/${encodeURIComponent(orgSlug)}/certificates`, { headers: authHeader() }),
-                fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, { headers: authHeader() }),
+                fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/certificates`, { headers: authHeader() }),
+                fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/templates`, { headers: authHeader() }),
             ]);
             const certJson = await certRes.json();
             if (!certRes.ok) throw new Error(certJson.error ?? `HTTP ${certRes.status}`);

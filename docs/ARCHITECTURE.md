@@ -8,11 +8,35 @@ never be broken, read [CLAUDE.md](../CLAUDE.md) first — this file explains
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Frontend + API | Next.js 15 App Router, React 19, MUI 7 | Every route exports `runtime = 'edge'` |
-| Hosting | Cloudflare Pages via `@cloudflare/next-on-pages` | No Node APIs, no schedulers, no shared memory between isolates |
-| Database | Postgres via Hasura GraphQL (Nhost) | App talks to Hasura with the **admin secret**; tenancy is enforced in app code, NOT in Hasura permissions |
+| Frontend | Next.js 15 App Router, React 19, MUI 7 in `apps/web` | On Cloudflare Pages via `@cloudflare/next-on-pages`. Every route exports `runtime = 'edge'` |
+| API | `functions/_api`, plain `Request` → `Response` handlers | Hosted by one Nhost Function (`functions/api.ts`, Node). Runs on any Node host: `npm run dev -w @attester/api` |
+| Shared code | `functions/_shared` | Hash, validation, types. Imported by web and API |
+| Database | Postgres via Hasura GraphQL (Nhost) | Only the API talks to Hasura, with the **admin secret**; tenancy is enforced in API code, NOT in Hasura permissions |
 | Auth | Nhost Auth (email/password) | JWT verified server-side with `jose` against remote JWKS |
 | PDF | pdfme 5, generated **client-side** in the admin's browser | Volunteer data never makes an extra server hop for rendering |
+
+## How a request travels
+
+```
+browser or app ──► attester.no/api/v1/<path>      apps/web/src/app/api/v1/[...path]
+                     │  forwards, holds no secret
+                     ▼
+                   API_URL?__path=/<path>          functions/api.ts
+                     │  functions/_api/src/app.ts picks the route
+                     ▼
+                   Hasura (admin secret)
+```
+
+- The route table is `functions/_api/src/app.ts`. One file per route in
+  `functions/_api/src/routes/`, exporting `GET`/`POST`/... like a Next route.
+- Nhost Functions only answer their exact file path, so the route travels in
+  the `__path` query parameter. The forwarder in the web app hides that and
+  keeps calls same-origin. A mobile app can use either URL.
+- The web app keeps exactly one database call of its own: the frozen legacy
+  route `apps/web/src/app/api/certificates/verify/route.ts`. That is why
+  `apps/web/src/lib/server/hasura.ts` and `apiError.ts` still exist there and
+  the web app still needs `NHOST_ADMIN_SECRET` until ~2030.
+- Server components fetch through `apps/web/src/lib/publicOrgs.ts`.
 
 ## Core data model
 
@@ -44,7 +68,7 @@ never be broken, read [CLAUDE.md](../CLAUDE.md) first — this file explains
 
 ### 1. Submit
 `/org/[slug]` → public form (schema from the chosen offered template) →
-`POST /api/org/[slug]/submissions` (size-capped, flat-string-shape enforced,
+`POST /api/v1/org/[slug]/submissions` (size-capped, flat-string-shape enforced,
 template-ownership-checked) → row in `submissions` with `issued_at` NULL.
 
 Nothing notifies the admin: there is no email and no pending-count badge, so
@@ -53,7 +77,7 @@ auto-deleted, so nothing is lost — but see ROADMAP, this gap is known.
 
 ### 2. Issue
 Admin dashboard → "Generer PDF" → `submitHash` computes the canonical hash
-client-side (`functions/_shared/src/canonicalHash.ts`) and `POST /api/org/[slug]/certificates`
+client-side (`functions/_shared/src/canonicalHash.ts`) and `POST /api/v1/org/[slug]/certificates`
 stores it (idempotent per submission; records `issued_by`). The same mutation
 stamps `submissions.issued_at`, so a certificate can never exist without its
 deletion clock started. The PDF renders in the browser (`buildAttestPdfBlob`)
@@ -62,7 +86,7 @@ with a QR pointing at
 
 The submission then survives for `ISSUED_RETENTION_HOURS` so the PDF can be
 regenerated (lost file, misprint, late-spotted typo); the retention sweep
-(`apps/web/src/lib/server/retention.ts`) removes it on the next touch of the
+(`functions/_api/src/lib/retention.ts`) removes it on the next touch of the
 submissions API. Re-issuing does **not** re-stamp `issued_at`, so
 regenerating can't extend retention.
 
@@ -110,12 +134,12 @@ once overrode a contained button's `contrastText` through a nested
 ## Security model
 
 - **Server is the only boundary.** Client-side guards are UX, not security.
-- Every org-scoped route calls `requireOrgMemberBySlug` (`apps/web/src/lib/server/apiAuth.ts`):
+- Every org-scoped route calls `requireOrgMemberBySlug` (`functions/_api/src/lib/apiAuth.ts`):
   verify JWT → resolve slug → check `user_organizations`. Object ownership is
-  double-checked (`apps/web/src/lib/server/ownership.ts`) when ids come from the client.
-- Platform-level actions (`/api/admin/*`) additionally require the caller's
+  double-checked (`functions/_api/src/lib/ownership.ts`) when ids come from the client.
+- Platform-level actions (`/api/v1/admin/*`) additionally require the caller's
   `auth.users` email to be on the `PLATFORM_ADMIN_EMAILS` env allowlist
-  (`apps/web/src/lib/server/platformAdmin.ts`). Unset ⇒ surface disabled.
+  (`functions/_api/src/lib/platformAdmin.ts`). Unset ⇒ surface disabled.
 - `UNLISTED_ORG_SLUGS` (a constant in `functions/_shared/src/orgVisibility.ts`, applied in
   `listPublicOrgs`) hides orgs from the front-page picker and the sitemap.
   Edit the list and deploy. It is a **discovery** filter, not access control:
@@ -127,7 +151,7 @@ once overrode a contained button's `contrastText` through a nested
   the edge runtime made it best-effort theatre. See ROADMAP if abuse ever
   becomes real.
 - There are exactly **two** unauthenticated write paths. The second is
-  `POST /api/org-requests`, where an organisation asks to be set up. Same
+  `POST /api/v1/org-requests`, where an organisation asks to be set up. Same
   shape of defence as the submissions POST — body cap, per-field caps, strict
   string validation (`functions/_shared/src/orgRequest.ts`) — plus a honeypot field that
   returns the same success a real submission gets, so a bot has nothing to
@@ -142,10 +166,10 @@ once overrode a contained button's `contrastText` through a nested
   rather than attaching a member, so the applicant needs no prior account and
   a leaked link still grants nothing (redeem requires the session email to
   match).
-- All Hasura access goes through `hasuraAdmin()` (`apps/web/src/lib/server/hasura.ts`)
+- All Hasura access goes through `hasuraAdmin()` (`functions/_api/src/lib/hasura.ts`)
   with GraphQL **variables only** — never interpolate values into query text.
 - **Owner notifications say that something is waiting, never what.**
-  `notifyPlatformOwner()` (`apps/web/src/lib/server/notifyOwner.ts`) pushes via ntfy,
+  `notifyPlatformOwner()` (`functions/_api/src/lib/notifyOwner.ts`) pushes via ntfy,
   where the topic name is the only secret and anyone who learns it reads every
   message. So the payload carries no organisation name, slug, contact details
   or message text — just a link to `/admin`. It never throws: a failed

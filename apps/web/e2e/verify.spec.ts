@@ -17,10 +17,10 @@ const FORM_SCHEMA = [
 ];
 
 test.beforeEach(async ({ page }) => {
-    await page.route(`**/api/org/${ORG}/certificates/verify*`, (route) =>
+    await page.route(`**/api/v1/org/${ORG}/certificates/verify*`, (route) =>
         route.fulfill({ json: { hash: certHash(CERT_FIELDS), template_id: TEMPLATE_ID } }),
     );
-    await page.route(`**/api/org/${ORG}/templates/${TEMPLATE_ID}*`, (route) =>
+    await page.route(`**/api/v1/org/${ORG}/templates/${TEMPLATE_ID}*`, (route) =>
         route.fulfill({ json: { template: { id: TEMPLATE_ID, form_schema: FORM_SCHEMA } } }),
     );
 });

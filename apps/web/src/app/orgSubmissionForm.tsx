@@ -47,7 +47,7 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
             try {
                 const orgPromise = getOrgBySlug(orgSlug).catch(() => null);
                 const offeredPromise = fetch(
-                    `/api/org/${encodeURIComponent(orgSlug)}/offered-templates`,
+                    `/api/v1/org/${encodeURIComponent(orgSlug)}/offered-templates`,
                 )
                     .then((r) => (r.ok ? r.json() : { templates: [] }))
                     .catch(() => ({ templates: [] }));
@@ -68,7 +68,7 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
                 }
 
                 const tmplRes = await fetch(
-                    `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(target)}`,
+                    `/api/v1/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(target)}`,
                 );
                 if (tmplRes.ok) {
                     const json = await tmplRes.json();
@@ -110,7 +110,7 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
     const handleConfirmSubmit = async () => {
         if (!template) return;
         try {
-            const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/submissions`, {
+            const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/submissions`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ templateId: template.id, data: formData }),

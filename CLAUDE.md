@@ -86,7 +86,7 @@ What IS acceptable:
 
 The deletion clock starts at **issuance**, not submission. Issuing a
 certificate stamps `submissions.issued_at`; a lazy sweep
-(`apps/web/src/lib/server/retention.ts`, window in `functions/_shared/src/retention.ts`) then
+(`functions/_api/src/lib/retention.ts`, window in `functions/_shared/src/retention.ts`) then
 deletes rows whose `issued_at` is older than `ISSUED_RETENTION_HOURS`. The
 sweep runs whenever the submissions API is touched (GET or POST) — no
 scheduler exists on the edge runtime, and none is needed, because the
@@ -171,10 +171,10 @@ number can be offered at once: with one the volunteer never sees a
 chooser, with several they pick. Because saving a template inserts a new
 row, the templates POST route retires superseded revisions by clearing
 `is_offered` on older rows with the same `name`
-(`apps/web/src/lib/server/templateOffering.ts`) — otherwise every past revision
+(`functions/_api/src/lib/templateOffering.ts`) — otherwise every past revision
 would pile up in the chooser. The selection rule lives in
 `functions/_shared/src/offeredTemplates.ts` and is served publicly by
-`/api/org/[slug]/offered-templates`, which exposes id, name and
+`/api/v1/org/[slug]/offered-templates`, which exposes id, name and
 description only.
 
 Verification never consults `is_offered`: `templates/[id]` fetches by id

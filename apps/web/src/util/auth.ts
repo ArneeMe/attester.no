@@ -29,7 +29,7 @@ export const logout = async (): Promise<void> => {
 };
 
 export const redeemInvite = async (token: string): Promise<string> => {
-    const res = await fetch('/api/invites/redeem', {
+    const res = await fetch('/api/v1/invites/redeem', {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...authHeader() },
         body: JSON.stringify({ token }),

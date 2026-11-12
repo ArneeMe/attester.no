@@ -20,7 +20,7 @@ type TemplateRow = {
 };
 
 export async function getTemplates(orgSlug: string): Promise<PDFTemplate[]> {
-    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, {
+    const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/templates`, {
         headers: authHeader(),
     });
     const json = await res.json();
@@ -41,7 +41,7 @@ export async function getTemplates(orgSlug: string): Promise<PDFTemplate[]> {
 
 export async function setTemplateOffered(orgSlug: string, templateId: string, isOffered: boolean): Promise<void> {
     const res = await fetch(
-        `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`,
+        `/api/v1/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`,
         {
             method: 'PATCH',
             headers: { 'content-type': 'application/json', ...authHeader() },
@@ -56,7 +56,7 @@ export async function setTemplateOffered(orgSlug: string, templateId: string, is
 
 export async function deleteTemplate(orgSlug: string, templateId: string): Promise<void> {
     const res = await fetch(
-        `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`,
+        `/api/v1/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`,
         { method: 'DELETE', headers: authHeader() },
     );
     if (!res.ok) {
@@ -69,7 +69,7 @@ export async function saveTemplate(
     orgSlug: string,
     template: Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<PDFTemplate> {
-    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, {
+    const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/templates`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...authHeader() },
         body: JSON.stringify({

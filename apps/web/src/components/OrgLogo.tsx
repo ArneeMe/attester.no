@@ -11,7 +11,7 @@ const OrgLogo: React.FC<{ orgSlug: string; height?: number }> = ({ orgSlug, heig
 
     useEffect(() => {
         let cancelled = false;
-        fetch(`/api/org/${encodeURIComponent(orgSlug)}/branding`)
+        fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/branding`)
             .then((r) => (r.ok ? r.json() : null))
             .then((json: { logo?: string | null } | null) => {
                 if (!cancelled && json?.logo) setLogo(json.logo);

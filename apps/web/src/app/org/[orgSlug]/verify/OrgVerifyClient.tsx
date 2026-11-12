@@ -37,7 +37,7 @@ const OrgVerifyClient: React.FC = () => {
 
     useEffect(() => {
         if (!templateId) { setSchemaLoading(false); return; }
-        fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`)
+        fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`)
             .then((r) => r.json())
             .then((json: { template?: { form_schema: FormSchema } }) => {
                 if (json.template?.form_schema) setFormSchema(json.template.form_schema);
@@ -48,7 +48,7 @@ const OrgVerifyClient: React.FC = () => {
 
     useEffect(() => {
         if (!submissionId) { setStoredHash(null); return; }
-        fetch(`/api/org/${encodeURIComponent(orgSlug)}/certificates/verify?submissionId=${encodeURIComponent(submissionId)}`)
+        fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/certificates/verify?submissionId=${encodeURIComponent(submissionId)}`)
             .then((r) => r.json())
             .then((json: { hash: string | null }) => setStoredHash(json.hash))
             .catch(() => setStoredHash(null));

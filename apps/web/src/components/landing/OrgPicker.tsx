@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { Box, InputBase } from '@mui/material';
 import Link from 'next/link';
-import type { PublicOrg } from '@/lib/server/orgs';
+import type { PublicOrg } from '@/lib/publicOrgs';
 import { fontMono } from '@/app/style/landingFonts';
 import { body, c, field } from '@/app/style/tokens';
 

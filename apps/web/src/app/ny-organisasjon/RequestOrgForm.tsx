@@ -92,7 +92,7 @@ const RequestOrgForm: React.FC<{ lang: Lang }> = ({ lang }) => {
         setBusy(true);
         setErrors({});
         try {
-            const res = await fetch('/api/org-requests', {
+            const res = await fetch('/api/v1/org-requests', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({

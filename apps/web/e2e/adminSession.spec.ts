@@ -32,7 +32,7 @@ test.beforeEach(async ({ page }) => {
 
 test('an expired session says so instead of showing an empty org list', async ({ page }) => {
     await signIn(page, 900);
-    await page.route('**/api/me/organizations', (route) =>
+    await page.route('**/api/v1/me/organizations', (route) =>
         route.fulfill({ status: 401, json: { error: 'Invalid session' } }),
     );
 
@@ -45,7 +45,7 @@ test('an expired session says so instead of showing an empty org list', async ({
 
 test('a genuinely empty membership list still reads as empty, not as an error', async ({ page }) => {
     await signIn(page, 900);
-    await page.route('**/api/me/organizations', (route) =>
+    await page.route('**/api/v1/me/organizations', (route) =>
         route.fulfill({ json: { organizations: [] } }),
     );
 
@@ -57,7 +57,7 @@ test('a genuinely empty membership list still reads as empty, not as an error', 
 
 test('a failed lookup offers a retry rather than claiming there are no orgs', async ({ page }) => {
     await signIn(page, 900);
-    await page.route('**/api/me/organizations', (route) => route.abort());
+    await page.route('**/api/v1/me/organizations', (route) => route.abort());
 
     await page.goto('/login/adminpage');
 
@@ -68,7 +68,7 @@ test('a failed lookup offers a retry rather than claiming there are no orgs', as
 
 test('orgs render when the session is good', async ({ page }) => {
     await signIn(page, 900);
-    await page.route('**/api/me/organizations', (route) =>
+    await page.route('**/api/v1/me/organizations', (route) =>
         route.fulfill({
             json: {
                 organizations: [

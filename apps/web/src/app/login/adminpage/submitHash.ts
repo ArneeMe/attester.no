@@ -11,7 +11,7 @@ export const submitHash = async (
     const params = buildCertParams(templateId, submissionId, data);
     const hash = await canonicalHash(params);
 
-    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/certificates`, {
+    const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/certificates`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...authHeader() },
         body: JSON.stringify({ submissionId, hash, templateId }),
