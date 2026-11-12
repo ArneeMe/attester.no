@@ -134,13 +134,11 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 - Small, independently shippable slices; stacked PRs when they depend on each
   other (base each PR on its parent branch, retarget as parents merge).
 - **`main` auto-deploys to production** via the Cloudflare Pages Git
-  integration, so anything merged is live. Current practice is one small
-  self-contained branch per change, straight to `main`, each shippable alone.
-  An earlier `develop` integration branch was dropped once the slices got
-  small enough that batching them added delay rather than safety. Where a
-  change genuinely is not shippable alone, split it so the invisible half
-  (schema, API) merges first — see the org request work, #59 then #60.
-- Stack only genuinely dependent work; unrelated branches go off `main` in
+  integration, so anything merged is live. While the platform rebuild runs
+  (docs/ROADMAP.md), work goes to `develop` in small PRs and the owner merges
+  `develop` to `main` when the downtime suits. The branch is `develop` and not
+  `dev` because old `dev/*` branches block that name.
+- Stack only genuinely dependent work; unrelated branches go off `develop` in
   parallel. A stacked child does NOT auto-retarget unless the merged branch is
   deleted, and a child that quietly merges into a dead branch loses its work.
   This has happened once already.
