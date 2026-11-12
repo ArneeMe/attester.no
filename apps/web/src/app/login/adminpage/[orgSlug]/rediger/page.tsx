@@ -1,0 +1,661 @@
+'use client'
+export const runtime = 'edge';
+
+import React, { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import {
+    Box,
+    Button,
+    Checkbox,
+    CircularProgress,
+    FormControlLabel,
+    Grid,
+    IconButton,
+    Paper,
+    Tab,
+    Tabs,
+    TextField,
+    Typography,
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import ImageUpload from '@/app/login/adminpage/[orgSlug]/rediger/ImageUpload';
+import { useToast } from '@/components/ToastProvider';
+import {
+    createOrgAsset,
+    deleteOrgAsset,
+    listOrgAssets,
+    updateOrgAsset,
+} from '@/util/databaseInteractions/orgAssets';
+import { getTemplates } from '@/util/databaseInteractions/templateService';
+import { countTemplatesUsingAsset } from '@attester/shared/assetUsage';
+import type { PDFTemplate } from '@attester/shared/types/templateTypes';
+import { useAdminLang } from '@/util/useAdminLang';
+import type { Strings } from '@/strings';
+import type {
+    BodyTextContent,
+    LogoContent,
+    LookupItem,
+    LookupListContent,
+    OrgAsset,
+    SignatureContent,
+} from '@attester/shared/types/orgAssets';
+
+interface TabPanelProps {
+    children?: React.ReactNode;
+    index: number;
+    value: number;
+}
+
+function TabPanel({ children, value, index }: TabPanelProps) {
+    return (
+        <div hidden={value !== index}>
+            {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+        </div>
+    );
+}
+
+/**
+ * Wraps an async save with consistent toast + saving-flag handling so each
+ * row component doesn't need its own try/catch/finally boilerplate.
+ */
+type ContentStrings = Strings['admin']['content'];
+
+function useSaveHandler(label: string, c: ContentStrings, fn: () => Promise<void>) {
+    const toast = useToast();
+    const [saving, setSaving] = useState(false);
+    const save = async () => {
+        setSaving(true);
+        try {
+            await fn();
+            toast.success(c.saved(label));
+        } catch (e) {
+            toast.error(c.saveError(label) + (e as Error).message);
+        } finally {
+            setSaving(false);
+        }
+    };
+    return { saving, save };
+}
+
+// Maps `?tab=<kind>` query param to the tab index, so deep-links from
+// elsewhere (e.g. the schema editor's "Rediger liste" button) can land
+// the admin directly on the right panel.
+const TAB_BY_KIND: Record<string, number> = {
+    signature: 0,
+    logo: 1,
+    body_text: 2,
+    lookup_list: 3,
+};
+
+const RedigerPage: React.FC = () => {
+    const { orgSlug } = useParams<{ orgSlug: string }>();
+    const searchParams = useSearchParams();
+    const { strings } = useAdminLang();
+    const c = strings.admin.content;
+    const toast = useToast();
+    const [tab, setTab] = useState(() => TAB_BY_KIND[searchParams.get('tab') ?? ''] ?? 0);
+    const [loading, setLoading] = useState(true);
+    const [assets, setAssets] = useState<OrgAsset[]>([]);
+    const [templates, setTemplates] = useState<PDFTemplate[]>([]);
+
+    const reload = async () => {
+        try {
+            const [a, t] = await Promise.all([listOrgAssets(orgSlug), getTemplates(orgSlug)]);
+            setAssets(a);
+            setTemplates(t);
+        } catch (e) {
+            toast.error(c.loadError + (e as Error).message);
+        }
+    };
+
+    useEffect(() => {
+        (async () => {
+            setLoading(true);
+            await reload();
+            setLoading(false);
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [orgSlug]);
+
+    const signatures = assets.filter((a) => a.kind === 'signature');
+    const logos = assets.filter((a) => a.kind === 'logo');
+    const bodyTexts = assets.filter((a) => a.kind === 'body_text');
+    const lookupLists = assets.filter((a) => a.kind === 'lookup_list');
+
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    return (
+        <Box>
+            <Typography variant="h4" gutterBottom>
+                {c.title}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {c.intro}
+            </Typography>
+
+            <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+                <Tab label={c.tabSignatures(signatures.length)} />
+                <Tab label={c.tabLogos(logos.length)} />
+                <Tab label={c.tabBodyTexts(bodyTexts.length)} />
+                <Tab label={c.tabLookupLists(lookupLists.length)} />
+            </Tabs>
+
+            <TabPanel value={tab} index={0}>
+                <SignaturesPanel orgSlug={orgSlug} assets={signatures} reload={reload} templates={templates} />
+            </TabPanel>
+            <TabPanel value={tab} index={1}>
+                <LogosPanel orgSlug={orgSlug} assets={logos} reload={reload} templates={templates} />
+            </TabPanel>
+            <TabPanel value={tab} index={2}>
+                <BodyTextsPanel orgSlug={orgSlug} assets={bodyTexts} reload={reload} templates={templates} />
+            </TabPanel>
+            <TabPanel value={tab} index={3}>
+                <LookupListsPanel orgSlug={orgSlug} assets={lookupLists} reload={reload} templates={templates} />
+            </TabPanel>
+        </Box>
+    );
+};
+
+export default RedigerPage;
+
+type PanelProps = {
+    orgSlug: string;
+    assets: OrgAsset[];
+    reload: () => Promise<void>;
+    templates: PDFTemplate[];
+};
+
+function UsageBadge({ assetId, templates, c }: { assetId: string; templates: PDFTemplate[]; c: ContentStrings }) {
+    const n = countTemplatesUsingAsset(assetId, templates);
+    if (n === 0) return null;
+    return (
+        <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ ml: 1, px: 1, py: 0.25, bgcolor: 'action.hover', borderRadius: 1 }}
+        >
+            {c.usage(n)}
+        </Typography>
+    );
+}
+
+function EmptyAssetState({ plural, c }: { plural: string; c: ContentStrings }) {
+    return (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+            {c.emptyState(plural)}
+        </Typography>
+    );
+}
+
+function confirmDelete(definite: string, usage: number, c: ContentStrings): boolean {
+    if (usage === 0) {
+        return confirm(c.confirmDelete(definite));
+    }
+    return confirm(c.confirmDeleteUsed(definite, usage));
+}
+
+function useAdd(orgSlug: string, reload: () => Promise<void>, label: string, c: ContentStrings) {
+    const toast = useToast();
+    return async (
+        body: { kind: OrgAsset['kind']; name: string; content: OrgAsset['content']; sortOrder?: number; isDefault?: boolean },
+    ) => {
+        try {
+            await createOrgAsset(orgSlug, body);
+            await reload();
+            toast.success(c.added(label));
+        } catch (e) {
+            toast.error(c.addError + (e as Error).message);
+        }
+    };
+}
+
+function useDelete(orgSlug: string, reload: () => Promise<void>, label: string, c: ContentStrings) {
+    const toast = useToast();
+    return async (id: string) => {
+        try {
+            await deleteOrgAsset(orgSlug, id);
+            await reload();
+            toast.success(c.deleted(label));
+        } catch (e) {
+            toast.error(c.deleteError + (e as Error).message);
+        }
+    };
+}
+
+// ───────────── Signatures ─────────────
+
+const SignaturesPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const c = strings.admin.content;
+    const add = useAdd(orgSlug, reload, c.kinds.signature.label, c);
+    return (
+        <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+                {c.signaturesTitle}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {c.signaturesIntro}
+            </Typography>
+
+            {assets.length === 0 && <EmptyAssetState plural={c.kinds.signature.plural} c={c} />}
+
+            {assets.map((a) => (
+                <SignatureRow key={a.id} orgSlug={orgSlug} asset={a} reload={reload} templates={templates} />
+            ))}
+
+            <Button
+                startIcon={<AddIcon />}
+                onClick={() =>
+                    add({
+                        kind: 'signature',
+                        name: c.kinds.signature.newName,
+                        content: { photo: '', role: '', phone: '' } as SignatureContent,
+                        isDefault: true,
+                        sortOrder: assets.length,
+                    })
+                }
+            >
+                {c.kinds.signature.addButton}
+            </Button>
+        </Paper>
+    );
+};
+
+const SignatureRow: React.FC<{
+    orgSlug: string;
+    asset: OrgAsset;
+    reload: () => Promise<void>;
+    templates: PDFTemplate[];
+}> = ({ orgSlug, asset, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const cs = strings.admin.content;
+    const c = asset.content as SignatureContent;
+    const [name, setName] = useState(asset.name);
+    const [role, setRole] = useState(c.role ?? '');
+    const [phone, setPhone] = useState(c.phone ?? '');
+    const [photo, setPhoto] = useState(c.photo ?? '');
+    const [isDefault, setIsDefault] = useState(asset.isDefault);
+    const remove = useDelete(orgSlug, reload, cs.kinds.signature.label, cs);
+    const { saving, save } = useSaveHandler(cs.kinds.signature.label, cs, () =>
+        updateOrgAsset(orgSlug, asset.id, { name, content: { photo, role, phone }, isDefault }).then(() => undefined),
+    );
+
+    return (
+        <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+            <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="subtitle1">{name || cs.unnamed}</Typography>
+                            <UsageBadge assetId={asset.id} templates={templates} c={cs} />
+                        </Box>
+                        <Box>
+                            <FormControlLabel
+                                control={<Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />}
+                                label={cs.standard}
+                            />
+                            <Button size="small" onClick={save} disabled={saving}>
+                                {saving ? cs.savingBtn : cs.saveBtn}
+                            </Button>
+                            <IconButton
+                                color="error"
+                                onClick={() => {
+                                    const usage = countTemplatesUsingAsset(asset.id, templates);
+                                    if (!confirmDelete(cs.kinds.signature.definite, usage, cs)) return;
+                                    remove(asset.id);
+                                }}
+                            >
+                                <DeleteIcon />
+                            </IconButton>
+                        </Box>
+                    </Box>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField fullWidth label={cs.name} value={name} onChange={(e) => setName(e.target.value)} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField fullWidth label={cs.role} value={role} onChange={(e) => setRole(e.target.value)} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField fullWidth label={cs.phone} value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                    <ImageUpload label={cs.signatureImage} value={photo} onChange={setPhoto} maxSizeKB={500} normalize="signature" />
+                </Grid>
+            </Grid>
+        </Paper>
+    );
+};
+
+// ───────────── Logos ─────────────
+
+const LogosPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const c = strings.admin.content;
+    const add = useAdd(orgSlug, reload, c.kinds.logo.label, c);
+    return (
+        <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+                {c.logosTitle}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {c.logosIntro}
+            </Typography>
+
+            {assets.length === 0 && <EmptyAssetState plural={c.kinds.logo.plural} c={c} />}
+
+            {assets.map((a) => (
+                <LogoRow key={a.id} orgSlug={orgSlug} asset={a} reload={reload} templates={templates} />
+            ))}
+
+            <Button
+                startIcon={<AddIcon />}
+                onClick={() =>
+                    add({
+                        kind: 'logo',
+                        name: c.kinds.logo.newName,
+                        content: { image: '' } as LogoContent,
+                        isDefault: true,
+                        sortOrder: assets.length,
+                    })
+                }
+            >
+                {c.kinds.logo.addButton}
+            </Button>
+        </Paper>
+    );
+};
+
+const LogoRow: React.FC<{
+    orgSlug: string;
+    asset: OrgAsset;
+    reload: () => Promise<void>;
+    templates: PDFTemplate[];
+}> = ({ orgSlug, asset, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const cs = strings.admin.content;
+    const c = asset.content as LogoContent;
+    const [name, setName] = useState(asset.name);
+    const [image, setImage] = useState(c.image ?? '');
+    const [isDefault, setIsDefault] = useState(asset.isDefault);
+    const remove = useDelete(orgSlug, reload, cs.kinds.logo.label, cs);
+    const { saving, save } = useSaveHandler(cs.kinds.logo.label, cs, () =>
+        updateOrgAsset(orgSlug, asset.id, { name, content: { image }, isDefault }).then(() => undefined),
+    );
+
+    return (
+        <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+            <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <TextField label={cs.name} value={name} onChange={(e) => setName(e.target.value)} size="small" />
+                            <UsageBadge assetId={asset.id} templates={templates} c={cs} />
+                        </Box>
+                        <Box>
+                            <FormControlLabel
+                                control={<Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />}
+                                label={cs.standard}
+                            />
+                            <Button size="small" onClick={save} disabled={saving}>
+                                {saving ? cs.savingBtn : cs.saveBtn}
+                            </Button>
+                            <IconButton
+                                color="error"
+                                onClick={() => {
+                                    const usage = countTemplatesUsingAsset(asset.id, templates);
+                                    if (!confirmDelete(cs.kinds.logo.definite, usage, cs)) return;
+                                    remove(asset.id);
+                                }}
+                            >
+                                <DeleteIcon />
+                            </IconButton>
+                        </Box>
+                    </Box>
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                    <ImageUpload label={cs.logoImage} value={image} onChange={setImage} maxSizeKB={500} />
+                </Grid>
+            </Grid>
+        </Paper>
+    );
+};
+
+// ───────────── Body Texts ─────────────
+
+const BodyTextsPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const c = strings.admin.content;
+    const add = useAdd(orgSlug, reload, c.kinds.body_text.label, c);
+    return (
+        <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+                {c.bodyTextsTitle}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {c.bodyTextsIntro}
+            </Typography>
+
+            {assets.length === 0 && <EmptyAssetState plural={c.kinds.body_text.plural} c={c} />}
+
+            {assets.map((a) => (
+                <BodyTextRow key={a.id} orgSlug={orgSlug} asset={a} reload={reload} templates={templates} />
+            ))}
+
+            <Button
+                startIcon={<AddIcon />}
+                onClick={() =>
+                    add({
+                        kind: 'body_text',
+                        name: c.kinds.body_text.newName,
+                        content: { text: '' } as BodyTextContent,
+                        isDefault: true,
+                        sortOrder: assets.length,
+                    })
+                }
+            >
+                {c.kinds.body_text.addButton}
+            </Button>
+        </Paper>
+    );
+};
+
+const BodyTextRow: React.FC<{
+    orgSlug: string;
+    asset: OrgAsset;
+    reload: () => Promise<void>;
+    templates: PDFTemplate[];
+}> = ({ orgSlug, asset, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const cs = strings.admin.content;
+    const c = asset.content as BodyTextContent;
+    const [name, setName] = useState(asset.name);
+    const [text, setText] = useState(c.text ?? '');
+    const [isDefault, setIsDefault] = useState(asset.isDefault);
+    const remove = useDelete(orgSlug, reload, cs.kinds.body_text.label, cs);
+    const { saving, save } = useSaveHandler(cs.kinds.body_text.label, cs, () =>
+        updateOrgAsset(orgSlug, asset.id, { name, content: { text }, isDefault }).then(() => undefined),
+    );
+
+    return (
+        <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+            <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <TextField label={cs.titleLabel} value={name} onChange={(e) => setName(e.target.value)} size="small" />
+                            <UsageBadge assetId={asset.id} templates={templates} c={cs} />
+                        </Box>
+                        <Box>
+                            <FormControlLabel
+                                control={<Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />}
+                                label={cs.standard}
+                            />
+                            <Button size="small" onClick={save} disabled={saving}>
+                                {saving ? cs.savingBtn : cs.saveBtn}
+                            </Button>
+                            <IconButton
+                                color="error"
+                                onClick={() => {
+                                    const usage = countTemplatesUsingAsset(asset.id, templates);
+                                    if (!confirmDelete(cs.kinds.body_text.definite, usage, cs)) return;
+                                    remove(asset.id);
+                                }}
+                            >
+                                <DeleteIcon />
+                            </IconButton>
+                        </Box>
+                    </Box>
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                    <TextField
+                        fullWidth
+                        multiline
+                        rows={6}
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        placeholder={cs.textPlaceholder}
+                    />
+                </Grid>
+            </Grid>
+        </Paper>
+    );
+};
+
+// ───────────── Lookup Lists ─────────────
+
+const LookupListsPanel: React.FC<PanelProps> = ({ orgSlug, assets, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const c = strings.admin.content;
+    const add = useAdd(orgSlug, reload, c.kinds.lookup_list.label, c);
+    return (
+        <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+                {c.lookupListsTitle}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {c.lookupListsIntro}
+            </Typography>
+
+            {assets.length === 0 && <EmptyAssetState plural={c.kinds.lookup_list.plural} c={c} />}
+
+            {assets.map((a) => (
+                <LookupListRow key={a.id} orgSlug={orgSlug} asset={a} reload={reload} templates={templates} />
+            ))}
+
+            <Button
+                startIcon={<AddIcon />}
+                onClick={() =>
+                    add({
+                        kind: 'lookup_list',
+                        name: c.kinds.lookup_list.newName,
+                        content: { items: [] } as LookupListContent,
+                        isDefault: true,
+                        sortOrder: assets.length,
+                    })
+                }
+            >
+                {c.kinds.lookup_list.addButton}
+            </Button>
+        </Paper>
+    );
+};
+
+const LookupListRow: React.FC<{
+    orgSlug: string;
+    asset: OrgAsset;
+    reload: () => Promise<void>;
+    templates: PDFTemplate[];
+}> = ({ orgSlug, asset, reload, templates }) => {
+    const { strings } = useAdminLang();
+    const cs = strings.admin.content;
+    const initial = asset.content as LookupListContent;
+    const [name, setName] = useState(asset.name);
+    const [items, setItems] = useState<LookupItem[]>(initial.items ?? []);
+    const [isDefault, setIsDefault] = useState(asset.isDefault);
+    const remove = useDelete(orgSlug, reload, cs.kinds.lookup_list.label, cs);
+    const { saving, save } = useSaveHandler(cs.kinds.lookup_list.label, cs, () =>
+        updateOrgAsset(orgSlug, asset.id, { name, content: { items }, isDefault }).then(() => undefined),
+    );
+
+    const setItem = (i: number, field: keyof LookupItem, value: string) => {
+        const next = [...items];
+        next[i] = { ...next[i], [field]: value };
+        setItems(next);
+    };
+
+    return (
+        <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <TextField label={cs.listName} value={name} onChange={(e) => setName(e.target.value)} size="small" />
+                    <UsageBadge assetId={asset.id} templates={templates} c={cs} />
+                </Box>
+                <Box>
+                    <FormControlLabel
+                        control={<Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />}
+                        label={cs.standard}
+                    />
+                    <Button size="small" onClick={save} disabled={saving}>
+                        {saving ? cs.savingBtn : cs.saveBtn}
+                    </Button>
+                    <IconButton
+                        color="error"
+                        onClick={() => {
+                            const usage = countTemplatesUsingAsset(asset.id, templates);
+                            if (!confirmDelete(cs.kinds.lookup_list.definite, usage, cs)) return;
+                            remove(asset.id);
+                        }}
+                    >
+                        <DeleteIcon />
+                    </IconButton>
+                </Box>
+            </Box>
+
+            {items.map((it, i) => (
+                <Grid container spacing={1} key={i} sx={{ mb: 1 }} alignItems="flex-start">
+                    <Grid size={{ xs: 12, sm: 3 }}>
+                        <TextField
+                            fullWidth
+                            label={cs.name}
+                            value={it.name}
+                            onChange={(e) => setItem(i, 'name', e.target.value)}
+                            size="small"
+                        />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 8 }}>
+                        <TextField
+                            fullWidth
+                            label={cs.description}
+                            value={it.description ?? ''}
+                            onChange={(e) => setItem(i, 'description', e.target.value)}
+                            size="small"
+                            multiline
+                            rows={2}
+                        />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 1 }}>
+                        <IconButton onClick={() => setItems(items.filter((_, idx) => idx !== i))}>
+                            <DeleteIcon />
+                        </IconButton>
+                    </Grid>
+                </Grid>
+            ))}
+
+            <Button
+                startIcon={<AddIcon />}
+                size="small"
+                onClick={() => setItems([...items, { name: '', description: '' }])}
+            >
+                {cs.addEntry}
+            </Button>
+        </Paper>
+    );
+};

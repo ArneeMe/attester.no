@@ -1,0 +1,19 @@
+{
+  "name": "@attester/shared",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pdfme/common": "^5.5.8"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "vitest": "^4.1.7"
+  }
+}

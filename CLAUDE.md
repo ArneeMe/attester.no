@@ -86,7 +86,7 @@ What IS acceptable:
 
 The deletion clock starts at **issuance**, not submission. Issuing a
 certificate stamps `submissions.issued_at`; a lazy sweep
-(`src/lib/server/retention.ts`, window in `src/util/retention.ts`) then
+(`apps/web/src/lib/server/retention.ts`, window in `functions/_shared/src/retention.ts`) then
 deletes rows whose `issued_at` is older than `ISSUED_RETENTION_HOURS`. The
 sweep runs whenever the submissions API is touched (GET or POST) — no
 scheduler exists on the edge runtime, and none is needed, because the
@@ -130,13 +130,13 @@ delete or refactor any of the files below before then.
 
 Files that exist solely for legacy back-compat:
 
-- `src/app/verify/page.tsx` — legacy verify page (positional URL parser).
-- `src/app/api/certificates/verify/route.ts` — reads from the
+- `apps/web/src/app/verify/page.tsx` — legacy verify page (positional URL parser).
+- `apps/web/src/app/api/certificates/verify/route.ts` — reads from the
   `legacy_certificates` table.
-- `src/app/login/adminpage/generateParams.ts` — old positional hash
+- `apps/web/src/app/login/adminpage/generateParams.ts` — old positional hash
   input builder. Not used at issuance anymore, kept as a record of the
   legacy URL contract.
-- `src/util/hashFunction.ts` — old SHA-512 over the positional string.
+- `apps/web/src/util/hashFunction.ts` — old SHA-512 over the positional string.
   Not used at issuance anymore.
 
 The `legacy_certificates` table is a one-time snapshot taken during the
@@ -171,9 +171,9 @@ number can be offered at once: with one the volunteer never sees a
 chooser, with several they pick. Because saving a template inserts a new
 row, the templates POST route retires superseded revisions by clearing
 `is_offered` on older rows with the same `name`
-(`src/lib/server/templateOffering.ts`) — otherwise every past revision
+(`apps/web/src/lib/server/templateOffering.ts`) — otherwise every past revision
 would pile up in the chooser. The selection rule lives in
-`src/util/offeredTemplates.ts` and is served publicly by
+`functions/_shared/src/offeredTemplates.ts` and is served publicly by
 `/api/org/[slug]/offered-templates`, which exposes id, name and
 description only.
 
@@ -189,7 +189,7 @@ points to (which you shouldn't, but the hash would still match).
 
 ## Canonical hash format
 
-Single source of truth: `src/util/canonicalHash.ts` + `src/util/certParams.ts`.
+Single source of truth: `functions/_shared/src/canonicalHash.ts` + `functions/_shared/src/certParams.ts`.
 
 Algorithm:
 1. Build a `URLSearchParams` from the cert fields (issuer side: see
@@ -264,7 +264,7 @@ schema field names to a data source:
 - `lookup` — find an item in a lookup_list by matching its `name`
   against a submission key, return the named sub-field
 
-The resolver is `src/util/resolveBinding.ts`. The single PDF-input
+The resolver is `functions/_shared/src/resolveBinding.ts`. The single PDF-input
 builder is `buildPdfInput` in the same file.
 
 ### Implicit fallback
@@ -293,7 +293,7 @@ pdfme placeholder names when the admin hasn't set one.
 
 ## Mandatory PDF elements
 
-`validateTemplateForSave` (`src/util/validateTemplate.ts`) is run by the
+`validateTemplateForSave` (`functions/_shared/src/validateTemplate.ts`) is run by the
 designer before save and refuses templates without:
 
 - A `qrcode` field (so certs are verifiable).

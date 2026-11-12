@@ -27,9 +27,9 @@ not to the organization they're interacting with. Two sources:
 rates 1–5 stars + comment on the confirmation screen, routed to *that org's*
 own admins via a new "Tilbakemeldinger" tab. That solves a different
 problem (an org wanting feedback about itself) and was a misread of the
-ask. Code lived in `src/app/api/org/[slug]/feedback/route.ts`,
-`src/components/FeedbackWidget.tsx`,
-`src/app/login/adminpage/[orgSlug]/tilbakemeldinger/`, plus a `feedback`
+ask. Code lived in `apps/web/src/app/api/org/[slug]/feedback/route.ts`,
+`apps/web/src/components/FeedbackWidget.tsx`,
+`apps/web/src/app/login/adminpage/[orgSlug]/tilbakemeldinger/`, plus a `feedback`
 table migration — all removed. If per-org feedback turns out to be wanted
 too, it's a separate feature from this one and can be rebuilt later; don't
 conflate the two.
@@ -67,6 +67,6 @@ at approval, and listing role-holders for the human already judging.
 
 **A signal, not a gate.** Many student societies are not registered at all and
 are exactly the audience — which is why `orgNumber` on `org_requests` is
-optional and MOD11-validated (`src/util/orgRequest.ts`).
+optional and MOD11-validated (`functions/_shared/src/orgRequest.ts`).
 
 ## (add the next idea below this line)

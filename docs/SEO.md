@@ -30,12 +30,12 @@ backlinks can rank; there is no incumbent to displace.
   resilient to DB outage. `robots.txt` references it and now also blocks
   `/admin`.
 - Canonical URLs + `hreflang` (nb-NO / en / x-default) on `/` and `/om` via
-  `publicPageMetadata` (`src/util/seo.ts`) — the `?lang=en` variants are
+  `publicPageMetadata` (`apps/web/src/util/seo.ts`) — the `?lang=en` variants are
   declared alternates, not duplicate content.
 - `metadataBase`, Open Graph and Twitter-card defaults; keyword-informed
   site title («digital attest for frivillige») and meta description
   containing the money phrases.
-- Structured data (`src/components/JsonLd.tsx`): `WebSite` on the landing
+- Structured data (`apps/web/src/components/JsonLd.tsx`): `WebSite` on the landing
   page, `FAQPage` on `/om` (built from the strings file, so it stays in
   sync with the visible content in both languages) — eligible for FAQ rich
   results.
