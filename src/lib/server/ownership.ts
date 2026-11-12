@@ -21,25 +21,3 @@ export async function templateBelongsToOrg(
     );
     return data.templates.length > 0;
 }
-
-/**
- * Same idea for a submission id. Used when minting a certificate so a
- * malicious admin can't insert a cert hash for a submission from another org
- * (or a non-existent submission).
- */
-export async function submissionBelongsToOrg(
-    submissionId: string,
-    organizationId: string,
-): Promise<boolean> {
-    if (!submissionId || typeof submissionId !== "string") return false;
-    const data = await hasuraAdmin<{ submissions: Array<{ id: string }> }>(
-        `query CheckSubmissionOrg($id: uuid!, $organizationId: uuid!) {
-            submissions(where: {
-                id: { _eq: $id },
-                organization_id: { _eq: $organizationId }
-            }, limit: 1) { id }
-        }`,
-        { id: submissionId, organizationId },
-    );
-    return data.submissions.length > 0;
-}

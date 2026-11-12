@@ -52,9 +52,12 @@ an org has to remember to check its queue. Unissued rows are never
 auto-deleted, so nothing is lost — but see ROADMAP, this gap is known.
 
 ### 2. Issue
-Admin dashboard → "Generer PDF" → `submitHash` computes the canonical hash
-client-side (`src/util/canonicalHash.ts`) and `POST /api/org/[slug]/certificates`
-stores it (idempotent per submission; records `issued_by`). The same mutation
+Admin dashboard → "Generer PDF" → `POST /api/org/[slug]/certificates` with
+just the `submissionId`. The server reads the stored submission, builds the
+canonical hash itself (`src/util/certParams.ts` + `src/util/canonicalHash.ts`)
+and stores it (idempotent per submission; records `issued_by`). It returns the
+`verifyPath`, so a client that cannot render the PDF (the Android app in
+arneeme/apps) can still issue and share the link. The same mutation
 stamps `submissions.issued_at`, so a certificate can never exist without its
 deletion clock started. The PDF renders in the browser (`buildAttestPdfBlob`)
 with a QR pointing at
