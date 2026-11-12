@@ -14,7 +14,7 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
 - TypeScript
 - Material UI
 - Nhost (Postgres + Hasura + Auth)
-- pdfme for PDF-generering i nettleseren
+- pdfme for PDF-generering på serveren
 - Cloudflare Pages
 
 ## Datamodell i grove trekk

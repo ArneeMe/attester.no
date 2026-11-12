@@ -47,9 +47,11 @@ what it says.
 Data flow:
 
 1. A volunteer submits their info via the public form (`/org/<slug>`).
-2. An admin reviews the submission and clicks "Generer PDF". The PDF
-   contains a QR code pointing to
+2. An admin reviews the submission and clicks "Generer PDF". The server
+   renders the PDF from the submission it already holds and returns it. The
+   PDF contains a QR code pointing to
    `/org/<slug>/verify?t=<template_id>&id=<vol_id>&name=&group=&...`.
+   The rendered PDF is returned to the caller and never stored.
 3. The server stores ONLY: `cert_id`, `hash(URL params)`, `template_id`,
    `organization_id`, `created_at`. Never the name, dates, group, role, or
    any other identifying field.
@@ -74,6 +76,9 @@ Do NOT add any of the following:
 - A "snapshot the cert data onto the certificate row" mechanism — this
   defeats the entire privacy design.
 - A background job that reads certificate data and does anything with it.
+- Storing a rendered PDF, or logging anything from a submission. The server
+  renders certificates, so volunteer fields pass through its memory. They
+  must not reach a log line, an error message or a table.
 - Any feature that re-derives "who was this cert about" from server state
   alone.
 
@@ -111,9 +116,10 @@ long" is NOT automatic for unissued rows, and copy must not claim it is.
 
 **Issuing a certificate does NOT immediately delete the submission.** The
 window is the point: if a PDF is lost, misprinted, or a mistake is spotted
-late, "Generer PDF" can be run again any time before the sweep. The
-certificates POST route is idempotent per submission (returns the existing
-cert instead of minting a duplicate) and deliberately does **not**
+late, "Generer PDF" can be run again any time before the sweep. The issue
+route (`functions/_api/src/issuance/issue.ts`) is idempotent per submission
+(returns the existing cert instead of minting a duplicate) and deliberately
+does **not**
 re-stamp `issued_at`, so regenerating cannot be used to extend retention
 indefinitely.
 
@@ -199,7 +205,8 @@ Algorithm:
 4. Join as `key=value&key=value&...`.
 5. SHA-512 hex over that UTF-8 byte sequence.
 
-Issuer (`submitHash`), verifier (`OrgVerifyClient`), and seed scripts
+Issuer (`issueCertificate` in `functions/_api/src/issuance/issue.ts`),
+verifier (`OrgVerifyClient`), and seed scripts
 all import from these utilities. Do NOT inline the algorithm anywhere
 else — drift will silently invalidate certificates.
 

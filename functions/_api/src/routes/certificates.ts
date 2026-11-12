@@ -1,7 +1,6 @@
 import { json } from "../http";
 import { hasuraAdmin } from "../lib/hasura";
 import { requireOrgMemberBySlug } from "../lib/apiAuth";
-import { submissionBelongsToOrg, templateBelongsToOrg } from "../lib/ownership";
 import { getUsersByIds } from "../lib/authUsers";
 import { serverError } from "../lib/apiError";
 
@@ -52,106 +51,6 @@ export async function GET(
             createdAt: c.created_at,
         }));
         return json({ certificates });
-    } catch (e) {
-        return serverError(e, "api/org/[slug]/certificates");
-    }
-}
-
-// SHA-512 hex digest is 128 chars. Reject anything else early so we don't
-// stash junk strings in the hash column.
-const HASH_HEX_LEN = 128;
-const HEX_RE = /^[0-9a-f]+$/;
-
-export async function POST(
-    req: Request,
-    { params }: { params: Promise<{ slug: string }> },
-) {
-    const { slug } = await params;
-    const auth = await requireOrgMemberBySlug(req, slug);
-    if (auth instanceof Response) return auth;
-
-    const { submissionId, hash, templateId } = await req.json();
-    if (typeof submissionId !== "string" || !submissionId) {
-        return json({ error: "Missing submissionId" }, { status: 400 });
-    }
-    if (typeof templateId !== "string" || !templateId) {
-        return json({ error: "Missing templateId" }, { status: 400 });
-    }
-    if (typeof hash !== "string" || hash.length !== HASH_HEX_LEN || !HEX_RE.test(hash)) {
-        return json({ error: "Hash must be a 128-char hex SHA-512 digest" }, { status: 400 });
-    }
-
-    // The admin is authed for this org via requireOrgMemberBySlug, but the
-    // submission_id and template_id come from their client. Verify both
-    // belong to this same org so a logged-in admin can't mint a cert
-    // referencing another org's data.
-    if (!(await templateBelongsToOrg(templateId, auth.organizationId))) {
-        return json({ error: "Template does not belong to this organization" }, { status: 400 });
-    }
-    if (!(await submissionBelongsToOrg(submissionId, auth.organizationId))) {
-        return json({ error: "Submission does not belong to this organization" }, { status: 400 });
-    }
-
-    try {
-        // Idempotent issuance: a submission is NOT deleted when its cert is
-        // issued — issuance stamps `issued_at`, which starts the retention
-        // window the sweep enforces (see CLAUDE.md "Volunteer deletion").
-        // So "Generer PDF" can legitimately be clicked again for the same
-        // submission, e.g. to regenerate a lost or misprinted PDF. Check for
-        // an existing cert first and return it instead of minting a
-        // duplicate. Re-issuing deliberately does NOT re-stamp issued_at:
-        // the window runs from the FIRST issuance, so regenerating can't be
-        // used to hold volunteer data indefinitely.
-        //
-        // This check-then-insert has a small race window under concurrent
-        // double-clicks; a DB-enforced unique constraint on
-        // (organization_id, submission_id) closes it and is tracked as
-        // follow-up hardening.
-        const existing = await hasuraAdmin<{ certificates: { id: string }[] }>(
-            `query ExistingCertificate($organizationId: uuid!, $submissionId: String!) {
-                certificates(
-                    where: { organization_id: { _eq: $organizationId }, submission_id: { _eq: $submissionId } },
-                    limit: 1
-                ) { id }
-            }`,
-            { organizationId: auth.organizationId, submissionId },
-        );
-        if (existing.certificates.length > 0) {
-            return json({ id: existing.certificates[0].id, alreadyIssued: true });
-        }
-
-        // Insert the cert AND stamp the submission's issued_at in one
-        // mutation — Hasura runs both root fields in a single transaction,
-        // so a cert can never exist without its deletion clock started.
-        // certificates.submission_id is a String column while submissions.id
-        // is uuid: same value, two GraphQL types.
-        const data = await hasuraAdmin<{
-            insert_certificates_one: { id: string };
-            update_submissions_by_pk: { id: string } | null;
-        }>(
-            `mutation InsertCertificate($organizationId: uuid!, $submissionId: String!, $submissionUuid: uuid!, $hash: String!, $templateId: uuid!, $issuedBy: uuid!) {
-                insert_certificates_one(object: {
-                    organization_id: $organizationId,
-                    submission_id: $submissionId,
-                    hash: $hash,
-                    template_id: $templateId,
-                    issued_by: $issuedBy
-                }) { id }
-                update_submissions_by_pk(
-                    pk_columns: { id: $submissionUuid },
-                    _set: { issued_at: "now()" }
-                ) { id }
-            }`,
-            {
-                organizationId: auth.organizationId,
-                submissionId,
-                submissionUuid: submissionId,
-                hash,
-                templateId,
-                issuedBy: auth.userId,
-            },
-        );
-        return json({ id: data.insert_certificates_one.id });
     } catch (e) {
         return serverError(e, "api/org/[slug]/certificates");
     }

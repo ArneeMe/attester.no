@@ -13,7 +13,7 @@ never be broken, read [CLAUDE.md](../CLAUDE.md) first — this file explains
 | Shared code | `functions/_shared` | Hash, validation, types. Imported by web and API |
 | Database | Postgres via Hasura GraphQL (Nhost) | Only the API talks to Hasura, with the **admin secret**; tenancy is enforced in API code, NOT in Hasura permissions |
 | Auth | Nhost Auth (email/password) | JWT verified server-side with `jose` against remote JWKS |
-| PDF | pdfme 5, generated **client-side** in the admin's browser | Volunteer data never makes an extra server hop for rendering |
+| PDF | pdfme 5, rendered by the API (`functions/_api/src/issuance/`) | The server already holds the submission until issuance. The PDF is returned, never stored |
 
 ## How a request travels
 
@@ -76,13 +76,22 @@ an org has to remember to check its queue. Unissued rows are never
 auto-deleted, so nothing is lost — but see ROADMAP, this gap is known.
 
 ### 2. Issue
-Admin dashboard → "Generer PDF" → `submitHash` computes the canonical hash
-client-side (`functions/_shared/src/canonicalHash.ts`) and `POST /api/v1/org/[slug]/certificates`
-stores it (idempotent per submission; records `issued_by`). The same mutation
-stamps `submissions.issued_at`, so a certificate can never exist without its
-deletion clock started. The PDF renders in the browser (`buildAttestPdfBlob`)
-with a QR pointing at
-`/org/[slug]/verify?t=<template>&id=<submission>&<fields...>`.
+Admin dashboard → "Generer PDF" →
+`POST /api/v1/org/[slug]/submissions/[id]/issue`. The server
+(`functions/_api/src/issuance/issue.ts`) loads the submission, its template
+and the org's assets, renders the PDF, computes the canonical hash
+(`functions/_shared/src/canonicalHash.ts`) and stores it (idempotent per
+submission; records `issued_by`). The same mutation stamps
+`submissions.issued_at`, so a certificate can never exist without its deletion
+clock started. The response carries the PDF (base64) and the verify URL
+`/org/[slug]/verify?t=<template>&id=<submission>&<fields...>`, which is also
+what the QR code holds.
+
+The client sends only the submission id. It can no longer choose the hash or
+the template, so a tampered browser cannot register a certificate that does
+not match the stored submission. `.../preview` renders the same PDF with a
+watermark and registers nothing. Rendering happens before the hash is stored,
+so a template that fails to render leaves no certificate behind.
 
 The submission then survives for `ISSUED_RETENTION_HOURS` so the PDF can be
 regenerated (lost file, misprint, late-spotted typo); the retention sweep
