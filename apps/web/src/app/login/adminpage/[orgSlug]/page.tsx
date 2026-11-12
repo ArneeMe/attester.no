@@ -7,11 +7,9 @@ import { authHeader } from '@/lib/nhost';
 import {
     Button, Checkbox, Chip, FormControlLabel, Grid, Link, MenuItem, Paper, TextField, Typography
 } from '@mui/material';
-import { buildAttestPdfBlob, downloadBlob, generatePDF, previewPDF, TemplateData } from '@/app/login/adminpage/generatePDF';
+import { downloadBlob, issueCertificate, previewCertificate } from '@/app/login/adminpage/issueCertificate';
 import { deleteSubmission } from "@/util/deleteSubmission";
 import ConfirmDialog from "@/util/confirmDialog";
-import { generateURL } from "@/app/login/adminpage/generateURL";
-import { submitHash } from "@/app/login/adminpage/submitHash";
 import SchemaDetails from '@/components/SchemaDetails';
 import { useToast } from '@/components/ToastProvider';
 import type { Submission } from '@attester/shared/types/submission';
@@ -28,7 +26,8 @@ type SubmissionRow = {
     issued_at: string | null;
 };
 
-type FullTemplate = TemplateData & {
+type FullTemplate = {
+    id: string;
     name: string;
     form_schema: FormSchema | null;
 };
@@ -166,21 +165,15 @@ const AdminPage: React.FC = () => {
             return;
         }
         try {
-            await submitHash(orgSlug, tmpl.id, selected.id, selected.data);
+            const { blob, filename, verifyUrl } = await issueCertificate(orgSlug, selected.id);
             markIssued(selected.id);
-        } catch (error) {
-            console.error(error);
-            toast.error(a.registerError + ((error as Error).message ?? a.unknownError));
-            return;
-        }
-        try {
-            await generatePDF(orgSlug, tmpl, selected.id, selected.data);
-            setPdfUrl(generateURL(orgSlug, tmpl.id, selected.id, selected.data));
+            downloadBlob(blob, filename);
+            setPdfUrl(verifyUrl);
             setOpenPDFDialog(true);
             setOpenDialog(false);
         } catch (error) {
             console.error(error);
-            toast.error(a.pdfError + ((error as Error).message ?? a.unknownError) + a.pdfRetryHint);
+            toast.error(a.registerError + ((error as Error).message ?? a.unknownError));
         }
     };
 
@@ -210,9 +203,8 @@ const AdminPage: React.FC = () => {
                 continue;
             }
             try {
-                await submitHash(orgSlug, tmpl.id, sub.id, sub.data);
+                const { blob, filename } = await issueCertificate(orgSlug, sub.id);
                 newlyIssued.push(sub.id);
-                const { blob, filename } = await buildAttestPdfBlob(orgSlug, tmpl, sub.id, sub.data);
                 const unique = zip.files[filename] ? `${id.slice(0, 8)}_${filename}` : filename;
                 zip.file(unique, blob);
                 issued++;
@@ -402,7 +394,7 @@ const AdminPage: React.FC = () => {
                               label: a.preview,
                               onClick: async () => {
                                   try {
-                                      await previewPDF(orgSlug, selectedTemplate, selected.id, selected.data);
+                                      await previewCertificate(orgSlug, selected.id);
                                   } catch (e) {
                                       console.error(e);
                                       toast.error(a.previewError + ((e as Error).message ?? a.unknownError));

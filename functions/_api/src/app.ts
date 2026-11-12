@@ -8,10 +8,12 @@ import * as branding from "./routes/branding";
 import * as certificateVerify from "./routes/certificateVerify";
 import * as certificates from "./routes/certificates";
 import * as inviteRedeem from "./routes/inviteRedeem";
+import * as issue from "./routes/issue";
 import * as invites from "./routes/invites";
 import * as members from "./routes/members";
 import * as myOrganizations from "./routes/myOrganizations";
 import * as offeredTemplates from "./routes/offeredTemplates";
+import * as preview from "./routes/preview";
 import * as org from "./routes/org";
 import * as orgRequests from "./routes/orgRequests";
 import * as publicOrgs from "./routes/publicOrgs";
@@ -39,6 +41,8 @@ const router = new Router()
     .add("/org/:slug/templates/:id", template)
     .add("/org/:slug/submissions", submissions)
     .add("/org/:slug/submissions/:id", submission)
+    .add("/org/:slug/submissions/:id/issue", issue)
+    .add("/org/:slug/submissions/:id/preview", preview)
     .add("/org/:slug/certificates", certificates)
     .add("/org/:slug/certificates/verify", certificateVerify)
     .add("/org/:slug/invites", invites)

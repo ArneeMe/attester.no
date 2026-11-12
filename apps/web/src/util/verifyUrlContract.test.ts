@@ -1,10 +1,8 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { generateParams } from '@/app/login/adminpage/generateParams';
 import { hashFunction } from './hashFunction';
-import { buildCertParams } from '@attester/shared/certParams';
-import { canonicalHash } from '@attester/shared/canonicalHash';
 
 // URL ↔ endpoint contract for BOTH verify flows.
 //
@@ -106,53 +104,5 @@ describe('legacy flow: printed positional URL → page parser → hash', () => {
             '892c9276695df95729ea6cfaddb628f596df8f8ba7d7818f41e61e1762447539' +
             '179d002a7f14b1f4cd0fa047128f0467331e4cb08930f4d731e13ff62bbfe4f5',
         );
-    });
-});
-
-describe('new flow: issued QR URL → verify client parse → hash', () => {
-    beforeAll(() => {
-        // generateURL reads window.location.origin (it runs in the admin's
-        // browser at issuance time).
-        vi.stubGlobal('window', { location: { origin: 'https://attester.no' } });
-    });
-    afterAll(() => {
-        vi.unstubAllGlobals();
-    });
-
-    const data = {
-        name: 'Bjørn Æsel',
-        group: 'Webkom & venner',
-        role: 'Leder=Nestleder',
-        from: '2024-01-01',
-    };
-
-    it('generateURL points at the org verify route with t and id params', async () => {
-        const { generateURL } = await import('@/app/login/adminpage/generateURL');
-        const url = new URL(generateURL('echo', 'tmpl-1', 'sub-1', data));
-        expect(url.pathname).toBe('/org/echo/verify');
-        expect(url.searchParams.get('t')).toBe('tmpl-1');
-        expect(url.searchParams.get('id')).toBe('sub-1');
-    });
-
-    it('round-trips: URL params parsed like OrgVerifyClient → issuer hash', async () => {
-        const { generateURL } = await import('@/app/login/adminpage/generateURL');
-        const issuerHash = await canonicalHash(buildCertParams('tmpl-1', 'sub-1', data));
-
-        const url = new URL(generateURL('echo', 'tmpl-1', 'sub-1', data));
-        // Mirrors OrgVerifyClient: every URL param except 't' feeds the hash.
-        const fields: Record<string, string> = {};
-        url.searchParams.forEach((value, key) => {
-            if (key !== 't') fields[key] = value;
-        });
-
-        expect(await canonicalHash(new URLSearchParams(fields))).toBe(issuerHash);
-    });
-
-    it('special characters survive URL encoding round trip', async () => {
-        const { generateURL } = await import('@/app/login/adminpage/generateURL');
-        const url = new URL(generateURL('echo', 'tmpl-1', 'sub-1', data));
-        expect(url.searchParams.get('name')).toBe('Bjørn Æsel');
-        expect(url.searchParams.get('group')).toBe('Webkom & venner');
-        expect(url.searchParams.get('role')).toBe('Leder=Nestleder');
     });
 });
