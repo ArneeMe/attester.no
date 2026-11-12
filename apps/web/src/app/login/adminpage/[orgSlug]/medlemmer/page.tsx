@@ -35,7 +35,7 @@ const MembersPage: React.FC = () => {
 
     const load = useCallback(async () => {
         try {
-            const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/members`, {
+            const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/members`, {
                 headers: authHeader(),
             });
             const json = await res.json();
@@ -55,7 +55,7 @@ const MembersPage: React.FC = () => {
         if (busy || !newEmail) return;
         setBusy(true);
         try {
-            const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/members`, {
+            const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/members`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json', ...authHeader() },
                 body: JSON.stringify({ email: newEmail }),
@@ -65,7 +65,7 @@ const MembersPage: React.FC = () => {
                 // No account yet — create an invite instead. The link joins
                 // them to the org automatically once they register/log in
                 // with the invited email.
-                const invRes = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/invites`, {
+                const invRes = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/invites`, {
                     method: 'POST',
                     headers: { 'content-type': 'application/json', ...authHeader() },
                     body: JSON.stringify({ email: newEmail }),
@@ -91,7 +91,7 @@ const MembersPage: React.FC = () => {
     const handleRemove = async () => {
         if (!toRemove) return;
         try {
-            const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/members`, {
+            const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/members`, {
                 method: 'DELETE',
                 headers: { 'content-type': 'application/json', ...authHeader() },
                 body: JSON.stringify({ userId: toRemove.userId }),

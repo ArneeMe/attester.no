@@ -19,19 +19,19 @@ const SECOND = {
 };
 
 async function mockOrg(page: Page) {
-    await page.route(`**/api/org/${ORG}`, (route) =>
+    await page.route(`**/api/v1/org/${ORG}`, (route) =>
         route.fulfill({ json: { organization: { id: 'org-1', slug: ORG, name: 'Testorg' } } }),
     );
-    await page.route(`**/api/org/${ORG}/templates/${TEMPLATE.id}*`, (route) =>
+    await page.route(`**/api/v1/org/${ORG}/templates/${TEMPLATE.id}*`, (route) =>
         route.fulfill({ json: { template: TEMPLATE } }),
     );
-    await page.route(`**/api/org/${ORG}/templates/${SECOND.id}*`, (route) =>
+    await page.route(`**/api/v1/org/${ORG}/templates/${SECOND.id}*`, (route) =>
         route.fulfill({ json: { template: SECOND } }),
     );
 }
 
 async function mockOffered(page: Page, templates: Array<{ id: string; name: string }>) {
-    await page.route(`**/api/org/${ORG}/offered-templates`, (route) =>
+    await page.route(`**/api/v1/org/${ORG}/offered-templates`, (route) =>
         route.fulfill({
             json: { templates: templates.map((t) => ({ id: t.id, name: t.name, description: null })) },
         }),
@@ -54,7 +54,7 @@ test('empty required fields show inline errors and block submission', async ({ p
 });
 
 test('valid submission reaches the confirmation screen', async ({ page }) => {
-    await page.route(`**/api/org/${ORG}/submissions`, (route) =>
+    await page.route(`**/api/v1/org/${ORG}/submissions`, (route) =>
         route.fulfill({ json: { submission: { id: 'sub-1', created_at: '2026-07-11T00:00:00Z' } } }),
     );
 
@@ -72,7 +72,7 @@ test('valid submission reaches the confirmation screen', async ({ page }) => {
 
 test('double-clicking confirm sends one submission, not two', async ({ page }) => {
     let posts = 0;
-    await page.route(`**/api/org/${ORG}/submissions`, async (route) => {
+    await page.route(`**/api/v1/org/${ORG}/submissions`, async (route) => {
         posts += 1;
         await new Promise((r) => setTimeout(r, 600));
         await route.fulfill({ json: { submission: { id: 'sub-1', created_at: '2026-07-11T00:00:00Z' } } });

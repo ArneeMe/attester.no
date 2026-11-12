@@ -1,5 +1,5 @@
 import OrgVerifyClient from './OrgVerifyClient';
-import { getOrgNameBySlug } from '@/lib/server/orgs';
+import { getOrgNameBySlug } from '@/lib/publicOrgs';
 
 export const runtime = 'edge';
 

@@ -33,8 +33,13 @@ describe('verify routes exist for printed URLs', () => {
         expect(routeFile('org', '[orgSlug]', 'verify', 'page.tsx')).toBe(true);
     });
 
-    it('new /api/org/[slug]/certificates/verify endpoint', () => {
-        expect(routeFile('api', 'org', '[slug]', 'certificates', 'verify', 'route.ts')).toBe(true);
+    it('new /api/v1/org/[slug]/certificates/verify endpoint', () => {
+        expect(routeFile('api', 'v1', '[...path]', 'route.ts')).toBe(true);
+        expect(
+            fs.existsSync(
+                path.join(process.cwd(), '..', '..', 'functions', '_api', 'src', 'routes', 'certificateVerify.ts'),
+            ),
+        ).toBe(true);
     });
 });
 

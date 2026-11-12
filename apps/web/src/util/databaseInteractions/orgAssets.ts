@@ -8,7 +8,7 @@ import type {
 import { fromAssetRow } from '@attester/shared/types/orgAssets';
 
 export async function listOrgAssets(orgSlug: string): Promise<OrgAsset[]> {
-    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/assets`, {
+    const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/assets`, {
         headers: authHeader(),
     });
     const json = await res.json();
@@ -28,7 +28,7 @@ export async function createOrgAsset(
     orgSlug: string,
     input: CreateAssetInput,
 ): Promise<OrgAsset> {
-    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/assets`, {
+    const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/assets`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...authHeader() },
         body: JSON.stringify(input),
@@ -48,7 +48,7 @@ export async function updateOrgAsset(
     input: UpdateAssetInput,
 ): Promise<OrgAsset> {
     const res = await fetch(
-        `/api/org/${encodeURIComponent(orgSlug)}/assets/${encodeURIComponent(assetId)}`,
+        `/api/v1/org/${encodeURIComponent(orgSlug)}/assets/${encodeURIComponent(assetId)}`,
         {
             method: 'PATCH',
             headers: { 'content-type': 'application/json', ...authHeader() },
@@ -62,7 +62,7 @@ export async function updateOrgAsset(
 
 export async function deleteOrgAsset(orgSlug: string, assetId: string): Promise<void> {
     const res = await fetch(
-        `/api/org/${encodeURIComponent(orgSlug)}/assets/${encodeURIComponent(assetId)}`,
+        `/api/v1/org/${encodeURIComponent(orgSlug)}/assets/${encodeURIComponent(assetId)}`,
         { method: 'DELETE', headers: authHeader() },
     );
     if (!res.ok) {

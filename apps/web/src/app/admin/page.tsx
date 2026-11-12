@@ -35,7 +35,7 @@ const PlatformAdminPage: React.FC = () => {
 
     const load = useCallback(async () => {
         try {
-            const res = await fetch('/api/admin/orgs', { headers: authHeader() });
+            const res = await fetch('/api/v1/admin/orgs', { headers: authHeader() });
             if (res.status === 401) {
                 setExpired(true);
                 return;
@@ -64,7 +64,7 @@ const PlatformAdminPage: React.FC = () => {
         if (busy) return;
         setBusy(true);
         try {
-            const res = await fetch('/api/admin/orgs', {
+            const res = await fetch('/api/v1/admin/orgs', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json', ...authHeader() },
                 body: JSON.stringify({ slug, name, adminEmail }),

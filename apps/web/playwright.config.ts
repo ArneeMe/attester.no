@@ -34,6 +34,7 @@ export default defineConfig({
         env: {
             NEXT_PUBLIC_NHOST_SUBDOMAIN: 'e2e-placeholder',
             NEXT_PUBLIC_NHOST_REGION: 'eu-central-1',
+            API_URL: 'http://127.0.0.1:9/v1/api',
         },
     },
 });

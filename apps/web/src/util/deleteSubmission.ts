@@ -6,7 +6,7 @@ import { authHeader } from '@/lib/nhost';
  */
 export const deleteSubmission = async (orgSlug: string, id: string): Promise<void> => {
     const res = await fetch(
-        `/api/org/${encodeURIComponent(orgSlug)}/submissions/${encodeURIComponent(id)}`,
+        `/api/v1/org/${encodeURIComponent(orgSlug)}/submissions/${encodeURIComponent(id)}`,
         { method: 'DELETE', headers: authHeader() },
     );
     if (!res.ok) {

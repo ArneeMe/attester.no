@@ -20,7 +20,7 @@ export function UserOrgsProvider({ children }: { children: React.ReactNode }) {
 
     const refresh = useCallback(async () => {
         try {
-            const res = await fetch('/api/me/organizations', { headers: authHeader() });
+            const res = await fetch('/api/v1/me/organizations', { headers: authHeader() });
             if (res.status === 401 || res.status === 403) {
                 setOrgs([]);
                 setStatus('unauthenticated');

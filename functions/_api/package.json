@@ -1,0 +1,22 @@
+{
+  "name": "@attester/api",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "dev": "tsx watch src/devServer.ts"
+  },
+  "dependencies": {
+    "jose": "^6.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25",
+    "tsx": "^4.20.0",
+    "typescript": "^5",
+    "vitest": "^4.1.7"
+  }
+}

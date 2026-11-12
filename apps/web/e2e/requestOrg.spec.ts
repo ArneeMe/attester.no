@@ -22,7 +22,7 @@ test('editing the slug stops it tracking the name', async ({ page }) => {
 });
 
 test('a sent request shows the confirmation instead of the form', async ({ page }) => {
-    await page.route('**/api/org-requests', (route) => route.fulfill({ json: { received: true } }));
+    await page.route('**/api/v1/org-requests', (route) => route.fulfill({ json: { received: true } }));
     await page.goto('/ny-organisasjon');
     await fillRequired(page);
     await page.getByRole('button', { name: 'Send forespørsel' }).click();
@@ -32,7 +32,7 @@ test('a sent request shows the confirmation instead of the form', async ({ page 
 });
 
 test('a taken slug reports against the slug field, not as a generic failure', async ({ page }) => {
-    await page.route('**/api/org-requests', (route) =>
+    await page.route('**/api/v1/org-requests', (route) =>
         route.fulfill({ status: 409, json: { error: 'slug_taken', field: 'slug' } }),
     );
     await page.goto('/ny-organisasjon');
@@ -58,7 +58,7 @@ test('the organisation number takes nine digits and nothing else', async ({ page
 });
 
 test('a bad organisation number reports against its own field', async ({ page }) => {
-    await page.route('**/api/org-requests', (route) =>
+    await page.route('**/api/v1/org-requests', (route) =>
         route.fulfill({ status: 400, json: { error: 'bad_org_number', field: 'orgNumber' } }),
     );
     await page.goto('/ny-organisasjon');
@@ -70,7 +70,7 @@ test('a bad organisation number reports against its own field', async ({ page })
 });
 
 test('a server failure is reported without losing what was typed', async ({ page }) => {
-    await page.route('**/api/org-requests', (route) => route.abort());
+    await page.route('**/api/v1/org-requests', (route) => route.abort());
     await page.goto('/ny-organisasjon');
     await fillRequired(page);
     await page.getByRole('button', { name: 'Send forespørsel' }).click();
@@ -87,7 +87,7 @@ test('?lang=en renders the English form', async ({ page }) => {
 });
 
 test('the landing FAQ and the empty picker both route here', async ({ page }) => {
-    await page.route('**/api/org*', (route) => route.fulfill({ json: { organizations: [] } }));
+    await page.route('**/api/v1/org*', (route) => route.fulfill({ json: { organizations: [] } }));
     await page.goto('/');
 
     await expect(

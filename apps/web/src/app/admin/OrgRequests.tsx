@@ -43,7 +43,7 @@ const OrgRequests: React.FC<Props> = ({ strings, lang, onApproved }) => {
 
     const load = useCallback(async () => {
         try {
-            const res = await fetch('/api/admin/org-requests', { headers: authHeader() });
+            const res = await fetch('/api/v1/admin/org-requests', { headers: authHeader() });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             setRequests(json.requests ?? []);
@@ -67,7 +67,7 @@ const OrgRequests: React.FC<Props> = ({ strings, lang, onApproved }) => {
         if (busy) return;
         setBusy(true);
         try {
-            const res = await fetch(`/api/admin/org-requests/${encodeURIComponent(id)}`, {
+            const res = await fetch(`/api/v1/admin/org-requests/${encodeURIComponent(id)}`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json', ...authHeader() },
                 body: JSON.stringify(

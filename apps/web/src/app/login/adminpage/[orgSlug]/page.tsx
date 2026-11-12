@@ -60,8 +60,8 @@ const AdminPage: React.FC = () => {
         const fetchData = async () => {
             try {
                 const [subRes, tmplRes] = await Promise.all([
-                    fetch(`/api/org/${encodeURIComponent(orgSlug)}/submissions`, { headers: authHeader() }),
-                    fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, { headers: authHeader() }),
+                    fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/submissions`, { headers: authHeader() }),
+                    fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/templates`, { headers: authHeader() }),
                 ]);
 
                 if (subRes.ok) {

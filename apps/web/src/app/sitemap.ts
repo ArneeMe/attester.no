@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { listPublicOrgs } from '@/lib/server/orgs';
+import { listPublicOrgs } from '@/lib/publicOrgs';
 import { SITE_URL } from '@/util/seo';
 
 export const runtime = 'edge';
