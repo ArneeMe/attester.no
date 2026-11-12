@@ -29,9 +29,11 @@ that told users something false because the docs lagged the code.
   never what the code already says. Reasoning belongs in the commit message,
   where it is read once by someone deciding, not every time by someone
   scrolling. A comment restating its own function is worse than no comment.
-- **Small PRs, one squashed commit each, straight to `main`.** Each must be
-  shippable alone. Where a change is not, split it so the invisible half
-  (schema, API) merges first and nothing half-finished reaches production.
+- **Small PRs, one squashed commit each, to `develop`.** The platform rebuild
+  (docs/ROADMAP.md) lands there because the cut-over needs downtime, and the
+  owner chooses when `develop` goes to `main`. `main` deploys to production on
+  merge, so nothing goes there without the owner. Each PR must still leave
+  `develop` green and working.
 - **Iterate.** Ship a step, look at it, decide the next one. Do not batch
   several steps into one branch because they are related.
 - **Hygiene-only PRs get closed unreviewed.** Fold small fixes into whatever

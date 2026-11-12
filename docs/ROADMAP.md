@@ -94,48 +94,88 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
 - **i18n beyond NO/EN** — the strings file scales to more languages
   mechanically, but wait for actual demand.
 
-## Backend on Nhost (decided 2026-11-12)
+## The platform rebuild (decided 2026-11-12)
 
-Rejected on 2026-07-12, with integrations named as the reason to revisit.
-Integrations are now the goal, so this replaces that decision. The edge
-runtime cannot run a scheduler, retry anything or speak SMTP. Nhost Functions
-run on Node and can.
+The MVP is one Next.js app that is also the backend. The next stage needs
+several frontends (web, an admin mobile app), outbound integrations (email
+notices, Digipost delivery) and, some day, customers calling the API. A backend
+on Nhost was rejected on 2026-07-12 with integrations named as the reason to
+revisit. Integrations are now the goal, so this replaces that decision.
 
-Target layout:
+The work lands on `develop`, not `main`. The cut-over needs downtime and the
+owner chooses when. See CLAUDE.md "How this repo is worked".
+
+### Target layout
 
 ```
-apps/web          Next.js on Cloudflare Pages. UI only.
-nhost/functions   Backend on Nhost Functions. The admin secret lives here only.
-packages/shared   canonicalHash, certParams, types, validation. One copy.
-nhost/            Hasura metadata, migrations, permissions and triggers, in git.
+apps/web          Next.js on Cloudflare Pages. UI only, no secrets.
+packages/shared   Hash, cert params, types, validation, PDF input. One copy.
+packages/api      The backend: /v1 handlers, use cases, ports and adapters.
+functions/        Nhost Functions. Thin hosts that mount packages/api.
+nhost/            nhost.toml, Hasura metadata and migrations, in git.
 ```
 
-- Hasura stays the data layer. Hasura Actions route a mutation to a function,
-  event triggers call a function on a row change with retries, and cron
-  triggers give a real scheduler. Integrations (email, Brønnøysund, webhooks)
-  live in functions.
-- `packages/shared` exists so the hash algorithm keeps one source when two
-  deploy targets need it. Moving it must not change a single byte of output.
-- The privacy rules apply to functions as they do to routes: never log
-  volunteer fields, never read certificate data in a background job.
+### Principles
 
-One PR per step, each shippable alone:
+1. **One API, every client.** Web, mobile and any later customer use the same
+   versioned `/v1` HTTP API with bearer tokens. No client gets a private route.
+2. **The backend is host-neutral.** `packages/api` handlers take a web-standard
+   `Request` and return a `Response`. Nhost Functions is one host; a plain Node
+   server runs the same code for local work and tests.
+3. **Ports and adapters.** The core names what it needs (`Store`,
+   `NoticeChannel`, `CertificateChannel`, `Clock`) and never imports a provider.
+   Hasura, Resend and Digipost are adapters. A new channel is a new adapter.
+4. **The server renders the PDF.** It already holds the submission until
+   issuance, so rendering there exposes nothing new, and it is the only way a
+   mobile client or a delivery channel can issue.
+5. **Nothing outlives its purpose.** A rendered PDF exists only in a delivery
+   row until the channel confirms, with a hard time limit behind it. A
+   fødselsnummer is deleted the moment Digipost accepts the letter. What stays
+   is "sent via Digipost at time T".
+6. **Email carries notices, never certificates.** "Your organisation has a new
+   request" and nothing about who or what.
+7. **The hash stays the certificate.** Everything in CLAUDE.md about the hash,
+   the frozen legacy route and what the server may store still holds.
 
-1. Monorepo layout and `packages/shared`. No change in behaviour.
-2. Nhost Functions with one function: the owner notification, run by an event
-   trigger on `org_requests`. Proves the deploy path on something small and
-   gains retries over the fire-and-forget call.
-3. A cron trigger for the retention sweep. The lazy sweep stays until the cron
-   has run for a while, and CLAUDE.md changes in the same PR.
-4. Tenancy in Hasura row permissions, table by table, with tests. Today it is
-   enforced in app code, which only works while one app holds the admin
-   secret. A wrong permission lets one org read another's data, so this is
-   the real decision. Decide on it after step 3.
-5. Move API routes one at a time to actions or functions.
+### Digipost
 
-Costs: two deploy targets to watch, free-tier invocation limits and cold
-starts. Check which of Functions, event triggers and cron triggers the Nhost
-plan includes before step 2.
+attester.no holds one Digipost sender agreement and sends on behalf of every
+organisation. The letter is from attester.no and names the issuing
+organisation.
+
+- An organisation turns Digipost delivery on. Its form then offers an optional
+  fødselsnummer field.
+- The fødselsnummer is stored apart from the certificate data. It is never in
+  the QR link, never in the hash and never in a log.
+- Before issuing, the backend asks Digipost whether the person can receive
+  mail there. The admin sees "can be sent to Digipost" or "download instead".
+- No print fallback. A person without Digipost gets the PDF from the admin, as
+  today.
+
+### Steps, one PR each
+
+1. Monorepo layout and `packages/shared`. No change in behaviour, hash output
+   byte-identical.
+2. `packages/api` with the existing routes ported behind `/v1`, a Node dev
+   host, and the web app as a plain client of it.
+3. Nhost in git: `nhost.toml`, migrations, metadata, the Functions host.
+4. Server-side PDF rendering and issuance through the API.
+5. Outbox and the email channel: tell admins a submission is waiting.
+6. Digipost: the opt-in, the fødselsnummer field, identify, deliver.
+7. Scheduled work: the retention sweep, outbox retries and the delivery time
+   limit on a cron trigger. The lazy sweep stays until the cron has run a while.
+8. API shape the mobile app needs (list pending, approve, issue, deliver).
+
+Not planned: tenancy in Hasura row permissions. Clients never talk to Hasura,
+so tenancy stays in one tested code path in `packages/api`. Customer API keys
+are not built either, but `/v1` leaves room for them.
+
+### Owner actions the code cannot do
+
+- Connect the Nhost project to the repo and set its secrets.
+- Point Cloudflare Pages at `apps/web`.
+- Add the DNS records Resend asks for, so mail can be sent from `attester.no`.
+- Sign the Digipost sender agreement and supply the certificate as a secret.
 
 ## Explicitly frozen
 
