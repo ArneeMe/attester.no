@@ -1,0 +1,123 @@
+import { authHeader } from '@/lib/nhost';
+import type { PDFTemplate } from '@attester/shared/types/templateTypes';
+import type { FormSchema } from '@attester/shared/types/formSchema';
+import type { FieldBindings } from '@attester/shared/types/fieldBindings';
+import type { Template } from '@pdfme/common';
+import { deriveFormSchema } from '@attester/shared/templateFields';
+
+type TemplateRow = {
+    id: string;
+    organization_id: string;
+    name: string;
+    description: string | null;
+    base_pdf: string;
+    schemas: Template['schemas'];
+    form_schema: FormSchema | null;
+    field_bindings: FieldBindings | null;
+    is_offered: boolean;
+    created_at: string;
+    updated_at: string;
+};
+
+export async function getTemplates(orgSlug: string): Promise<PDFTemplate[]> {
+    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, {
+        headers: authHeader(),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? 'Failed to load templates');
+    return (json.templates as TemplateRow[]).map((row) => ({
+        id: row.id,
+        name: row.name,
+        description: row.description ?? undefined,
+        basePdf: row.base_pdf,
+        schemas: row.schemas,
+        formSchema: row.form_schema ?? undefined,
+        fieldBindings: row.field_bindings ?? undefined,
+        isOffered: row.is_offered,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at),
+    }));
+}
+
+export async function setTemplateOffered(orgSlug: string, templateId: string, isOffered: boolean): Promise<void> {
+    const res = await fetch(
+        `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`,
+        {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json', ...authHeader() },
+            body: JSON.stringify({ isOffered }),
+        },
+    );
+    if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? 'Failed to update template offering');
+    }
+}
+
+export async function deleteTemplate(orgSlug: string, templateId: string): Promise<void> {
+    const res = await fetch(
+        `/api/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}`,
+        { method: 'DELETE', headers: authHeader() },
+    );
+    if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? 'Failed to delete template');
+    }
+}
+
+export async function saveTemplate(
+    orgSlug: string,
+    template: Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'>,
+): Promise<PDFTemplate> {
+    const res = await fetch(`/api/org/${encodeURIComponent(orgSlug)}/templates`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...authHeader() },
+        body: JSON.stringify({
+            name: template.name,
+            description: template.description,
+            basePdf: template.basePdf,
+            schemas: template.schemas,
+            formSchema: template.formSchema,
+            fieldBindings: template.fieldBindings ?? {},
+            isOffered: template.isOffered,
+        }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? 'Failed to save template');
+    const row = json.template as { id: string; created_at: string; updated_at: string };
+    return {
+        ...template,
+        id: row.id,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at),
+    };
+}
+
+/**
+ * Convert a pdfme Designer template into our PDFTemplate shape. The designer
+ * doesn't know about field bindings or the public form schema, so we auto-
+ * derive a sensible default form_schema from the placeholder names (admin can
+ * later customise labels / types).
+ */
+export function fromPdfmeTemplate(
+    pdfmeTemplate: Template,
+    name: string,
+    options?: {
+        description?: string;
+        isOffered?: boolean;
+        fieldBindings?: FieldBindings;
+        formSchema?: FormSchema;
+    },
+): Omit<PDFTemplate, 'id' | 'createdAt' | 'updatedAt'> {
+    const fieldBindings = options?.fieldBindings ?? {};
+    const formSchema = options?.formSchema ?? deriveFormSchema(pdfmeTemplate.schemas, fieldBindings);
+    return {
+        name,
+        description: options?.description,
+        basePdf: pdfmeTemplate.basePdf as string,
+        schemas: pdfmeTemplate.schemas,
+        formSchema,
+        fieldBindings,
+        isOffered: options?.isOffered ?? true,
+    };
+}

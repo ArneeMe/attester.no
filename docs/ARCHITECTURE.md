@@ -53,7 +53,7 @@ auto-deleted, so nothing is lost — but see ROADMAP, this gap is known.
 
 ### 2. Issue
 Admin dashboard → "Generer PDF" → `submitHash` computes the canonical hash
-client-side (`src/util/canonicalHash.ts`) and `POST /api/org/[slug]/certificates`
+client-side (`functions/_shared/src/canonicalHash.ts`) and `POST /api/org/[slug]/certificates`
 stores it (idempotent per submission; records `issued_by`). The same mutation
 stamps `submissions.issued_at`, so a certificate can never exist without its
 deletion clock started. The PDF renders in the browser (`buildAttestPdfBlob`)
@@ -62,7 +62,7 @@ with a QR pointing at
 
 The submission then survives for `ISSUED_RETENTION_HOURS` so the PDF can be
 regenerated (lost file, misprint, late-spotted typo); the retention sweep
-(`src/lib/server/retention.ts`) removes it on the next touch of the
+(`apps/web/src/lib/server/retention.ts`) removes it on the next touch of the
 submissions API. Re-issuing does **not** re-stamp `issued_at`, so
 regenerating can't extend retention.
 
@@ -73,7 +73,7 @@ hash fetched by `submissionId`. Match ⇒ green. The database never learns what
 was attested; the URL carries the data.
 
 Which params feed the hash is narrowed by `selectHashFields`
-(`src/util/verifyFieldSelection.ts`): once the template's `form_schema` is
+(`functions/_shared/src/verifyFieldSelection.ts`): once the template's `form_schema` is
 loaded, only its declared field keys (plus `id`) count. That makes the
 verifier immune to incidental params — the `lang` UI switch, or the
 `utm_*`/`fbclid` junk that messaging apps append to shared links — which
@@ -85,14 +85,14 @@ URL param, for the same reason.
 
 Two styling systems coexist, deliberately.
 
-**The landing layer** — `src/app/style/tokens.ts` plus
-`src/components/landing/*`. `SiteHeader` is the one header for the whole site:
+**The landing layer** — `apps/web/src/app/style/tokens.ts` plus
+`apps/web/src/components/landing/*`. `SiteHeader` is the one header for the whole site:
 `LandingHeader` wraps it for public pages, `SignedInShell` for
 `/login/adminpage/**` and `/admin`. One component, so the two sides cannot
 drift apart.
 
 **Stock MUI** — everything inside an admin page. The theme
-(`src/app/style/customTheme.ts`) takes its palette from the same tokens, so
+(`apps/web/src/app/style/customTheme.ts`) takes its palette from the same tokens, so
 they do not clash, but they are not one system.
 
 Where the line falls: `/`, `/om` and `/ny-organisasjon` are fully
@@ -110,13 +110,13 @@ once overrode a contained button's `contrastText` through a nested
 ## Security model
 
 - **Server is the only boundary.** Client-side guards are UX, not security.
-- Every org-scoped route calls `requireOrgMemberBySlug` (`src/lib/server/apiAuth.ts`):
+- Every org-scoped route calls `requireOrgMemberBySlug` (`apps/web/src/lib/server/apiAuth.ts`):
   verify JWT → resolve slug → check `user_organizations`. Object ownership is
-  double-checked (`src/lib/server/ownership.ts`) when ids come from the client.
+  double-checked (`apps/web/src/lib/server/ownership.ts`) when ids come from the client.
 - Platform-level actions (`/api/admin/*`) additionally require the caller's
   `auth.users` email to be on the `PLATFORM_ADMIN_EMAILS` env allowlist
-  (`src/lib/server/platformAdmin.ts`). Unset ⇒ surface disabled.
-- `UNLISTED_ORG_SLUGS` (a constant in `src/util/orgVisibility.ts`, applied in
+  (`apps/web/src/lib/server/platformAdmin.ts`). Unset ⇒ surface disabled.
+- `UNLISTED_ORG_SLUGS` (a constant in `functions/_shared/src/orgVisibility.ts`, applied in
   `listPublicOrgs`) hides orgs from the front-page picker and the sitemap.
   Edit the list and deploy. It is a **discovery** filter, not access control:
   `/org/<slug>` still serves an unlisted org, by design, so test orgs stay
@@ -129,7 +129,7 @@ once overrode a contained button's `contrastText` through a nested
 - There are exactly **two** unauthenticated write paths. The second is
   `POST /api/org-requests`, where an organisation asks to be set up. Same
   shape of defence as the submissions POST — body cap, per-field caps, strict
-  string validation (`src/util/orgRequest.ts`) — plus a honeypot field that
+  string validation (`functions/_shared/src/orgRequest.ts`) — plus a honeypot field that
   returns the same success a real submission gets, so a bot has nothing to
   tune against. It writes a `pending` row and nothing else: creating the
   organisation requires a platform admin approving it at `/admin`, where the
@@ -142,10 +142,10 @@ once overrode a contained button's `contrastText` through a nested
   rather than attaching a member, so the applicant needs no prior account and
   a leaked link still grants nothing (redeem requires the session email to
   match).
-- All Hasura access goes through `hasuraAdmin()` (`src/lib/server/hasura.ts`)
+- All Hasura access goes through `hasuraAdmin()` (`apps/web/src/lib/server/hasura.ts`)
   with GraphQL **variables only** — never interpolate values into query text.
 - **Owner notifications say that something is waiting, never what.**
-  `notifyPlatformOwner()` (`src/lib/server/notifyOwner.ts`) pushes via ntfy,
+  `notifyPlatformOwner()` (`apps/web/src/lib/server/notifyOwner.ts`) pushes via ntfy,
   where the topic name is the only secret and anyone who learns it reads every
   message. So the payload carries no organisation name, slug, contact details
   or message text — just a link to `/admin`. It never throws: a failed
@@ -154,12 +154,12 @@ once overrode a contained button's `contrastText` through a nested
 ### Client session lifetime
 
 The admin area calls our own API routes with a header built by `authHeader()`
-(`src/lib/nhost.ts`), not through Nhost's HTTP clients — so the SDK's automatic
+(`apps/web/src/lib/nhost.ts`), not through Nhost's HTTP clients — so the SDK's automatic
 token refresh, which is installed on those clients, never runs. Without help the
 access token simply expires (~15 min) while the refresh token stays valid for
 weeks, and every request 401s.
 
-`useSessionKeepAlive()` (`src/util/auth.ts`) is that help: it refreshes on
+`useSessionKeepAlive()` (`apps/web/src/util/auth.ts`) is that help: it refreshes on
 mount, on an interval, and whenever the tab becomes visible again — the last one
 being the case that actually bites, a tab left open overnight. It reports the
 session as expired only when the SDK has discarded the stored session, because a

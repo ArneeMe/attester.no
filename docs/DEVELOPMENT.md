@@ -8,19 +8,19 @@ touching verification, retention, or auth.
 ## Commands
 
 ```bash
-npm install
+npm install          # from the repo root; npm workspaces link apps/web and functions/_shared
 npm run dev          # local dev (needs .env.local, see .env.example)
 npm run typecheck    # tsc --noEmit
 npm run lint         # eslint — 2 known warnings are acceptable, 0 errors
 npm test             # vitest unit suite (src/**/*.test.ts only)
-npm run test:e2e     # Playwright suite (e2e/*.spec.ts), mocked APIs, no DB needed
+npm run test:e2e     # Playwright suite (apps/web/e2e/*.spec.ts), mocked APIs, no DB needed
 npm run build        # next build — needs NEXT_PUBLIC_NHOST_* set (placeholders fine)
 ```
 
 Full verification before any commit:
 
 ```bash
-rm -rf .next && npm run typecheck && npm run lint && npm test \
+rm -rf apps/web/.next && npm run typecheck && npm run lint && npm test \
   && NEXT_PUBLIC_NHOST_SUBDOMAIN=ci-placeholder NEXT_PUBLIC_NHOST_REGION=eu-central-1 npm run build \
   && npm run test:e2e
 ```
@@ -30,7 +30,7 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 ## Conventions
 
 ### Strings & languages
-- Every user-facing string lives in `src/strings.ts`, in a `no` object and an
+- Every user-facing string lives in `apps/web/src/strings.ts`, in a `no` object and an
   `en` object. `Strings = typeof no` makes missing translations a **compile
   error** — never add a key to one language only.
 - Public pages (landing, /om, form, auth) read the language from the URL:
@@ -40,7 +40,7 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
   local React state and never writes `?lang=` into the URL. That URL is a
   frozen external contract (printed on paper, inside a QR code), and any extra
   param risks feeding the hash. Don't "make it consistent" with the others.
-- Admin pages use `useAdminLang()` (`src/util/useAdminLang.ts`,
+- Admin pages use `useAdminLang()` (`apps/web/src/util/useAdminLang.ts`,
   localStorage-persisted) and alias a subgroup:
   `const a = strings.admin.<page>;`.
 - Interpolations are template functions in the dictionary:
@@ -64,7 +64,7 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 - Deliberate failures: `NextResponse.json({ error: message }, { status })`
   with a message written for the reader.
 - Unexpected failures: `return serverError(e, "api/route/path")`
-  (`src/lib/server/apiError.ts`). NEVER return the caught message — Hasura's
+  (`apps/web/src/lib/server/apiError.ts`). NEVER return the caught message — Hasura's
   text names tables and constraints, and one of these routes is the anonymous
   volunteer POST. It returns `{ code: "server_error" }`, leaving `error` unset
   so callers written as `json.error ?? "Kunne ikke laste maler"` keep their
@@ -81,22 +81,22 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 
 ### Tests
 - Unit tests: pure `.ts` modules only (vitest has no JSX transform). Put
-  logic in `src/util/` or `src/lib/server/` and test it there; keep React
+  logic in `apps/web/src/util/` or `apps/web/src/lib/server/` and test it there; keep React
   components thin.
-- E2E: `e2e/*.spec.ts`, APIs mocked with `page.route()`. The verify tests
-  compute the SHA-512 independently (`e2e/helpers.ts`) — they are the guard
+- E2E: `apps/web/e2e/*.spec.ts`, APIs mocked with `page.route()`. The verify tests
+  compute the SHA-512 independently (`apps/web/e2e/helpers.ts`) — they are the guard
   on the hash contract, so a drift in either the page or the algorithm fails
   CI.
 - E2E navigation timing: `next dev` compiles each route on first request,
   which under parallel workers regularly exceeds Playwright's 5s default. Give
   the **first** assertion after a navigation an explicit longer timeout (see
-  `e2e/landing.spec.ts`) rather than accepting a flaky spec.
+  `apps/web/e2e/landing.spec.ts`) rather than accepting a flaky spec.
 
 ## Gotchas (each of these has cost real time)
 
 - **Stale `.next/types`** after switching branches breaks `tsc` with phantom
   module errors → `rm -rf .next` first.
-- Scripts in `scripts/` without imports need `export {}` or their top-level
+- Scripts in `apps/web/scripts/` without imports need `export {}` or their top-level
   consts collide in tsc's global scope.
 - In sandboxes with a pre-provisioned Chromium, run e2e with
   `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium` instead of `playwright install`.
@@ -107,7 +107,10 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 
 ## Deploy checklist (per release)
 
-1. Merge to `main`; `npm run deploy` (wrangler → Cloudflare Pages) or CI/CD.
+1. Merge to `main`; `npm run deploy -w @attester/web` (wrangler → Cloudflare
+   Pages) or CI/CD. The Cloudflare Pages project must build from the repo
+   root with `npm run pages:build -w @attester/web` and output directory
+   `apps/web/.vercel/output/static`.
 2. Run any new `scripts/migrations/*.sql` in the Hasura console and (re-)track
    affected tables.
 3. Env vars live in Cloudflare Pages: `NEXT_PUBLIC_NHOST_*`,
@@ -126,7 +129,7 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
      "options.redirectTo" is not allowed` — it's an allowlist, not a bug.
    - **Client URL** should be the production origin, not localhost.
    - Email verification and the minimum password length are project settings,
-     not code. `PASSWORD_MIN_LENGTH` in `src/util/auth.ts` only mirrors the
+     not code. `PASSWORD_MIN_LENGTH` in `apps/web/src/util/auth.ts` only mirrors the
      latter for a friendly client-side message — keep the two in sync.
 
 ## Working style that has worked here

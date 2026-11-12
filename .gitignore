@@ -1,6 +1,6 @@
-/node_modules/
-/.next
-/.vercel
+node_modules/
+.next
+.vercel
 /.idea
 
 # Local env files — keep .env.example committed.
@@ -15,6 +15,6 @@ tsconfig.tsbuildinfo
 next-env.d.ts
 
 # Playwright artifacts
-/test-results/
-/playwright-report/
+test-results/
+playwright-report/
 .claude/

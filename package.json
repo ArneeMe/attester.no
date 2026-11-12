@@ -1,51 +1,17 @@
 {
-  "name": "my-next-app",
-  "version": "0.1.0",
+  "name": "attester",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "functions/_*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "pages:build": "npx @cloudflare/next-on-pages",
-    "preview": "npm run pages:build && wrangler pages dev",
-    "deploy": "npm run pages:build && wrangler pages deploy"
-  },
-  "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^7.3.7",
-    "@mui/material": "^7.3.7",
-    "@nhost/nhost-js": "^4.7.0",
-    "@pdfme/common": "^5.5.8",
-    "@pdfme/generator": "^5.5.8",
-    "@pdfme/schemas": "^5.5.8",
-    "@pdfme/ui": "^5.5.8",
-    "jose": "^6.2.3",
-    "jszip": "^3.10.1",
-    "next": "15.5.2",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "uuid": "^13.0.0"
-  },
-  "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.16",
-    "@eslint/eslintrc": "^3.3.5",
-    "@playwright/test": "^1.61.1",
-    "@types/node": "^25",
-    "@types/react": "19.2.8",
-    "@types/react-dom": "19.2.3",
-    "@vitest/coverage-v8": "^4.1.7",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^15.5.2",
-    "typescript": "^5",
-    "vitest": "^4.1.7",
-    "wrangler": "^4.93.0"
+    "dev": "npm run dev -w @attester/web",
+    "build": "npm run build -w @attester/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e -w @attester/web"
   },
   "overrides": {
     "@types/react": "19.2.8",
