@@ -93,11 +93,49 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
   sub-field reads.
 - **i18n beyond NO/EN** — the strings file scales to more languages
   mechanically, but wait for actual demand.
-- **Dedicated backend** — evaluated 2026-07-12 and rejected for now: Hasura
-  is a thin data pipe, authz lives in app code, and the clean seams
-  (`hasuraAdmin`, `lib/server` guards) keep an incremental migration cheap if
-  server-side PDF generation, queues, or websockets ever become requirements.
-  Protect those seams.
+
+## Backend on Nhost (decided 2026-11-12)
+
+Rejected on 2026-07-12, with integrations named as the reason to revisit.
+Integrations are now the goal, so this replaces that decision. The edge
+runtime cannot run a scheduler, retry anything or speak SMTP. Nhost Functions
+run on Node and can.
+
+Target layout:
+
+```
+apps/web          Next.js on Cloudflare Pages. UI only.
+nhost/functions   Backend on Nhost Functions. The admin secret lives here only.
+packages/shared   canonicalHash, certParams, types, validation. One copy.
+nhost/            Hasura metadata, migrations, permissions and triggers, in git.
+```
+
+- Hasura stays the data layer. Hasura Actions route a mutation to a function,
+  event triggers call a function on a row change with retries, and cron
+  triggers give a real scheduler. Integrations (email, Brønnøysund, webhooks)
+  live in functions.
+- `packages/shared` exists so the hash algorithm keeps one source when two
+  deploy targets need it. Moving it must not change a single byte of output.
+- The privacy rules apply to functions as they do to routes: never log
+  volunteer fields, never read certificate data in a background job.
+
+One PR per step, each shippable alone:
+
+1. Monorepo layout and `packages/shared`. No change in behaviour.
+2. Nhost Functions with one function: the owner notification, run by an event
+   trigger on `org_requests`. Proves the deploy path on something small and
+   gains retries over the fire-and-forget call.
+3. A cron trigger for the retention sweep. The lazy sweep stays until the cron
+   has run for a while, and CLAUDE.md changes in the same PR.
+4. Tenancy in Hasura row permissions, table by table, with tests. Today it is
+   enforced in app code, which only works while one app holds the admin
+   secret. A wrong permission lets one org read another's data, so this is
+   the real decision. Decide on it after step 3.
+5. Move API routes one at a time to actions or functions.
+
+Costs: two deploy targets to watch, free-tier invocation limits and cold
+starts. Check which of Functions, event triggers and cron triggers the Nhost
+plan includes before step 2.
 
 ## Explicitly frozen
 
