@@ -4,7 +4,7 @@ import {useSearchParams} from 'next/navigation';
 import {Box, Grid, Palette, TextField, Typography} from '@mui/material';
 import {hashFunction} from "@/util/hashFunction";
 import {customTheme} from "@/app/style/customTheme";
-import {formatDate} from "@attester/shared/formatDate";
+import {formatDate} from "@/util/formatDate";
 
 // LEGACY — kept until ~2030 alongside the rest of the pre-multi-org verify
 // chain. Inlined from the deleted Volunteer.ts so this file is self-contained.
