@@ -86,6 +86,8 @@ What IS acceptable:
 
 - An audit log row recording "user X issued cert &lt;id&gt; at time T"
   with no payload describing what the cert says. Low priority, but allowed.
+- An outbox row saying "organisation X has something waiting" (`notices`).
+  It holds no submission id and no recipient address.
 
 ### Volunteer deletion
 
@@ -93,11 +95,11 @@ The deletion clock starts at **issuance**, not submission. Issuing a
 certificate stamps `submissions.issued_at`; a lazy sweep
 (`functions/_api/src/lib/retention.ts`, window in `functions/_shared/src/retention.ts`) then
 deletes rows whose `issued_at` is older than `ISSUED_RETENTION_HOURS`. The
-sweep runs whenever the submissions API is touched (GET or POST) — no
-scheduler exists on the edge runtime, and none is needed, because the
-window only starts when an admin acts and admin activity is exactly what
-triggers the sweep. Do not remove the sweep calls from the submissions
-GET/POST routes.
+sweep runs whenever the submissions API is touched (GET or POST) and on
+every scheduled tick (`functions/_api/src/jobs/tick.ts`). The schedule is
+something the owner sets up outside the repo, so it may not exist. Do not
+remove the sweep calls from the submissions GET/POST routes: they are what
+makes deletion happen regardless.
 
 **Unissued submissions are never swept.** The `issued_at IS NOT NULL`
 guard in the sweep is load-bearing. An earlier version deleted every

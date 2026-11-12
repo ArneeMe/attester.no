@@ -57,6 +57,8 @@ browser or app ──► attester.no/api/v1/<path>      apps/web/src/app/api/v1/
   `id=` param — NOT a personal reference), `hash`, `template_id`,
   `organization_id`, `issued_by`, `created_at`. Never anything personal.
 - `invites` — 7-day tokens; redemption requires session email == invited email.
+- `notices` — outbox for emails to an org's admins. Organisation id and kind
+  only; see "Channels and the outbox".
 - `org_requests` — organisations asking to be set up, pending until a platform
   admin approves or rejects. `org_number` (organisasjonsnummer) is optional:
   many student societies and local chapters are not registered. Contact
@@ -71,9 +73,11 @@ browser or app ──► attester.no/api/v1/<path>      apps/web/src/app/api/v1/
 `POST /api/v1/org/[slug]/submissions` (size-capped, flat-string-shape enforced,
 template-ownership-checked) → row in `submissions` with `issued_at` NULL.
 
-Nothing notifies the admin: there is no email and no pending-count badge, so
-an org has to remember to check its queue. Unissued rows are never
-auto-deleted, so nothing is lost — but see ROADMAP, this gap is known.
+The same request queues a notice for the organisation and tries to send it:
+one email to the org's admins saying a request is waiting, with a link to the
+dashboard and nothing about the volunteer. See "Channels and the outbox".
+Without an email provider configured nothing is queued and the org has to
+remember to check its queue, as before.
 
 ### 2. Issue
 Admin dashboard → "Generer PDF" →
@@ -139,6 +143,34 @@ someone decides otherwise — converting a page is a deliberate act.
 Theme typography must not hardcode `color`: a fixed colour on `body1`/`body2`
 once overrode a contained button's `contrastText` through a nested
 `Typography`. `customTheme.test.ts` pins it.
+
+## Channels and the outbox
+
+The core never imports a provider. `functions/_api/src/ports.ts` names what it
+needs, `adapters/` holds one file per provider, and `channels.ts` picks the
+adapter from the environment. A caller gets `null` when nothing is configured
+and must cope, so the platform runs without any provider.
+
+| Port | Carries | Adapter today |
+|---|---|---|
+| `NoticeChannel` | "Something is waiting" emails and invites. Never volunteer data | Resend (`RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`) |
+
+**The `notices` table is the outbox.** A row holds an organisation id and a
+kind, nothing else. Recipients are read from the membership table at send
+time. Reliability comes from the row, not from a send succeeding:
+
+- A submission queues at most one unsent notice per organisation.
+- `dispatchNotices` sends what is queued. It runs right after a submission and
+  on every tick. A failed send leaves the row and counts an attempt; after
+  five the row is left alone.
+- One email per organisation per `NOTICE_QUIET_HOURS`. A notice queued inside
+  the window goes out when it ends, unless the queue was cleared meanwhile.
+
+**The tick** (`functions/tick.ts` → `jobs/tick.ts`) is the scheduled entry
+point: retention sweep, then the outbox. It requires the `nhost-webhook-secret`
+header. Everything it does also runs lazily elsewhere, so a missed tick delays
+work and loses nothing. Setting up the schedule is an owner action, see
+DEVELOPMENT.md.
 
 ## Security model
 
@@ -214,10 +246,9 @@ here, keep the failure modes distinguishable.
 - The hash excludes `t` (template id) — presentation is not attested content.
 - No Hasura row-level permissions — tenancy lives in app code by design;
   every new route MUST call the guards.
-- No cron anywhere — the retention sweep is lazy on purpose. The edge runtime
-  has no scheduler, and none is needed: the deletion window only starts when
-  an admin issues a certificate, and admin activity is exactly what triggers
-  the sweep.
+- The retention sweep still runs lazily on the submissions routes even though
+  the tick runs it too. The tick depends on a schedule the owner must set up;
+  the lazy call is what makes deletion happen regardless.
 - Unissued submissions have no expiry. Deleting a volunteer's application
   before a human read it is worse than holding it, so the sweep's
   `issued_at IS NOT NULL` guard is load-bearing (product decision, 2026-08).
