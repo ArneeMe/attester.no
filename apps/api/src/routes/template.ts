@@ -7,6 +7,7 @@ import type { FormFieldSchema, FormSchema } from "@attester/shared/types/formSch
 import type { LookupListContent } from "@attester/shared/types/orgAssets";
 import { serverError } from "../lib/apiError";
 import { isUuid, readJsonObject } from "../lib/input";
+import { log } from "../lib/log";
 
 /**
  * Public lookup of a template's display metadata. The verify page calls this
@@ -207,7 +208,7 @@ async function resolveSchemaOptions(
             { ids: assetIds, organizationId },
         );
     } catch (e) {
-        console.warn("resolveSchemaOptions: failed to fetch lookup lists, leaving dropdowns unresolved:", (e as Error).message);
+        log("warn", "lookup_lists_unavailable", { kind: (e as Error).name });
         return schema;
     }
 

@@ -1,5 +1,6 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 import { jwksUrl as resolveJwksUrl } from "../env";
+import { log, scrub } from "./log";
 
 export type JwtClaims = {
     userId: string;
@@ -32,7 +33,7 @@ export async function verifyJwt(authHeader: string | null): Promise<JwtClaims | 
         if (!userId) return null;
         return { userId };
     } catch (e) {
-        console.warn("JWT verification failed:", (e as Error).message);
+        log("warn", "jwt_rejected", { reason: scrub((e as Error).message) });
         return null;
     }
 }

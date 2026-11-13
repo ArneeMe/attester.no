@@ -1,5 +1,6 @@
 import { hasuraAdmin } from "./hasura";
 import { retentionCutoffIso } from "@attester/shared/retention";
+import { reportError } from "../errors/report";
 
 /**
  * Delete every ISSUED submission whose regeneration window has elapsed,
@@ -45,6 +46,6 @@ export async function sweepExpiredSubmissions(): Promise<void> {
             { cutoff: retentionCutoffIso(), now: new Date().toISOString() },
         );
     } catch (e) {
-        console.error("Retention sweep failed:", (e as Error).message);
+        reportError(e, "job", "retention-sweep");
     }
 }

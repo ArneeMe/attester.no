@@ -10,6 +10,7 @@ import { certificateChannel } from "../channels";
 import { toView, type DeliveryStatus } from "../delivery/deliveries";
 import { digipostEnabled, storeRecipient } from "../delivery/recipients";
 import { isValidNationalId, normalizeNationalId } from "@attester/shared/nationalId";
+import { reportError } from "../errors/report";
 
 // Hard cap on how much volunteer data we accept in one submission, so an
 // anonymous poster can't flood the DB with megabytes per request. Plenty
@@ -195,7 +196,7 @@ export async function POST(
                     await storeRecipient(result.insert_submissions_one.id, normalizeNationalId(nationalId));
                 }
             } catch (e) {
-                console.error("Storing recipient failed:", (e as Error).name);
+                reportError(e, "api", "store-recipient");
             }
         }
 

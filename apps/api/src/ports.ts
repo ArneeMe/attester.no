@@ -28,3 +28,22 @@ export interface CertificateChannel {
     canReceive(nationalId: string): Promise<boolean>;
     deliver(letter: CertificateLetter): Promise<void>;
 }
+
+export type ErrorReport = {
+    fingerprint: string;
+    source: "api" | "job";
+    // A route pattern or a job name. Never a path with ids in it.
+    place: string;
+    kind: string;
+    // Already scrubbed. See scrub() in lib/log.ts.
+    message: string;
+    stack: string;
+    requestId: string | null;
+    count: number;
+};
+
+// Where error reports are kept. Returns true when this error has not been
+// seen before. Must never throw: failing to record an error is not an error.
+export interface ErrorSink {
+    record(report: ErrorReport): Promise<boolean>;
+}

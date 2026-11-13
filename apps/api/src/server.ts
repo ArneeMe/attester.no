@@ -2,6 +2,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { handleApi } from "./app";
 import { startScheduler } from "./jobs/scheduled";
 import { BodyTooLarge, sendResponse, toRequest } from "./nodeHost";
+import { reportError } from "./errors/report";
+import { log } from "./lib/log";
 
 async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (req.url === "/healthz") {
@@ -12,7 +14,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     try {
         await sendResponse(res, await handleApi(await toRequest(req)));
     } catch (e) {
-        if (!(e instanceof BodyTooLarge)) console.error("server:", (e as Error).name);
+        if (!(e instanceof BodyTooLarge)) reportError(e, "api", "server");
         if (res.headersSent) return res.destroy() as unknown as void;
         res.statusCode = e instanceof BodyTooLarge ? 413 : 500;
         res.setHeader("content-type", "application/json");
@@ -22,7 +24,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
 
 const port = Number(process.env.PORT ?? 8787);
 const server = createServer((req, res) => void handle(req, res));
-server.listen(port, () => console.log(`attester api listening on ${port}`));
+server.listen(port, () => log("info", "listening", { port }));
 if (process.env.SCHEDULER !== "off") startScheduler();
 
 for (const signal of ["SIGTERM", "SIGINT"] as const) {

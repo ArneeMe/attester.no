@@ -19,14 +19,6 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
 - **SEO owner actions** — Search Console/Bing verification, sitemap
   submission, backlinks from member orgs. Full playbook: docs/SEO.md.
 
-- **Error tracking** — the most important gap once strangers depend on the
-  product; production failures are invisible (`console.error` only, and
-  Cloudflare's log is not retained). Three options, separated by lock-in:
-  Workers Logs is Cloudflare config with no code; a `platform_errors` table
-  rides the `hasuraAdmin` seam and works anywhere Postgres does; Sentry is a
-  third vendor but host-agnostic. If a table, store message and route only —
-  never request bodies, or it becomes the volunteer-data store the privacy
-  model forbids. Do this before promoting beyond people you know.
 - **Email sending needs DNS.** Admin notices and invites go through Resend
   (`RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`). Resend only sends from `attester.no`
   once its DKIM records are in DNS. A working mailbox is not enough. Until
@@ -47,13 +39,10 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
   check or chase. A pending count in the org nav would still help admins who
   have no email provider configured.
 
-- **A failed request is now invisible to everyone.** #61 stopped routes
-  returning the caught message, which was right — it was leaking Hasura's
-  table and constraint names to anonymous callers. The consequence is that
-  `console.error` into Cloudflare's ephemeral log is the only remaining
-  record, so miss the moment and the reason is gone. See "Error tracking"
-  above; #61 did not create this, but it removed the last accidental
-  workaround.
+- **Three kinds of failure are still invisible.** The API now records its
+  own errors (ARCHITECTURE "Logs and errors"). Not covered: an error in the
+  browser, an error in the web app's own server code, and the API being
+  down, which by definition cannot report itself.
 
 ## Design options captured (build when the need is real)
 
@@ -222,9 +211,17 @@ Left open on purpose, each needing a decision or more than a small fix:
    Cloudflare Pages at `apps/web`, run the migrations, then do one full pass
    against the real services: sign in, submit, issue, verify on paper, one
    email, one Digipost letter with the test certificate.
-2. **Error tracking.** Still the biggest blind spot. The API is now one
-   long-running process, so Sentry or a `platform_errors` table is a small
-   job. Store route and error kind only, never a request body.
+2. **Finish error tracking.** The API half is built. Left, in order:
+   - An uptime check from outside against `/healthz` and the front page.
+     Self-hosted Uptime Kuma or Gatus is open source and needs one small
+     container. The API cannot report its own death.
+   - Errors from the browser: an error boundary that posts error name, route
+     pattern and build id to an anonymous, capped `POST /v1/errors`, scrubbed
+     like everything else. No IP, no user agent kept.
+   - Errors from the web app's server code, sent the same way. Do not use
+     Cloudflare's log products for this; the web app should be movable.
+   - Log retention. Logs live as long as the container host keeps stdout.
+     If that is too short, run Vector with Loki or plain files on a volume.
 3. **Replace the Cloudflare adapter** with OpenNext, so Next can follow its
    security releases without a peer warning.
 4. **Database changes in git.** Run `nhost init --remote` once, commit the

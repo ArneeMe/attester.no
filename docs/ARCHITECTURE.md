@@ -70,6 +70,8 @@ browser or app ──► attester.no/api/v1/<path>      apps/web/src/app/api/v1/
   the certificate data. Deleted on delivery or with the submission.
 - `deliveries` — delivery queue and record. Holds a sealed PDF only while
   queued.
+- `platform_errors` — the platform's own failures, one row per distinct
+  error. No caller, no payload; see "Logs and errors".
 - `org_requests` — organisations asking to be set up, pending until a platform
   admin approves or rejects. `org_number` (organisasjonsnummer) is optional:
   many student societies and local chapters are not registered. Contact
@@ -214,6 +216,47 @@ minutes: retention sweep, the outbox, then queued deliveries. Everything it
 does also runs lazily elsewhere, so a missed round delays work and loses
 nothing. With more than one API instance each runs its own; the jobs tolerate
 that, at worst a notice email is sent twice.
+
+## Logs and errors
+
+Built in, with no outside service. The rules for what may be written down
+are in CLAUDE.md "Logs and errors"; this is how it works.
+
+```
+a route or a job fails
+   │
+   ▼
+reportError(e, source, place)          apps/api/src/errors/report.ts
+   ├─► one JSON line on stderr          lib/log.ts
+   ├─► ErrorSink.record(report)         ports.ts → adapters/hasuraErrorSink.ts
+   │      one row per distinct error in `platform_errors`
+   └─► ntfy ping to the owner, only for a new kind of error
+```
+
+- **Logs** are one JSON object per line on stdout: `time`, `level`, `event`
+  and, inside a request, `requestId`, `method` and `route`. Every request
+  writes one `request` line with `status` and `ms`. That is the interface:
+  `docker logs` reads it today, and Vector, Loki or any other collector can
+  read it later without a code change.
+- **The request id** is made per request (`lib/requestContext.ts`, an
+  `AsyncLocalStorage`), returned as `x-request-id` and inside a 500 body. A
+  user can quote it; it finds the log lines and the error row, and says
+  nothing about them.
+- **An error's identity** is its fingerprint: source, place, error name and
+  top stack frame. Repeats bump `count` and `last_seen` on the same row.
+- **A failing database cannot be flooded with its own failures.** A repeating
+  error is written at most once a minute with the count held back, at most
+  500 distinct errors are kept, and rows unseen for 30 days are pruned by the
+  scheduler. Storing is fire-and-forget and never throws.
+- **Reading them:** `/admin` lists unresolved errors (`GET /admin/errors`).
+  "Mark as resolved" hides a row; if it happens again it comes back and the
+  owner is pinged again.
+- **`ErrorSink` is a port.** The Hasura adapter is the only one. A
+  self-hosted GlitchTip (open source, speaks the Sentry protocol) would be a
+  second adapter, not a rewrite. `ERROR_STORE=off` keeps errors in the log
+  only.
+- **Not covered yet:** errors in the browser, errors in the web app's own
+  server code, and the API being down altogether. See ROADMAP.
 
 ## Security model
 

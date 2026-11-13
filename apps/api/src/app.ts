@@ -1,4 +1,9 @@
 import { Router } from "./http";
+import { reportError } from "./errors/report";
+import { log } from "./lib/log";
+import { requestContext, withRequestContext } from "./lib/requestContext";
+import * as adminError from "./routes/adminError";
+import * as adminErrors from "./routes/adminErrors";
 import * as adminOrgRequest from "./routes/adminOrgRequest";
 import * as adminOrgRequests from "./routes/adminOrgRequests";
 import * as adminOrgs from "./routes/adminOrgs";
@@ -30,6 +35,8 @@ const router = new Router()
     .add("/me/organizations", myOrganizations)
     .add("/invites/redeem", inviteRedeem)
     .add("/admin/orgs", adminOrgs)
+    .add("/admin/errors", adminErrors)
+    .add("/admin/errors/:id", adminError)
     .add("/admin/org-requests", adminOrgRequests)
     .add("/admin/org-requests/:id", adminOrgRequest)
     .add("/org/:slug", org)
@@ -52,16 +59,27 @@ const router = new Router()
 
 const PREFIX = "/v1";
 
-export async function handleApi(req: Request): Promise<Response> {
+export function handleApi(req: Request): Promise<Response> {
+    return withRequestContext(req.method, async () => {
+        const started = Date.now();
+        const ctx = requestContext()!;
+        let response: Response;
+        try {
+            response = await route(req);
+        } catch (e) {
+            reportError(e, "api", ctx.route);
+            response = Response.json({ code: "server_error", requestId: ctx.id }, { status: 500 });
+        }
+        response.headers.set("x-request-id", ctx.id);
+        log("info", "request", { status: response.status, ms: Date.now() - started });
+        return response;
+    });
+}
+
+async function route(req: Request): Promise<Response> {
     const { pathname } = new URL(req.url);
     if (pathname !== PREFIX && !pathname.startsWith(`${PREFIX}/`)) {
         return Response.json({ error: "Not found" }, { status: 404 });
     }
-    const path = pathname.slice(PREFIX.length) || "/";
-    try {
-        return await router.handle(req, path);
-    } catch (e) {
-        console.error(`api ${req.method} ${path}:`, (e as Error).message);
-        return Response.json({ code: "server_error" }, { status: 500 });
-    }
+    return router.handle(req, pathname.slice(PREFIX.length) || "/");
 }

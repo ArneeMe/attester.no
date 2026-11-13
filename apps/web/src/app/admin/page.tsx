@@ -13,6 +13,7 @@ import { useAuth } from '@/util/auth';
 import { useToast } from '@/components/ToastProvider';
 import { useAdminLang } from '@/util/useAdminLang';
 import OrgRequests from './OrgRequests';
+import PlatformErrors from './PlatformErrors';
 import Shell from '@/components/landing/SignedInShell';
 import { headerLink } from '@/components/landing/SiteHeader';
 
@@ -147,6 +148,8 @@ const PlatformAdminPage: React.FC = () => {
             <Typography variant="h4" gutterBottom>{a.title}</Typography>
 
             <OrgRequests strings={strings} lang={lang} onApproved={load} />
+
+            <PlatformErrors strings={strings} lang={lang} />
 
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>{a.createTitle}</Typography>

@@ -25,10 +25,13 @@ describe('serverError', () => {
         );
     });
 
-    it('logs the detail server-side with its context', () => {
+    it('logs what broke as one JSON line, with quoted values scrubbed out', () => {
         const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
         serverError(new Error(HASURA_LEAK), 'api/me/organizations');
-        expect(spy).toHaveBeenCalledWith('api/me/organizations:', HASURA_LEAK);
+        const line = JSON.parse(String(spy.mock.calls[0][0]));
+        expect(line).toMatchObject({ level: 'error', event: 'error', place: 'api/me/organizations', kind: 'Error' });
+        expect(line.message).toContain('Uniqueness violation');
+        expect(line.message).not.toContain('certificates_submission_id_key');
     });
 
     it('survives a thrown non-Error', () => {

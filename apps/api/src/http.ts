@@ -1,3 +1,5 @@
+import { requestContext } from "./lib/requestContext";
+
 export function json(body: unknown, init?: ResponseInit): Response {
     return Response.json(body, init);
 }
@@ -32,6 +34,8 @@ export class Router {
             const params = match(route.segments, parts);
             if (!params) continue;
             const handler = route.module[req.method as Method];
+            const ctx = requestContext();
+            if (ctx) ctx.route = "/" + route.segments.join("/");
             if (!handler) return json({ error: "Method not allowed" }, { status: 405 });
             return handler(req, { params: Promise.resolve(params) });
         }

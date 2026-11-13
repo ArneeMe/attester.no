@@ -37,7 +37,7 @@ async function forward(req: NextRequest, { params }: { params: Promise<{ path: s
     // Answers depend on who asks. Nothing between the API and the browser
     // may keep a copy.
     const out = new Headers({ "cache-control": "no-store" });
-    for (const name of ["content-type", "content-disposition"]) {
+    for (const name of ["content-type", "content-disposition", "x-request-id"]) {
         const value = upstream.headers.get(name);
         if (value) out.set(name, value);
     }
