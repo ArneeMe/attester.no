@@ -2,7 +2,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { authHeader, nhost } from '@/lib/nhost';
 
-export type UserOrg = { id: string; slug: string; name: string; role: string };
+export type UserOrg = { id: string; slug: string; name: string; role: string; pending?: number };
 
 export type OrgsStatus = 'loading' | 'ok' | 'unauthenticated' | 'error';
 
@@ -10,6 +10,9 @@ type Ctx = {
     orgs: UserOrg[];
     status: OrgsStatus;
     refresh: () => Promise<void>;
+    // The dashboard knows the live count; this keeps the menu in step
+    // without asking the server again.
+    setPending: (slug: string, pending: number) => void;
 };
 
 const UserOrgsContext = createContext<Ctx | null>(null);
@@ -54,7 +57,15 @@ export function UserOrgsProvider({ children }: { children: React.ReactNode }) {
         });
     }, [refresh]);
 
-    return <UserOrgsContext.Provider value={{ orgs, status, refresh }}>{children}</UserOrgsContext.Provider>;
+    const setPending = useCallback((slug: string, pending: number) => {
+        setOrgs((prev) =>
+            prev.some((o) => o.slug === slug && o.pending !== pending)
+                ? prev.map((o) => (o.slug === slug ? { ...o, pending } : o))
+                : prev,
+        );
+    }, []);
+
+    return <UserOrgsContext.Provider value={{ orgs, status, refresh, setPending }}>{children}</UserOrgsContext.Provider>;
 }
 
 export function useUserOrgs(): Ctx {

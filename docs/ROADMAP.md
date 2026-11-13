@@ -80,9 +80,8 @@ whole lifecycle.
 
 - **One of the three silences remains.** The owner is pushed a notification
   when an organisation applies, and org admins are emailed when a submission
-  is waiting. The volunteer still hears nothing after submitting and cannot
-  check or chase. A pending count in the org nav would still help admins who
-  have no email provider configured.
+  is waiting, and see the count in the menu and the organisation picker. The
+  volunteer still hears nothing after submitting and cannot check or chase.
 
 - **The API being down is still invisible.** The API records its own errors
   and those of the browser and the web app (ARCHITECTURE "Logs and errors").
@@ -261,13 +260,12 @@ Left open on purpose, each needing a decision or more than a small fix:
 5. **Tell the volunteer what happened.** The last silence: nothing reaches
    the person who asked. Digipost delivery covers those who chose it. For the
    rest, a status page behind the submission id needs no address at all.
-6. **A pending count in the org nav**, for admins without email notices.
-7. **The mobile app** against `docs/API.md`. The Android app in
+6. **The mobile app** against `docs/API.md`. The Android app in
    `arneeme/apps` still calls the unversioned `/api/...` paths and will stop
    working at cut-over until it is moved to `/api/v1/...`. It can also issue
    now, since the server renders the PDF.
-8. **pdfme 6**, with the designer and all templates re-tested.
-9. **Hash v2** when a reason to touch certificates appears: escape the
+7. **pdfme 6**, with the designer and all templates re-tested.
+8. **Hash v2** when a reason to touch certificates appears: escape the
    separator and tag the version, as CLAUDE.md describes.
 
 ## Explicitly frozen

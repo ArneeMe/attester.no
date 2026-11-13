@@ -33,6 +33,7 @@ const AdminOrgPicker: React.FC = () => {
                             fullWidth
                         >
                             {org.name} ({org.slug})
+                            {org.pending ? ` · ${a.pending(org.pending)}` : ''}
                         </Button>
                     </Paper>
                 ))}

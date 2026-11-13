@@ -20,7 +20,7 @@ test('Generer PDF asks the server to issue and downloads what it returns', async
     );
     await page.route('**/*.nhost.run/**', (route) => route.abort());
     await page.route('**/api/v1/me/organizations', (route) =>
-        route.fulfill({ json: { organizations: [{ id: 'org-1', slug: 'testorg', name: 'Testorg', role: 'admin' }] } }),
+        route.fulfill({ json: { organizations: [{ id: 'org-1', slug: 'testorg', name: 'Testorg', role: 'admin', pending: 1 }] } }),
     );
     const listCalls: string[] = [];
     await page.route(/\/api\/v1\/org\/testorg\/submissions\?/, (route) => {
@@ -58,6 +58,7 @@ test('Generer PDF asks the server to issue and downloads what it returns', async
     });
 
     await page.goto('/login/adminpage/testorg');
+    await expect(page.getByRole('link', { name: 'Oversikt (1)' })).toBeVisible({ timeout: 30000 });
     await page.getByRole('button', { name: 'Generer PDF' }).first().click({ timeout: 30000 });
 
     const download = page.waitForEvent('download');
@@ -66,6 +67,7 @@ test('Generer PDF asks the server to issue and downloads what it returns', async
 
     await expect(page.getByRole('link', { name: VERIFY_URL })).toBeVisible();
     await expect(page.getByText('Utstedt', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Oversikt', exact: true, includeHidden: true })).toBeVisible();
     expect(issueCalls).toBe(1);
     expect(new Set(listCalls)).toEqual(new Set(['?limit=500&offset=0']));
     expect(JSON.parse(issueBody ?? 'null')).toEqual({});

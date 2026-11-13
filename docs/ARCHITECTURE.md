@@ -89,8 +89,9 @@ template-ownership-checked) → row in `submissions` with `issued_at` NULL.
 The same request queues a notice for the organisation and tries to send it:
 one email to the org's admins saying a request is waiting, with a link to the
 dashboard and nothing about the volunteer. See "Channels and the outbox".
-Without an email provider configured nothing is queued and the org has to
-remember to check its queue, as before.
+Without an email provider configured nothing is queued. The admin still sees
+how many submissions wait: `GET /me/organizations` carries a `pending` count
+per organisation, shown in the menu and the organisation picker.
 
 ### 2. Issue
 Admin dashboard → "Generer PDF" →

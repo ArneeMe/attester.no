@@ -193,6 +193,7 @@ const no = {
         },
         picker: {
             title: 'Velg organisasjon',
+            pending: (n: number) => `${n} venter`,
             empty: 'Du er ikke koblet til noen organisasjon ennå. Be en eksisterende admin om å legge deg til, eller be om en invitasjonslenke.',
         },
         shell: {
@@ -704,6 +705,7 @@ const en: Strings = {
         },
         picker: {
             title: 'Choose organization',
+            pending: (n: number) => `${n} waiting`,
             empty: 'You are not connected to any organization yet. Ask an existing admin to add you, or request an invite link.',
         },
         shell: {
