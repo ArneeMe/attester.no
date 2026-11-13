@@ -36,7 +36,9 @@ means the token is missing or expired.
 | 403 | `{ "error": "Forbidden" }` | Signed in, but not a member of this organisation |
 | 404 | `{ "error": "..." }` | No such thing, or not in this organisation |
 | 429 | `{ "error": "..." }` | A limit is reached: the queue is full, or the day's Digipost letters are used |
-| 500, 502 | `{ "code": "server_error" }` | Our fault. Nothing more is said on purpose |
+| 500, 502 | `{ "code": "server_error", "requestId": "..." }` | Our fault. Nothing more is said on purpose. Show the user the `requestId` so they can quote it |
+
+Every answer carries an `x-request-id` header with the same id.
 
 ## What an admin app needs
 

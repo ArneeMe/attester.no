@@ -68,10 +68,13 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
   creation for the client-generated-uuid trick).
 - Deliberate failures: `json({ error: message }, { status })`
   with a message written for the reader.
+- Never `console.*` in `apps/api`. `log(level, event, fields)` for an event,
+  `reportError(e, "api" | "job", place)` for a failure outside a route's
+  own catch. Pass free text through `scrub()` first.
 - Unexpected failures: `return serverError(e, "api/route/path")`
   (`apps/api/src/lib/apiError.ts`). NEVER return the caught message — Hasura's
   text names tables and constraints, and one of these routes is the anonymous
-  volunteer POST. It returns `{ code: "server_error" }`, leaving `error` unset
+  volunteer POST. It reports the error and returns `{ code: "server_error", requestId }`, leaving `error` unset
   so callers written as `json.error ?? "Kunne ikke laste maler"` keep their
   own wording.
 
@@ -129,7 +132,8 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
      `NOTIFY_EMAIL_FROM` (unset ⇒ no email; the invite dialog shows the link
      to copy), `NTFY_TOPIC` (unset ⇒ the owner is not notified of new org
      requests; the topic name is its only secret, so generate it), `PORT`
-     (default 8787), `SCHEDULER=off` to stop the built-in scheduler.
+     (default 8787), `SCHEDULER=off` to stop the built-in scheduler,
+     `ERROR_STORE=off` to keep errors in the log only.
    - **Running the container.** `docker build -t attester-api .` from the
      repo root, then run it anywhere that runs a container and gives it a
      public HTTPS address: Fly.io, Cloud Run, Railway, Nhost Run. It listens

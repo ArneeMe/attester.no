@@ -2,6 +2,7 @@ import { hasuraAdmin } from "../lib/hasura";
 import { getUsersByIds } from "../lib/authUsers";
 import { noticeChannel } from "../channels";
 import { appOrigin } from "../http";
+import { reportError } from "../errors/report";
 
 // One email per organisation per window, however many submissions arrive.
 export const NOTICE_QUIET_HOURS = 6;
@@ -34,7 +35,7 @@ export async function queueSubmissionNotice(organizationId: string): Promise<voi
             { organizationId },
         );
     } catch (e) {
-        console.error("Queueing notice failed:", (e as Error).message);
+        reportError(e, "job", "notice-queue");
     }
 }
 
@@ -127,7 +128,7 @@ export async function dispatchNotices(now: Date = new Date()): Promise<number> {
                     { organizationId, now: now.toISOString() },
                 );
             } catch (e) {
-                console.error("Sending notice failed:", (e as Error).message);
+                reportError(e, "job", "notice-send");
                 await hasuraAdmin(
                     `mutation NoticeAttempt($organizationId: uuid!) {
                         update_notices(
@@ -140,7 +141,7 @@ export async function dispatchNotices(now: Date = new Date()): Promise<number> {
             }
         }
     } catch (e) {
-        console.error("Dispatching notices failed:", (e as Error).message);
+        reportError(e, "job", "notices");
     }
     return sent;
 }

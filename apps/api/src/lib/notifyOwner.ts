@@ -1,3 +1,5 @@
+import { log } from "./log";
+
 // Push notifications to the platform owner via ntfy. Opt-in: without
 // NTFY_TOPIC nothing is sent and the platform runs normally.
 //
@@ -29,9 +31,9 @@ export async function notifyPlatformOwner(
             signal: AbortSignal.timeout(TIMEOUT_MS),
         });
         if (!res.ok) {
-            console.warn("ntfy rejected the notification:", res.status);
+            log("warn", "owner_notification_rejected", { status: res.status });
         }
     } catch (e) {
-        console.warn("Owner notification failed:", (e as Error).message);
+        log("warn", "owner_notification_failed", { kind: (e as Error).name });
     }
 }

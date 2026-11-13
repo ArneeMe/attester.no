@@ -1,7 +1,8 @@
 import { digipostChannel, digipostConfigFromEnv } from "./adapters/digipostChannel";
 import { resendNoticeChannel } from "./adapters/resendNoticeChannel";
 import { sealingAvailable } from "./lib/seal";
-import type { CertificateChannel, NoticeChannel } from "./ports";
+import { hasuraErrorSink } from "./adapters/hasuraErrorSink";
+import type { CertificateChannel, ErrorSink, NoticeChannel } from "./ports";
 
 let noticeOverride: NoticeChannel | null | undefined;
 
@@ -34,4 +35,19 @@ export function certificateChannel(): CertificateChannel | null {
 
 export function useCertificateChannelForTests(channel: CertificateChannel | null | undefined): void {
     certificateOverride = channel;
+}
+
+let errorSinkOverride: ErrorSink | null | undefined;
+let defaultErrorSink: ErrorSink | null = null;
+
+// ERROR_STORE=off keeps errors in the log only.
+export function errorSink(): ErrorSink | null {
+    if (errorSinkOverride !== undefined) return errorSinkOverride;
+    if (process.env.ERROR_STORE === "off") return null;
+    defaultErrorSink ??= hasuraErrorSink();
+    return defaultErrorSink;
+}
+
+export function useErrorSinkForTests(sink: ErrorSink | null | undefined): void {
+    errorSinkOverride = sink;
 }

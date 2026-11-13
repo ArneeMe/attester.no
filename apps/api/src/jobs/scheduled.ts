@@ -1,6 +1,8 @@
 import { sweepExpiredSubmissions } from "../lib/retention";
 import { dispatchNotices } from "../notices/submissionWaiting";
 import { processDeliveries } from "../delivery/deliveries";
+import { flushErrors, reportError } from "../errors/report";
+import { pruneErrors } from "../errors/store";
 
 const INTERVAL_MS = 10 * 60 * 1000;
 
@@ -14,6 +16,8 @@ export async function runScheduledWork(): Promise<{ notices: number; deliveries:
     await sweepExpiredSubmissions();
     const notices = await dispatchNotices();
     const deliveries = await processDeliveries();
+    await flushErrors();
+    await pruneErrors();
     return { notices, deliveries };
 }
 
@@ -25,7 +29,7 @@ export function startScheduler(): NodeJS.Timeout {
         try {
             await runScheduledWork();
         } catch (e) {
-            console.error("Scheduled work failed:", (e as Error).name);
+            reportError(e, "job", "scheduled");
         } finally {
             running = false;
         }

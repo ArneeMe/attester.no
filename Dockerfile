@@ -14,7 +14,7 @@ RUN npm run build -w @attester/api
 FROM node:22-alpine
 ENV NODE_ENV=production PORT=8787
 WORKDIR /app
-COPY --from=build /repo/apps/api/dist/server.js ./server.js
+COPY --from=build /repo/apps/api/dist/server.js /repo/apps/api/dist/server.js.map ./
 USER node
 EXPOSE 8787
-CMD ["node", "server.js"]
+CMD ["node", "--enable-source-maps", "server.js"]

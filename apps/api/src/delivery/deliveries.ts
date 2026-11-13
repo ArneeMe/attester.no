@@ -2,6 +2,7 @@ import { hasuraAdmin } from "../lib/hasura";
 import { seal, unseal } from "../lib/seal";
 import { certificateChannel } from "../channels";
 import { deleteRecipient } from "./recipients";
+import { reportError } from "../errors/report";
 
 // How long a letter may wait in the queue. After this the PDF and the
 // recipient are erased whether or not it was sent.
@@ -128,8 +129,7 @@ export async function attemptDelivery(row: Row, now: Date = new Date()): Promise
                 pdf: new Uint8Array(Buffer.from(payload.pdf, "base64")),
             });
         } catch (e) {
-            // The provider's message may quote the request. Log the kind of failure only.
-            console.error("Delivery attempt failed:", (e as Error).name);
+            reportError(e, "job", "delivery-attempt");
             await hasuraAdmin(
                 `mutation DeliveryAttempt($id: uuid!) {
                     update_deliveries_by_pk(pk_columns: { id: $id }, _inc: { attempts: 1 }) { id }
@@ -142,7 +142,7 @@ export async function attemptDelivery(row: Row, now: Date = new Date()): Promise
         await deleteRecipient(row.submission_id).catch(() => undefined);
         return "sent";
     } catch (e) {
-        console.error("Delivery bookkeeping failed:", (e as Error).name);
+        reportError(e, "job", "delivery-bookkeeping");
         return "queued";
     }
 }
@@ -161,7 +161,7 @@ export async function processDeliveries(now: Date = new Date()): Promise<number>
             if ((await attemptDelivery(row, now)) === "sent") sent++;
         }
     } catch (e) {
-        console.error("Processing deliveries failed:", (e as Error).name);
+        reportError(e, "job", "deliveries");
     }
     return sent;
 }

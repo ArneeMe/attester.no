@@ -92,6 +92,29 @@ What IS acceptable:
   It holds no submission id and no recipient address.
 - A delivery row saying "the certificate for submission id X was sent via
   Digipost at time T" (`deliveries`). See "Digipost delivery" below.
+- An error row saying "this code path failed N times" (`platform_errors`).
+  See "Logs and errors" below.
+
+### Logs and errors
+
+The platform records its own failures and nothing about the people who hit
+them. This is a deliberate choice of the owner: full control, no tracking.
+
+- **Never call `console.*` in `apps/api`.** Use `log()` (`lib/log.ts`) for an
+  event and `reportError()` (`errors/report.ts`) for a failure. They are the
+  only two ways anything is written down.
+- **Free text is scrubbed before it is kept** (`scrub()` in `lib/log.ts`):
+  quoted text, emails, uuids and digit runs go. Error messages from Hasura, a
+  JSON parser or a provider can quote the value that caused them. Never log
+  or store an error message that has not been through `scrub()`.
+- **A log line or error row must not identify a caller.** No IP, no user
+  agent, no user id, no request body, no query string. The route is the
+  pattern (`/org/:slug/submissions`), never the path, so no slug or id.
+- **No third-party tracker.** Errors live in our own Postgres and logs go to
+  stdout. Do not add an SDK that phones home (Sentry SaaS, analytics,
+  session replay). A self-hosted collector reading stdout is fine.
+- **Do not build this on a host's features.** No Cloudflare Workers Logs or
+  Analytics, no platform-specific log API. The rig must move with the code.
 
 ### Digipost delivery
 
