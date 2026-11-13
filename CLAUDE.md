@@ -113,6 +113,10 @@ them. This is a deliberate choice of the owner: full control, no tracking.
 - **No third-party tracker.** Errors live in our own Postgres and logs go to
   stdout. Do not add an SDK that phones home (Sentry SaaS, analytics,
   session replay). A self-hosted collector reading stdout is fine.
+- **Reports from the browser carry the kind of page, never the page.** The
+  route goes as a pattern and the query string is never sent: on the verify
+  page the query is the certificate. `POST /v1/errors` must keep ignoring the
+  request's headers, so no IP or user agent can be stored by accident.
 - **Do not build this on a host's features.** No Cloudflare Workers Logs or
   Analytics, no platform-specific log API. The rig must move with the code.
 

@@ -91,6 +91,11 @@ const no = {
         contactBody: 'Send e-post til hei@attester.no, eller se koden på',
         backToFront: 'Til forsiden',
     },
+    errorPage: {
+        title: 'Noe gikk galt',
+        body: 'Feilen er meldt fra til oss, uten opplysninger om deg. Prøv igjen om litt.',
+        retry: 'Prøv igjen',
+    },
     form: {
         title: (org: string) => `Søk om attest til ${org}`,
         intro: (org: string) => `Her kan du sende inn din informasjon for å få en attest fra ${org}!`,
@@ -596,6 +601,11 @@ const en: Strings = {
         contactTitle: 'Questions?',
         contactBody: 'Email hei@attester.no, or see the code on',
         backToFront: 'Back to the front page',
+    },
+    errorPage: {
+        title: 'Something went wrong',
+        body: 'The error has been reported to us, with no information about you. Please try again shortly.',
+        retry: 'Try again',
     },
     form: {
         title: (org: string) => `Request a certificate from ${org}`,

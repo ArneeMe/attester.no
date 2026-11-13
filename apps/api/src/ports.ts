@@ -31,7 +31,8 @@ export interface CertificateChannel {
 
 export type ErrorReport = {
     fingerprint: string;
-    source: "api" | "job";
+    // "web" and "browser" come from outside and are untrusted.
+    source: "api" | "job" | "web" | "browser";
     // A route pattern or a job name. Never a path with ids in it.
     place: string;
     kind: string;
