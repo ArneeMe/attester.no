@@ -12,6 +12,25 @@ type Fields = Record<string, string | number | boolean | null | undefined>;
  * volunteer's. Everything that could be data goes: quoted text, emails, ids
  * and long digit runs. What stays is the shape of the message.
  */
+// For stack traces, where line and column numbers must survive. A frame is
+// a function name and a code position; anything that is not one is dropped.
+export function scrubStack(stack: string): string {
+    return stack
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => /^at\s|^[\w$.<>/\[\]*]*@(?:https?:|webpack|\/)/.test(line))
+        .slice(0, 10)
+        .map((line) =>
+            line
+                .replace(/\?[^\s):]*/g, "")
+                .replace(/"(?:[^"\\]|\\.)*"/g, '"…"')
+                .replace(/'(?:[^'\\]|\\.)*'/g, "'…'")
+                .replace(/[^\s@"'<>()]+@[^\s@"'<>()]+\.[a-z]{2,}(?![\w/.:])/gi, "<email>")
+                .slice(0, 300),
+        )
+        .join("\n");
+}
+
 export function scrub(text: string): string {
     return text
         .replace(/"(?:[^"\\]|\\.)*"/g, '"…"')

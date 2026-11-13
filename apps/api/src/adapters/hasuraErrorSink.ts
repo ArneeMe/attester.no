@@ -4,6 +4,7 @@ import type { ErrorReport, ErrorSink } from "../ports";
 // Keeps one row per distinct error in our own database. A table full of
 // errors is not worth more errors, so there is a ceiling on distinct rows.
 const MAX_DISTINCT = 500;
+const MAX_DISTINCT_OUTSIDE = 100;
 
 export function hasuraErrorSink(): ErrorSink {
     return {
@@ -24,10 +25,17 @@ export function hasuraErrorSink(): ErrorSink {
                 );
                 if (updated.update_platform_errors.affected_rows > 0) return false;
 
+                // Reports from outside get their own, smaller share. Anyone
+                // can post them, and they must not crowd out our own errors.
+                const outside = report.source === "web" || report.source === "browser";
                 const total = await hasuraAdmin<{ platform_errors_aggregate: { aggregate: { count: number } } }>(
-                    `query CountPlatformErrors { platform_errors_aggregate { aggregate { count } } }`,
+                    `query CountPlatformErrors($sources: [String!]!) {
+                        platform_errors_aggregate(where: { source: { _in: $sources } }) { aggregate { count } }
+                    }`,
+                    { sources: outside ? ["web", "browser"] : ["api", "job"] },
                 );
-                if (total.platform_errors_aggregate.aggregate.count >= MAX_DISTINCT) return false;
+                const ceiling = outside ? MAX_DISTINCT_OUTSIDE : MAX_DISTINCT;
+                if (total.platform_errors_aggregate.aggregate.count >= ceiling) return false;
 
                 await hasuraAdmin(
                     `mutation InsertPlatformError($object: platform_errors_insert_input!) {

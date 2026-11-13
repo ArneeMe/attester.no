@@ -19,7 +19,7 @@ On `develop`, built and tested:
 | Email notices to admins through an outbox | Done |
 | Digipost delivery, granted per organisation by the owner | Done |
 | Security audit and fixes | Done. Open items listed below |
-| Own error tracking and JSON logging | Done for the API |
+| Own error tracking and JSON logging | Done for the API, the browser and the web app's server code |
 | `docs/API.md` for the mobile app | Done |
 
 **What "tested" means here.** Unit tests, e2e tests with the API mocked, and
@@ -84,10 +84,9 @@ whole lifecycle.
   check or chase. A pending count in the org nav would still help admins who
   have no email provider configured.
 
-- **Three kinds of failure are still invisible.** The API now records its
-  own errors (ARCHITECTURE "Logs and errors"). Not covered: an error in the
-  browser, an error in the web app's own server code, and the API being
-  down, which by definition cannot report itself.
+- **The API being down is still invisible.** The API records its own errors
+  and those of the browser and the web app (ARCHITECTURE "Logs and errors").
+  It cannot report its own death.
 
 ## Design options captured (build when the need is real)
 
@@ -251,15 +250,11 @@ Left open on purpose, each needing a decision or more than a small fix:
 
 1. **Go live on the new structure.** The cut-over checklist at the top of
    this file.
-2. **Finish error tracking.** The API half is built. Left, in order:
+2. **Finish error tracking.** Built: the API's own errors, the browser's and
+   the web app's. Left:
    - An uptime check from outside against `/healthz` and the front page.
      Self-hosted Uptime Kuma or Gatus is open source and needs one small
-     container. The API cannot report its own death.
-   - Errors from the browser: an error boundary that posts error name, route
-     pattern and build id to an anonymous, capped `POST /v1/errors`, scrubbed
-     like everything else. No IP, no user agent kept.
-   - Errors from the web app's server code, sent the same way. Do not use
-     Cloudflare's log products for this; the web app should be movable.
+     container. Needs somewhere to run.
    - Log retention. Logs live as long as the container host keeps stdout.
      If that is too short, run Vector with Loki or plain files on a volume.
 3. **Replace the Cloudflare adapter** with OpenNext, so Next can follow its

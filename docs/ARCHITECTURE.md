@@ -258,8 +258,25 @@ reportError(e, source, place)          apps/api/src/errors/report.ts
   self-hosted GlitchTip (open source, speaks the Sentry protocol) would be a
   second adapter, not a rewrite. `ERROR_STORE=off` keeps errors in the log
   only.
-- **Not covered yet:** errors in the browser, errors in the web app's own
-  server code, and the API being down altogether. See ROADMAP.
+- **Errors from outside the API** come in through `POST /v1/errors`
+  (`routes/errors.ts`). The browser posts there from `ErrorReporter`
+  (uncaught errors and rejected promises), from `app/error.tsx` and from
+  `app/global-error.tsx`. The web app's server code posts there from
+  `instrumentation.ts`. They are stored like any other error, with source
+  `browser` or `web`.
+  - The page sends the route as a pattern (`routePattern()` in
+    `util/reportError.ts`): `/org/:slug/verify`, never the address. The query
+    is never sent; on the verify page it is the whole certificate.
+  - The endpoint is anonymous, so everything it receives is treated as
+    hostile: fields are cut, scrubbed again on the server, limited to thirty
+    reports a minute and to a hundred distinct rows of their own, so they
+    cannot crowd out the API's own errors. It never reads the request's
+    headers and always answers 202.
+  - A page sends at most five reports per load.
+- **Not covered:** the API being down altogether. It cannot report its own
+  death, and the web app's reports go to the API. That takes a check from
+  outside, see ROADMAP. Whether `instrumentation.ts` runs on Cloudflare Pages
+  has not been seen in production; it builds there.
 
 ## Security model
 
@@ -296,7 +313,8 @@ reportError(e, source, place)          apps/api/src/errors/report.ts
   length limit) and enforces a flat string→string data shape. There is no
   rate limiter; the ceilings listed above bound what a script can do. See
   ROADMAP if abuse ever becomes real.
-- There are exactly **two** unauthenticated write paths. The second is
+- There are exactly **three** unauthenticated write paths: submissions,
+  organisation requests and error reports (see "Logs and errors"). The second is
   `POST /api/v1/org-requests`, where an organisation asks to be set up. Same
   shape of defence as the submissions POST — body cap, per-field caps, strict
   string validation (`packages/shared/src/orgRequest.ts`) — plus a honeypot field that

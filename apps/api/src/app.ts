@@ -12,6 +12,7 @@ import * as assets from "./routes/assets";
 import * as branding from "./routes/branding";
 import * as certificateVerify from "./routes/certificateVerify";
 import * as certificates from "./routes/certificates";
+import * as errors from "./routes/errors";
 import * as inviteRedeem from "./routes/inviteRedeem";
 import * as issue from "./routes/issue";
 import * as invites from "./routes/invites";
@@ -32,6 +33,7 @@ import * as templates from "./routes/templates";
 const router = new Router()
     .add("/orgs", publicOrgs)
     .add("/org-requests", orgRequests)
+    .add("/errors", errors)
     .add("/me/organizations", myOrganizations)
     .add("/invites/redeem", inviteRedeem)
     .add("/admin/orgs", adminOrgs)

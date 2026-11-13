@@ -123,6 +123,7 @@ POST /org/:slug/submissions/:id/issue
 | `POST /org/:slug/submissions` | A volunteer's submission: `{ templateId, data, nationalId? }`. `data` is a flat map of strings and may only hold keys the template's form declares |
 | `GET /org/:slug/certificates/verify?submissionId=` | `{ hash, template_id }` for the verify page |
 | `POST /org-requests` | An organisation asking to be set up |
+| `POST /errors` | A client reporting its own crash: `{ source: "browser", place, kind, message, stack }`. `place` is a route pattern, never an address. Always answers 202 |
 
 ## The rest
 

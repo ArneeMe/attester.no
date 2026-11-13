@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleApi } from "../app";
 import { useErrorSinkForTests } from "../channels";
-import { scrub } from "../lib/log";
+import { scrub, scrubStack } from "../lib/log";
 import type { ErrorReport } from "../ports";
-import { flushErrors, reportError, resetErrorsForTests } from "./report";
+import { flushErrors, reportError, reportFromOutside, resetErrorsForTests } from "./report";
 
 let stored: ErrorReport[];
 let lines: Array<Record<string, unknown>>;
@@ -168,5 +168,91 @@ describe("request logging", () => {
         expect(stored[0].requestId).toBe(body.requestId);
         expect(stored[0].place).toBe("/orgs");
         expect(lines.find((l) => l.event === "error")?.requestId).toBe(body.requestId);
+    });
+});
+
+describe("scrubStack", () => {
+    it("keeps code positions from Chrome and Firefox and drops everything else", () => {
+        const stack = [
+            "TypeError: Cannot read 'Ola Nordmann'",
+            "    at render (https://attester.no/_next/static/chunks/app-1a2b.js?token=secret:1:234567)",
+            "onClick@https://attester.no/_next/static/chunks/42.js:9:120000",
+            "this line is free text with ola@example.no in it",
+        ].join("\n");
+        const clean = scrubStack(stack);
+        expect(clean.split("\n")).toHaveLength(2);
+        expect(clean).toContain("app-1a2b.js");
+        expect(clean).toContain(":1:234567");
+        expect(clean).toContain("42.js:9:120000");
+        for (const secret of ["Ola", "token", "secret", "example.no"]) expect(clean).not.toContain(secret);
+    });
+
+    it("keeps at most ten frames", () => {
+        const many = Array.from({ length: 40 }, (_, i) => `at f${i} (a.js:${i}:1)`).join("\n");
+        expect(scrubStack(many).split("\n")).toHaveLength(10);
+    });
+});
+
+describe("reports from outside", () => {
+    const post = (body: unknown, headers: Record<string, string> = {}) =>
+        handleApi(
+            new Request("http://api.test/v1/errors", {
+                method: "POST",
+                headers: { "content-type": "application/json", ...headers },
+                body: JSON.stringify(body),
+            }),
+        );
+    const report = {
+        source: "browser",
+        place: "/org/:slug",
+        kind: "TypeError",
+        message: 'x is undefined for "Ola Nordmann" 01018099912',
+        stack: "TypeError: x\n    at render (https://attester.no/_next/static/chunks/a.js:1:2)",
+    };
+
+    it("stores a browser error scrubbed, without anything from the request itself", async () => {
+        const res = await post(report, { "x-forwarded-for": "203.0.113.9", "user-agent": "SecretBrowser/9" });
+        expect(res.status).toBe(202);
+        await settle();
+        expect(stored).toHaveLength(1);
+        expect(stored[0]).toMatchObject({ source: "browser", place: "/org/:slug", kind: "TypeError", requestId: null });
+        const kept = JSON.stringify(stored[0]);
+        for (const secret of ["Ola", "01018099912", "203.0.113.9", "SecretBrowser"]) expect(kept).not.toContain(secret);
+    });
+
+    it("scrubs a path that was sent where a pattern belongs", async () => {
+        await post({ ...report, place: "/org/min-org/verify?name=Ola+Nordmann&id=3f1c2b4a-1111-2222-3333-444455556666&fnr=01018099912" });
+        await settle();
+        expect(stored[0].place).not.toContain("3f1c2b4a");
+        expect(stored[0].place).not.toContain("01018099912");
+        expect(stored[0].place.length).toBeLessThanOrEqual(120);
+    });
+
+    it("cuts oversized fields and odd characters in the error name", async () => {
+        await post({ ...report, kind: "<script>alert(1)</script>".repeat(20), message: "m".repeat(5000) });
+        await settle();
+        expect(stored[0].kind).toMatch(/^[\w.$ -]{1,60}$/);
+        expect(stored[0].message.length).toBeLessThanOrEqual(300);
+    });
+
+    it("answers the same whether it keeps or drops, and drops beyond thirty a minute", async () => {
+        const statuses = new Set<number>();
+        for (let i = 0; i < 45; i++) statuses.add((await post({ ...report, place: `/p${i}` })).status);
+        await settle();
+        expect([...statuses]).toEqual([202]);
+        expect(stored).toHaveLength(30);
+    });
+
+    it("ignores a body that is not a report", async () => {
+        expect((await post("nonsense")).status).toBe(202);
+        expect((await post({ kind: 5 })).status).toBe(202);
+        await settle();
+        expect(stored).toHaveLength(0);
+    });
+
+    it("never lets an outsider pass as the API itself", () => {
+        reportFromOutside({ ...report, source: "browser" });
+        expect(lines.find((l) => l.event === "outside_error")?.level).toBe("warn");
+        expect(lines.some((l) => l.event === "error")).toBe(false);
     });
 });
