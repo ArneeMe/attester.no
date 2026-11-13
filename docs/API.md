@@ -46,7 +46,7 @@ All of these require membership of the organisation in the path.
 
 | Call | Purpose |
 |---|---|
-| `GET /me/organizations` | The organisations the signed-in user administers: `{ organizations: [{ id, slug, name, role }] }` |
+| `GET /me/organizations` | The organisations the signed-in user administers: `{ organizations: [{ id, slug, name, role, pending }] }`. `pending` is how many submissions wait |
 | `GET /org/:slug/submissions?limit=&offset=` | The queue, a page at a time. See below |
 | `GET /org/:slug/templates` | Templates with `form_schema`, to label a submission's fields. Light: no PDF and no layout |
 | `GET /org/:slug/templates/:id/full` | One template with its PDF and layout. Megabytes; only a designer needs it |

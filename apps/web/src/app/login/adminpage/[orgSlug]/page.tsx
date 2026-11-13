@@ -19,6 +19,7 @@ import type { FormSchema } from '@attester/shared/types/formSchema';
 import { hoursUntilDeletion } from '@attester/shared/retention';
 import { useAdminLang } from '@/util/useAdminLang';
 import DigipostSetting from './DigipostSetting';
+import { useUserOrgs } from '../UserOrgsProvider';
 
 type SubmissionRow = {
     id: string;
@@ -61,6 +62,8 @@ const AdminPage: React.FC = () => {
     const [digipostCheck, setDigipostCheck] = useState<'none' | 'checking' | 'yes' | 'no'>('none');
 
     const [searchText, setSearchText] = useState('');
+    const [loaded, setLoaded] = useState(false);
+    const { setPending } = useUserOrgs();
     const [templateFilter, setTemplateFilter] = useState('');
     const [newestFirst, setNewestFirst] = useState(true);
 
@@ -87,6 +90,7 @@ const AdminPage: React.FC = () => {
                         if (next.length === 0) break;
                         rows.push(...next);
                     }
+                    setLoaded(true);
                     setSubmissions(rows.map((row): Submission => ({
                         id: row.id,
                         organizationId: row.organization_id,
@@ -117,6 +121,10 @@ const AdminPage: React.FC = () => {
         fetchData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orgSlug]);
+
+    useEffect(() => {
+        if (loaded) setPending(orgSlug, submissions.filter((s) => !s.issuedAt).length);
+    }, [loaded, submissions, orgSlug, setPending]);
 
     const templateById = (id: string) => templates.find((t) => t.id === id) ?? null;
 

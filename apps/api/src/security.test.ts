@@ -264,3 +264,25 @@ describe("lists stay bounded", () => {
         expect((await call("GET", `/org/echo/templates/${TMPL}/full`)).status).toBe(404);
     });
 });
+
+describe("my organisations", () => {
+    beforeEach(() => {
+        answers.GetUserOrgs = { user_organizations: [{ organization_id: ORG, role: "admin" }] };
+        answers.GetOrgsByIds = { organizations: [{ id: ORG, slug: "echo", name: "Echo" }] };
+    });
+
+    it("says how many submissions wait in each, counting only unissued ones", async () => {
+        answers.PendingSubmissions = { submissions_aggregate: { aggregate: { count: 3 } } };
+        const res = await call("GET", "/me/organizations");
+        expect(await res.json()).toEqual({ organizations: [{ id: ORG, slug: "echo", name: "Echo", role: "admin", pending: 3 }] });
+        const count = calls.find((c) => c.query.includes("PendingSubmissions"))!;
+        expect(count.variables).toEqual({ organizationId: ORG });
+        expect(count.query).toContain("issued_at: { _is_null: true }");
+    });
+
+    it("still lists the organisations when the count fails", async () => {
+        const res = await call("GET", "/me/organizations");
+        expect(res.status).toBe(200);
+        expect(((await res.json()) as { organizations: Array<{ pending: number }> }).organizations[0].pending).toBe(0);
+    });
+});

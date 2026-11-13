@@ -35,7 +35,10 @@ export default function OrgAdminLayout({ children }: { children: React.ReactNode
 
     const nav = strings.admin.nav;
     const items: Array<{ href: string; label: string }> = [
-        { href: `/login/adminpage/${orgSlug}`, label: nav.oversikt },
+        {
+            href: `/login/adminpage/${orgSlug}`,
+            label: currentOrg.pending ? `${nav.oversikt} (${currentOrg.pending})` : nav.oversikt,
+        },
         { href: `/login/adminpage/${orgSlug}/rediger`, label: nav.innhold },
         { href: `/login/adminpage/${orgSlug}/edit_pdf`, label: nav.pdfmal },
         { href: `/login/adminpage/${orgSlug}/maler`, label: nav.maler },
