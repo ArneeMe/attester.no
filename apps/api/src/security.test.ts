@@ -217,3 +217,50 @@ describe("Digipost recipient check", () => {
         expect(asked).toBe(0);
     });
 });
+
+describe("lists stay bounded", () => {
+    it("pages the queue and looks up deliveries only for the rows on the page", async () => {
+        answers.GetSubmissions = {
+            submissions: [{ id: SUB, organization_id: ORG, template_id: TMPL, data: {}, created_at: "", issued_at: null }],
+            submissions_aggregate: { aggregate: { count: 1201 } },
+        };
+        answers.GetRecipientFlags = {
+            submission_recipients: [{ submission_id: SUB }],
+            deliveries: [{ submission_id: SUB, status: "sent", sent_at: "2026-11-13T10:00:00Z" }],
+        };
+        const res = await call("GET", "/org/echo/submissions?limit=5000&offset=10");
+        const body = (await res.json()) as { total: number; submissions: Array<Record<string, unknown>> };
+        expect(body.total).toBe(1201);
+        expect(body.submissions[0]).toMatchObject({ has_recipient: true, delivery: { status: "sent" } });
+
+        const list = calls.find((c) => c.query.includes("GetSubmissions"))!;
+        expect(list.variables).toMatchObject({ limit: 500, offset: 10 });
+        const flags = calls.find((c) => c.query.includes("GetRecipientFlags"))!;
+        expect(flags.variables).toMatchObject({ ids: [SUB], textIds: [SUB], organizationId: ORG });
+    });
+
+    it("falls back to a sane page when the numbers are nonsense", async () => {
+        answers.GetSubmissions = { submissions: [], submissions_aggregate: { aggregate: { count: 0 } } };
+        answers.GetRecipientFlags = { submission_recipients: [], deliveries: [] };
+        await call("GET", "/org/echo/submissions?limit=abc&offset=-5");
+        expect(calls.find((c) => c.query.includes("GetSubmissions"))!.variables).toMatchObject({ limit: 200, offset: 0 });
+    });
+
+    it("leaves the PDF and the layout out of the templates list", async () => {
+        answers.GetTemplates = { templates: [] };
+        await call("GET", "/org/echo/templates");
+        const query = calls.find((c) => c.query.includes("GetTemplates"))!.query;
+        expect(query).not.toContain("base_pdf");
+        expect(query).not.toContain("schemas");
+    });
+
+    it("serves one full template to a member, scoped to their organisation", async () => {
+        answers.GetFullTemplate = { templates: [{ id: TMPL, base_pdf: "data:application/pdf;base64,AAAA" }] };
+        const res = await call("GET", `/org/echo/templates/${TMPL}/full`);
+        expect(res.status).toBe(200);
+        expect(calls.find((c) => c.query.includes("GetFullTemplate"))!.variables).toEqual({ id: TMPL, organizationId: ORG });
+        expect((await call("GET", `/org/echo/templates/${TMPL}/full`, undefined, false)).status).toBe(401);
+        answers.GetFullTemplate = { templates: [] };
+        expect((await call("GET", `/org/echo/templates/${TMPL}/full`)).status).toBe(404);
+    });
+});

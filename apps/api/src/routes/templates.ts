@@ -35,7 +35,7 @@ export async function GET(
         const data = await hasuraAdmin<{ templates: TemplateRow[] }>(
             `query GetTemplates($organizationId: uuid!) {
                 templates(where: { organization_id: { _eq: $organizationId } }, order_by: { created_at: asc }) {
-                    id organization_id name description base_pdf schemas form_schema field_bindings is_offered created_at updated_at
+                    id organization_id name description form_schema field_bindings is_offered created_at updated_at
                 }
             }`,
             { organizationId: auth.organizationId },

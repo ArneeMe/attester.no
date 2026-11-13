@@ -13,12 +13,12 @@ import {
 import { Designer } from '@pdfme/ui';
 import { text, image, barcodes } from '@pdfme/schemas';
 import { Template, BLANK_PDF } from '@pdfme/common';
-import { saveTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseInteractions/templateService';
+import { saveTemplate, getFullTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseInteractions/templateService';
 import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
 import { deriveFormSchema } from '@attester/shared/templateFields';
 import { validateTemplateForSave } from '@attester/shared/validateTemplate';
 import { buildPreviewPdfUrl } from '@/util/previewPdf';
-import type { PDFTemplate } from '@attester/shared/types/templateTypes';
+import type { TemplateSummary } from '@attester/shared/types/templateTypes';
 import type { FieldBindings } from '@attester/shared/types/fieldBindings';
 import type { OrgAsset } from '@attester/shared/types/orgAssets';
 import type { FormSchema } from '@attester/shared/types/formSchema';
@@ -54,7 +54,7 @@ export default function DesignerComponent({
     const containerRef = useRef<HTMLDivElement>(null);
     const designerRef = useRef<Designer | null>(null);
     const [saving, setSaving] = useState(false);
-    const [existingTemplates, setExistingTemplates] = useState<PDFTemplate[]>([]);
+    const [existingTemplates, setExistingTemplates] = useState<TemplateSummary[]>([]);
     const [assets, setAssets] = useState<OrgAsset[]>([]);
     const [bindings, setBindings] = useState<FieldBindings>({});
     const [formSchema, setFormSchema] = useState<FormSchema>([]);
@@ -120,14 +120,7 @@ export default function DesignerComponent({
         const found = existingTemplates.find((t) => t.id === initialTemplateId);
         if (!found) return;
         loadedDeepLinkRef.current = initialTemplateId;
-        designerRef.current.updateTemplate({
-            basePdf: found.basePdf,
-            schemas: found.schemas,
-        });
-        setBindings(found.fieldBindings ?? {});
-        setFormSchema(found.formSchema ?? []);
-        setSchemaRev((r) => r + 1);
-        onTemplateLoad(found.name, found.description || '', found.isOffered);
+        void handleLoadTemplate(found);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialTemplateId, existingTemplates]);
 
@@ -181,7 +174,15 @@ export default function DesignerComponent({
         }
     };
 
-    const handleLoadTemplate = (template: PDFTemplate) => {
+    const handleLoadTemplate = async (summary: TemplateSummary) => {
+        if (!designerRef.current || !summary.id) return;
+        let template;
+        try {
+            template = await getFullTemplate(orgSlug, summary.id);
+        } catch (e) {
+            onError(`${d.loadTemplatesError}: ${(e as Error).message}`);
+            return;
+        }
         if (!designerRef.current) return;
 
         designerRef.current.updateTemplate({

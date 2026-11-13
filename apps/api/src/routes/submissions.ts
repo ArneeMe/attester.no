@@ -18,6 +18,13 @@ import { reportError } from "../errors/report";
 const MAX_SUBMISSION_BYTES = 64 * 1024;
 const MAX_FIELD_VALUE_LEN = 8 * 1024;
 const MAX_UNISSUED_PER_ORG = 2000;
+const DEFAULT_PAGE = 200;
+const MAX_PAGE = 500;
+
+function clamp(raw: string | null, fallback: number, min: number, max: number): number {
+    const n = raw === null ? NaN : Number(raw);
+    return Number.isInteger(n) ? Math.min(max, Math.max(min, n)) : fallback;
+}
 const MAX_FIELDS_WITHOUT_SCHEMA = 60;
 const MAX_KEY_LEN = 100;
 
@@ -55,30 +62,46 @@ export async function GET(
     await sweepExpiredSubmissions();
 
     try {
-        const data = await hasuraAdmin<{ submissions: SubmissionRow[]; deliveries: DeliveryRow[] }>(
-            `query GetSubmissions($organizationId: uuid!) {
+        const url = new URL(req.url);
+        const limit = clamp(url.searchParams.get("limit"), DEFAULT_PAGE, 1, MAX_PAGE);
+        const offset = clamp(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
+        const data = await hasuraAdmin<{
+            submissions: SubmissionRow[];
+            submissions_aggregate: { aggregate: { count: number } };
+        }>(
+            `query GetSubmissions($organizationId: uuid!, $limit: Int!, $offset: Int!) {
                 submissions(
                     where: { organization_id: { _eq: $organizationId } },
-                    order_by: { created_at: asc }
+                    order_by: [{ created_at: asc }, { id: asc }],
+                    limit: $limit,
+                    offset: $offset
                 ) {
                     id organization_id template_id data created_at issued_at
                 }
-                deliveries(where: { organization_id: { _eq: $organizationId } }) {
+                submissions_aggregate(where: { organization_id: { _eq: $organizationId } }) {
+                    aggregate { count }
+                }
+            }`,
+            { organizationId: auth.organizationId, limit, offset },
+        );
+        // The admin learns that a recipient exists, never the number itself.
+        const ids = data.submissions.map((s) => s.id);
+        const recipients = await hasuraAdmin<{
+            submission_recipients: Array<{ submission_id: string }>;
+            deliveries: DeliveryRow[];
+        }>(
+            `query GetRecipientFlags($ids: [uuid!]!, $textIds: [String!]!, $organizationId: uuid!) {
+                submission_recipients(where: { submission_id: { _in: $ids } }) { submission_id }
+                deliveries(where: { organization_id: { _eq: $organizationId }, submission_id: { _in: $textIds } }) {
                     submission_id status sent_at
                 }
             }`,
-            { organizationId: auth.organizationId },
-        );
-        // The admin learns that a recipient exists, never the number itself.
-        const recipients = await hasuraAdmin<{ submission_recipients: Array<{ submission_id: string }> }>(
-            `query GetRecipientFlags($ids: [uuid!]!) {
-                submission_recipients(where: { submission_id: { _in: $ids } }) { submission_id }
-            }`,
-            { ids: data.submissions.map((s) => s.id) },
+            { ids, textIds: ids, organizationId: auth.organizationId },
         );
         const withRecipient = new Set(recipients.submission_recipients.map((r) => r.submission_id));
-        const deliveryBySubmission = new Map(data.deliveries.map((d) => [d.submission_id, toView(d)]));
+        const deliveryBySubmission = new Map(recipients.deliveries.map((d) => [d.submission_id, toView(d)]));
         return json({
+            total: data.submissions_aggregate.aggregate.count,
             submissions: data.submissions.map((s) => ({
                 ...s,
                 has_recipient: withRecipient.has(s.id),

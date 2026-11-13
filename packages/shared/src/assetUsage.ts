@@ -1,5 +1,5 @@
 import type { FieldBinding } from './types/fieldBindings';
-import type { PDFTemplate } from './types/templateTypes';
+import type { TemplateSummary } from './types/templateTypes';
 
 /**
  * Counts how many of the given templates reference the asset by id (via a
@@ -10,7 +10,7 @@ import type { PDFTemplate } from './types/templateTypes';
  */
 export function countTemplatesUsingAsset(
     assetId: string,
-    templates: PDFTemplate[],
+    templates: TemplateSummary[],
 ): number {
     let count = 0;
     for (const t of templates) {
@@ -19,7 +19,7 @@ export function countTemplatesUsingAsset(
     return count;
 }
 
-export function templateReferencesAsset(template: PDFTemplate, assetId: string): boolean {
+export function templateReferencesAsset(template: TemplateSummary, assetId: string): boolean {
     const bindings = template.fieldBindings ?? {};
     for (const binding of Object.values(bindings) as FieldBinding[]) {
         if (binding.source === 'asset' && binding.assetId === assetId) return true;

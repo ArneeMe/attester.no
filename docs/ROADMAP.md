@@ -230,10 +230,6 @@ Left open on purpose, each needing a decision or more than a small fix:
 - **Unissued submissions keep a sealed fødselsnummer as long as they wait.**
   A time limit on the number alone (say 30 days) would close this without
   touching the rule that unissued submissions are never swept.
-- **Lists are unpaged.** The submissions list, and the templates list with
-  every revision's PDF, grow without bound. The queue ceiling limits the
-  first. The second needs the list to stop returning `base_pdf`, which
-  touches three admin pages.
 - **A wrong fødselsnummer sends a certificate to the wrong person.** The
   check digits catch typing errors, not someone entering another person's
   number. The admin reviews the request but cannot see the number. Showing
@@ -266,8 +262,10 @@ Left open on purpose, each needing a decision or more than a small fix:
    the person who asked. Digipost delivery covers those who chose it. For the
    rest, a status page behind the submission id needs no address at all.
 6. **A pending count in the org nav**, for admins without email notices.
-7. **The mobile app** against `docs/API.md`. Paging the submissions list and
-   slimming the templates list should come first, for its sake.
+7. **The mobile app** against `docs/API.md`. The Android app in
+   `arneeme/apps` still calls the unversioned `/api/...` paths and will stop
+   working at cut-over until it is moved to `/api/v1/...`. It can also issue
+   now, since the server renders the PDF.
 8. **pdfme 6**, with the designer and all templates re-tested.
 9. **Hash v2** when a reason to touch certificates appears: escape the
    separator and tag the version, as CLAUDE.md describes.

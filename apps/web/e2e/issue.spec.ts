@@ -22,16 +22,19 @@ test('Generer PDF asks the server to issue and downloads what it returns', async
     await page.route('**/api/v1/me/organizations', (route) =>
         route.fulfill({ json: { organizations: [{ id: 'org-1', slug: 'testorg', name: 'Testorg', role: 'admin' }] } }),
     );
-    await page.route('**/api/v1/org/testorg/submissions', (route) =>
-        route.fulfill({
+    const listCalls: string[] = [];
+    await page.route(/\/api\/v1\/org\/testorg\/submissions\?/, (route) => {
+        listCalls.push(new URL(route.request().url()).search);
+        return route.fulfill({
             json: {
+                total: 1,
                 submissions: [{
                     id: SUB, organization_id: 'org-1', template_id: TMPL,
                     data: { name: 'Ola Nordmann' }, created_at: new Date().toISOString(), issued_at: null,
                 }],
             },
-        }),
-    );
+        });
+    });
     await page.route('**/api/v1/org/testorg/templates', (route) =>
         route.fulfill({
             json: { templates: [{ id: TMPL, name: 'Attest', form_schema: [{ key: 'name', label: 'Navn', type: 'text' }] }] },
@@ -64,5 +67,6 @@ test('Generer PDF asks the server to issue and downloads what it returns', async
     await expect(page.getByRole('link', { name: VERIFY_URL })).toBeVisible();
     await expect(page.getByText('Utstedt', { exact: true })).toBeVisible();
     expect(issueCalls).toBe(1);
+    expect(new Set(listCalls)).toEqual(new Set(['?limit=500&offset=0']));
     expect(JSON.parse(issueBody ?? 'null')).toEqual({});
 });

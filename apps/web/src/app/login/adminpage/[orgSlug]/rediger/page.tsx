@@ -29,7 +29,7 @@ import {
 } from '@/util/databaseInteractions/orgAssets';
 import { getTemplates } from '@/util/databaseInteractions/templateService';
 import { countTemplatesUsingAsset } from '@attester/shared/assetUsage';
-import type { PDFTemplate } from '@attester/shared/types/templateTypes';
+import type { TemplateSummary } from '@attester/shared/types/templateTypes';
 import { useAdminLang } from '@/util/useAdminLang';
 import type { Strings } from '@/strings';
 import type {
@@ -97,7 +97,7 @@ const RedigerPage: React.FC = () => {
     const [tab, setTab] = useState(() => TAB_BY_KIND[searchParams.get('tab') ?? ''] ?? 0);
     const [loading, setLoading] = useState(true);
     const [assets, setAssets] = useState<OrgAsset[]>([]);
-    const [templates, setTemplates] = useState<PDFTemplate[]>([]);
+    const [templates, setTemplates] = useState<TemplateSummary[]>([]);
 
     const reload = async () => {
         try {
@@ -169,10 +169,10 @@ type PanelProps = {
     orgSlug: string;
     assets: OrgAsset[];
     reload: () => Promise<void>;
-    templates: PDFTemplate[];
+    templates: TemplateSummary[];
 };
 
-function UsageBadge({ assetId, templates, c }: { assetId: string; templates: PDFTemplate[]; c: ContentStrings }) {
+function UsageBadge({ assetId, templates, c }: { assetId: string; templates: TemplateSummary[]; c: ContentStrings }) {
     const n = countTemplatesUsingAsset(assetId, templates);
     if (n === 0) return null;
     return (
@@ -272,7 +272,7 @@ const SignatureRow: React.FC<{
     orgSlug: string;
     asset: OrgAsset;
     reload: () => Promise<void>;
-    templates: PDFTemplate[];
+    templates: TemplateSummary[];
 }> = ({ orgSlug, asset, reload, templates }) => {
     const { strings } = useAdminLang();
     const cs = strings.admin.content;
@@ -377,7 +377,7 @@ const LogoRow: React.FC<{
     orgSlug: string;
     asset: OrgAsset;
     reload: () => Promise<void>;
-    templates: PDFTemplate[];
+    templates: TemplateSummary[];
 }> = ({ orgSlug, asset, reload, templates }) => {
     const { strings } = useAdminLang();
     const cs = strings.admin.content;
@@ -471,7 +471,7 @@ const BodyTextRow: React.FC<{
     orgSlug: string;
     asset: OrgAsset;
     reload: () => Promise<void>;
-    templates: PDFTemplate[];
+    templates: TemplateSummary[];
 }> = ({ orgSlug, asset, reload, templates }) => {
     const { strings } = useAdminLang();
     const cs = strings.admin.content;
@@ -572,7 +572,7 @@ const LookupListRow: React.FC<{
     orgSlug: string;
     asset: OrgAsset;
     reload: () => Promise<void>;
-    templates: PDFTemplate[];
+    templates: TemplateSummary[];
 }> = ({ orgSlug, asset, reload, templates }) => {
     const { strings } = useAdminLang();
     const cs = strings.admin.content;

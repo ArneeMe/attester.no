@@ -14,3 +14,6 @@ export interface PDFTemplate {
     createdAt: Date;
     updatedAt: Date;
 }
+
+// What a list carries: everything but the PDF and its layout.
+export type TemplateSummary = Omit<PDFTemplate, 'basePdf' | 'schemas'>;
