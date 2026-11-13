@@ -11,6 +11,8 @@ Companion docs (read as needed):
 - `docs/DEVELOPMENT.md` — commands, verification checklist, conventions
   (strings/i18n pattern, API route pattern, migrations workflow, test
   placement), and the gotchas that have cost real time.
+- `docs/API.md` — the `/v1` API every client uses, written for whoever builds
+  a client (the mobile app first).
 - `docs/ROADMAP.md` — parked work with the reasoning captured, so options
   don't get re-litigated or rebuilt by accident.
 - `docs/IDEAS.md` — feature ideas not built yet, with the open questions, so
