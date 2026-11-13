@@ -15,7 +15,7 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
 - Material UI
 - Nhost (Postgres + Hasura + Auth)
 - pdfme for PDF-generering på serveren
-- Cloudflare Pages
+- Cloudflare Pages for web, en container for API-et
 
 ## Datamodell i grove trekk
 
@@ -41,12 +41,15 @@ viktig at strukturen forblir slik. Utfyllende dokumentasjon ligger i
 
 ```
 apps/web/src/app/
-  api/       — server-side API-ruter (DB-tilgang via Hasura admin)
+  api/       — videresender /api/v1/* til API-et, pluss den gamle
+               verify-ruten
   login/     — admin-innlogging og dashboard
   verify/    — gamle offentlige verifiseringssiden (legacy)
   org/       — per-org offentlig form og verifisering
   pdfinfo/   — bundlede pdfme-maler og startermaler
-functions/_shared/src/
+apps/api/src/
+             — API-et: ruter, utstedelse, varsler og Digipost
+packages/shared/src/
              — hashing, resolveBinding, validering og typer som deles
                av web og backend
 ```

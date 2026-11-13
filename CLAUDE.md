@@ -103,7 +103,7 @@ exceptions to "the server keeps nothing". These rules keep them bounded:
 - **The fødselsnummer is never certificate data.** It travels as its own
   field, lives in `submission_recipients`, and must never be put in
   `submissions.data`. That is what keeps it out of the QR link and the hash.
-- **It is sealed.** `functions/_api/src/lib/seal.ts` encrypts it with
+- **It is sealed.** `apps/api/src/lib/seal.ts` encrypts it with
   `DELIVERY_KEY`, which exists only in the function's environment. A copy of
   the database alone reveals no fødselsnummer and no queued PDF. Without the
   key the Digipost feature is off. Do not add a plaintext fallback.
@@ -124,13 +124,14 @@ exceptions to "the server keeps nothing". These rules keep them bounded:
 
 The deletion clock starts at **issuance**, not submission. Issuing a
 certificate stamps `submissions.issued_at`; a lazy sweep
-(`functions/_api/src/lib/retention.ts`, window in `functions/_shared/src/retention.ts`) then
+(`apps/api/src/lib/retention.ts`, window in `packages/shared/src/retention.ts`) then
 deletes rows whose `issued_at` is older than `ISSUED_RETENTION_HOURS`. The
 sweep runs whenever the submissions API is touched (GET or POST) and on
-every scheduled tick (`functions/_api/src/jobs/tick.ts`). The schedule is
-something the owner sets up outside the repo, so it may not exist. Do not
-remove the sweep calls from the submissions GET/POST routes: they are what
-makes deletion happen regardless.
+every scheduled round (`apps/api/src/jobs/scheduled.ts`, every ten minutes
+inside the API process). Do not remove the sweep calls from the submissions
+GET/POST routes: the scheduler can be switched off (`SCHEDULER=off`) and a
+host may put the process to sleep, so the lazy calls are what makes deletion
+happen regardless.
 
 **Unissued submissions are never swept.** The `issued_at IS NOT NULL`
 guard in the sweep is load-bearing. An earlier version deleted every
@@ -150,7 +151,7 @@ long" is NOT automatic for unissued rows, and copy must not claim it is.
 **Issuing a certificate does NOT immediately delete the submission.** The
 window is the point: if a PDF is lost, misprinted, or a mistake is spotted
 late, "Generer PDF" can be run again any time before the sweep. The issue
-route (`functions/_api/src/issuance/issue.ts`) is idempotent per submission
+route (`apps/api/src/issuance/issue.ts`) is idempotent per submission
 (returns the existing cert instead of minting a duplicate) and deliberately
 does **not**
 re-stamp `issued_at`, so regenerating cannot be used to extend retention
@@ -210,9 +211,9 @@ number can be offered at once: with one the volunteer never sees a
 chooser, with several they pick. Because saving a template inserts a new
 row, the templates POST route retires superseded revisions by clearing
 `is_offered` on older rows with the same `name`
-(`functions/_api/src/lib/templateOffering.ts`) — otherwise every past revision
+(`apps/api/src/lib/templateOffering.ts`) — otherwise every past revision
 would pile up in the chooser. The selection rule lives in
-`functions/_shared/src/offeredTemplates.ts` and is served publicly by
+`packages/shared/src/offeredTemplates.ts` and is served publicly by
 `/api/v1/org/[slug]/offered-templates`, which exposes id, name and
 description only.
 
@@ -228,7 +229,7 @@ points to (which you shouldn't, but the hash would still match).
 
 ## Canonical hash format
 
-Single source of truth: `functions/_shared/src/canonicalHash.ts` + `functions/_shared/src/certParams.ts`.
+Single source of truth: `packages/shared/src/canonicalHash.ts` + `packages/shared/src/certParams.ts`.
 
 Algorithm:
 1. Build a `URLSearchParams` from the cert fields (issuer side: see
@@ -238,7 +239,7 @@ Algorithm:
 4. Join as `key=value&key=value&...`.
 5. SHA-512 hex over that UTF-8 byte sequence.
 
-Issuer (`issueCertificate` in `functions/_api/src/issuance/issue.ts`),
+Issuer (`issueCertificate` in `apps/api/src/issuance/issue.ts`),
 verifier (`OrgVerifyClient`), and seed scripts
 all import from these utilities. Do NOT inline the algorithm anywhere
 else — drift will silently invalidate certificates.
@@ -304,7 +305,7 @@ schema field names to a data source:
 - `lookup` — find an item in a lookup_list by matching its `name`
   against a submission key, return the named sub-field
 
-The resolver is `functions/_shared/src/resolveBinding.ts`. The single PDF-input
+The resolver is `packages/shared/src/resolveBinding.ts`. The single PDF-input
 builder is `buildPdfInput` in the same file.
 
 ### Implicit fallback
@@ -333,7 +334,7 @@ pdfme placeholder names when the admin hasn't set one.
 
 ## Mandatory PDF elements
 
-`validateTemplateForSave` (`functions/_shared/src/validateTemplate.ts`) is run by the
+`validateTemplateForSave` (`packages/shared/src/validateTemplate.ts`) is run by the
 designer before save and refuses templates without:
 
 - A `qrcode` field (so certs are verifiable).

@@ -35,7 +35,7 @@ describe('verify routes exist for printed URLs', () => {
         expect(routeFile('api', 'v1', '[...path]', 'route.ts')).toBe(true);
         expect(
             fs.existsSync(
-                path.join(process.cwd(), '..', '..', 'functions', '_api', 'src', 'routes', 'certificateVerify.ts'),
+                path.join(process.cwd(), '..', 'api', 'src', 'routes', 'certificateVerify.ts'),
             ),
         ).toBe(true);
     });

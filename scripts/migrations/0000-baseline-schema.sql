@@ -77,7 +77,7 @@ CREATE INDEX IF NOT EXISTS org_assets_kind_idx ON org_assets(organization_id, ki
 --
 -- issued_at is stamped when the certificate is inserted, and it is the
 -- deletion clock: the sweep removes rows whose issued_at is older than the
--- regeneration window (functions/_shared/src/retention.ts). NULL means "not issued yet",
+-- regeneration window (packages/shared/src/retention.ts). NULL means "not issued yet",
 -- and those rows are never swept — they wait for an admin, who clears them
 -- with the explicit "Slett data" action. See CLAUDE.md "Volunteer deletion".
 CREATE TABLE IF NOT EXISTS submissions (
@@ -216,7 +216,7 @@ CREATE INDEX IF NOT EXISTS deliveries_queued_idx ON deliveries(created_at) WHERE
 --      template_id column, mirroring the tracked FKs.
 --   3. No role permissions needed — the API talks to Hasura with the
 --      admin secret and enforces tenancy in code
---      (functions/_api/src/lib/apiAuth.ts).
+--      (apps/api/src/lib/apiAuth.ts).
 --   4. Create the first org + member by hand until the onboarding UI
 --      exists:
 --        INSERT INTO organizations (slug, name) VALUES ('myorg', 'My Org');

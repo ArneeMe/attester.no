@@ -1,12 +1,9 @@
+// API_URL is the API's /v1 root, e.g. https://api.attester.no/v1.
 export function apiUrl(path: string, query?: URLSearchParams): string {
     const base = process.env.API_URL;
     if (!base) throw new Error("API_URL not configured");
-    const url = new URL(base);
-    url.searchParams.set("__path", path);
-    query?.forEach((value, key) => {
-        if (key !== "__path") url.searchParams.append(key, value);
-    });
-    return url.toString();
+    const qs = query?.toString();
+    return `${base.replace(/\/+$/, "")}${path}${qs ? `?${qs}` : ""}`;
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
