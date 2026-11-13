@@ -38,10 +38,12 @@ Details for each step are in DEVELOPMENT.md "Deploy checklist".
 
 1. Turn on email verification in Nhost. The API refuses `/admin` and invite
    redemption to an unverified address.
-2. Run the three new migrations and track their tables in Hasura:
+2. Run the four new migrations and track their tables in Hasura:
    `2026-11-notices.sql` (`notices`), `2026-11-digipost.sql` (`org_settings`,
-   `submission_recipients`, `deliveries`) and `2026-11-platform-errors.sql`
-   (`platform_errors`). The admin dashboard fails without the second one.
+   `submission_recipients`, `deliveries`), `2026-11-platform-errors.sql`
+   (`platform_errors`) and `2026-11-submission-status.sql` (three columns on
+   `submissions`; reload the table in Hasura). The admin dashboard fails
+   without the second, and submitting fails without the fourth.
 3. Choose a host for the API container, deploy it and set its secrets.
    `PUBLIC_APP_URL` is required.
 4. Point Cloudflare Pages at `apps/web` and set `API_URL` to the API's `/v1`
@@ -77,11 +79,6 @@ whole lifecycle.
   draft.
 
 ## Known gaps
-
-- **One of the three silences remains.** The owner is pushed a notification
-  when an organisation applies, and org admins are emailed when a submission
-  is waiting, and see the count in the menu and the organisation picker. The
-  volunteer still hears nothing after submitting and cannot check or chase.
 
 - **The API being down is still invisible.** The API records its own errors
   and those of the browser and the web app (ARCHITECTURE "Logs and errors").
@@ -257,15 +254,12 @@ Left open on purpose, each needing a decision or more than a small fix:
 4. **Database changes in git.** Run `nhost init --remote` once, commit the
    result, and let migrations and tracking deploy with the code. Five tables
    were added by hand this round; that does not scale.
-5. **Tell the volunteer what happened.** The last silence: nothing reaches
-   the person who asked. Digipost delivery covers those who chose it. For the
-   rest, a status page behind the submission id needs no address at all.
-6. **The mobile app** against `docs/API.md`. The Android app in
+5. **The mobile app** against `docs/API.md`. The Android app in
    `arneeme/apps` still calls the unversioned `/api/...` paths and will stop
    working at cut-over until it is moved to `/api/v1/...`. It can also issue
    now, since the server renders the PDF.
-7. **pdfme 6**, with the designer and all templates re-tested.
-8. **Hash v2** when a reason to touch certificates appears: escape the
+6. **pdfme 6**, with the designer and all templates re-tested.
+7. **Hash v2** when a reason to touch certificates appears: escape the
    separator and tag the version, as CLAUDE.md describes.
 
 ## Explicitly frozen

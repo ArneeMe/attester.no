@@ -124,9 +124,11 @@ POST /org/:slug/submissions/:id/issue
 | `GET /org/:slug/branding` | Logo for the public pages |
 | `GET /org/:slug/offered-templates` | The certificate types a volunteer can choose |
 | `GET /org/:slug/templates/:id` | One template's `form_schema`, for the form and the verify page |
-| `POST /org/:slug/submissions` | A volunteer's submission: `{ templateId, data, nationalId? }`. `data` is a flat map of strings and may only hold keys the template's form declares |
+| `POST /org/:slug/submissions` | A volunteer's submission: `{ templateId, data, nationalId? }`. `data` is a flat map of strings and may only hold keys the template's form declares. Answers with a `statusToken`, once |
 | `GET /org/:slug/certificates/verify?submissionId=` | `{ hash, template_id }` for the verify page |
 | `POST /org-requests` | An organisation asking to be set up |
+| `POST /org/:slug/status` | A volunteer's own view of their request: `{ token }` in, dates out. 404 for anything it cannot find |
+| `POST /org/:slug/status/remind` | The volunteer nudges the organisation: `{ token }`. 429 with `reminder.canRemindAt` when it is too early |
 | `POST /errors` | A client reporting its own crash: `{ source: "browser", place, kind, message, stack }`. `place` is a route pattern, never an address. Always answers 202 |
 
 ## The rest

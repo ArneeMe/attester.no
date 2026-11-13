@@ -121,9 +121,9 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
    root with `npm run pages:build -w @attester/web` and output directory
    `apps/web/.vercel/output/static`.
 2. Run any new `scripts/migrations/*.sql` in the Hasura console and (re-)track
-   affected tables. The first deploy of the rebuild needs three:
-   `2026-11-notices.sql`, `2026-11-digipost.sql` and
-   `2026-11-platform-errors.sql`.
+   affected tables. The first deploy of the rebuild needs four:
+   `2026-11-notices.sql`, `2026-11-digipost.sql`,
+   `2026-11-platform-errors.sql` and `2026-11-submission-status.sql`.
 3. Env vars are split by who needs them.
    - **Cloudflare Pages (web):** `NEXT_PUBLIC_NHOST_*`, `API_URL` (the API's
      `/v1` root, e.g. `https://api.attester.no/v1`) and `NHOST_ADMIN_SECRET`,

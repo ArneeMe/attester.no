@@ -86,8 +86,14 @@ CREATE TABLE IF NOT EXISTS submissions (
     template_id uuid NOT NULL REFERENCES templates(id) ON DELETE RESTRICT,
     data jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now(),
-    issued_at timestamptz
+    issued_at timestamptz,
+    status_token_hash text,
+    reminded_at timestamptz,
+    reminder_count int NOT NULL DEFAULT 0
 );
+CREATE INDEX IF NOT EXISTS submissions_status_token_idx
+    ON submissions(status_token_hash)
+    WHERE status_token_hash IS NOT NULL;
 CREATE INDEX IF NOT EXISTS submissions_org_idx ON submissions(organization_id);
 CREATE INDEX IF NOT EXISTS submissions_template_idx ON submissions(template_id);
 CREATE INDEX IF NOT EXISTS submissions_issued_at_idx
