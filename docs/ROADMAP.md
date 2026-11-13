@@ -169,8 +169,27 @@ Not planned: tenancy in Hasura row permissions. Clients never talk to Hasura,
 so tenancy stays in one tested code path in `functions/_api`. Customer API keys
 are not built either, but `/v1` leaves room for them.
 
+### Status (2026-11-13)
+
+Steps 1, 2, 4, 5 and 6 are on `develop`, and the tick from step 7. Not done:
+
+- **Step 3, Nhost config in git.** Hasura metadata and `nhost.toml` were not
+  written by hand. A deploy replaces the live metadata, and a wrong file
+  would untrack tables in production. The safe start is `nhost init --remote`
+  against the real project, committed as is. Migrations still live in
+  `scripts/migrations/` and are run by hand.
+- **Step 8, the mobile app.** The API it needs exists: bearer token, list
+  submissions, preview, issue, deliver. Nothing mobile-specific was added.
+- **Nothing has run against Nhost, Resend or Digipost.** Everything is
+  tested against fakes. The first live run is the real test of the function
+  bundle, the proxy, email and the Digipost signature.
+
 ### Owner actions the code cannot do
 
+- Run the two new migrations and track their tables (`notices`,
+  `org_settings`, `submission_recipients`, `deliveries`).
+- Digipost: convert the certificate to a PEM key and set the secrets, see
+  DEVELOPMENT.md.
 - Connect the Nhost project to the repo and set its secrets.
 - Point Cloudflare Pages at `apps/web`.
 - Add the DNS records Resend asks for, so mail can be sent from `attester.no`.

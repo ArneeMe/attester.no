@@ -134,7 +134,22 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
      dialog shows the link to copy manually) and optional `NTFY_TOPIC` (unset
      ⇒ the owner is not notified of new org requests). The topic name is its
      only secret, so generate one rather than choosing it.
-4. One-time Nhost setup for scheduled work. In the Hasura console, Events →
+4. Digipost (optional; without it the feature is hidden everywhere). Set
+   these as Nhost secrets:
+   - `DELIVERY_KEY`: `openssl rand -base64 32`. Seals fødselsnummer and
+     queued PDFs. Losing it makes queued letters unreadable, nothing else.
+   - `DIGIPOST_BROKER_ID`: the sender id from Digipost.
+   - `DIGIPOST_PRIVATE_KEY`: the private key as PEM. From the `.p12`:
+     `openssl pkcs12 -in cert.p12 -nocerts -nodes | openssl pkey`. If the
+     secret store dislikes newlines, base64 the PEM; both forms are read.
+   - `DIGIPOST_API_URL`: defaults to the test environment,
+     `https://api.test.digipost.no`. Production must be set by name:
+     `https://api.digipost.no`.
+
+   Then turn Digipost on for one organisation on its dashboard and issue one
+   certificate to a test person. Never paste the key or a real fødselsnummer
+   into a chat, an issue or a commit.
+5. One-time Nhost setup for scheduled work. In the Hasura console, Events →
    Cron Triggers → Create:
    - Webhook: `{{NHOST_FUNCTIONS_URL}}/tick`
    - Schedule: `*/10 * * * *`
@@ -143,7 +158,7 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 
    Without it the platform still works: the sweep and the outbox also run
    when the submissions API is used.
-5. One-time Nhost setup (Settings → Auth):
+6. One-time Nhost setup (Settings → Auth):
    - **Allowed Redirect URLs** must contain every origin you use, with the
      `/login/reset` path — production, `http://localhost:3000`, and a
      wildcard for Cloudflare previews (`https://*.<project>.pages.dev/...`).

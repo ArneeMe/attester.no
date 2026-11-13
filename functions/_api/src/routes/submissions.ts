@@ -5,6 +5,10 @@ import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "../lib/apiAuth";
 import { templateBelongsToOrg } from "../lib/ownership";
 import { sweepExpiredSubmissions } from "../lib/retention";
 import { serverError } from "../lib/apiError";
+import { certificateChannel } from "../channels";
+import { toView, type DeliveryStatus } from "../delivery/deliveries";
+import { digipostEnabled, storeRecipient } from "../delivery/recipients";
+import { isValidNationalId, normalizeNationalId } from "../../../_shared/src/nationalId";
 
 // Hard cap on how much volunteer data we accept in one submission, so an
 // anonymous poster can't flood the DB with megabytes per request. Plenty
@@ -21,6 +25,8 @@ type SubmissionRow = {
     issued_at: string | null;
 };
 
+type DeliveryRow = { submission_id: string; status: DeliveryStatus; sent_at: string | null };
+
 export async function GET(
     req: Request,
     { params }: { params: Promise<{ slug: string }> },
@@ -34,7 +40,7 @@ export async function GET(
     await sweepExpiredSubmissions();
 
     try {
-        const data = await hasuraAdmin<{ submissions: SubmissionRow[] }>(
+        const data = await hasuraAdmin<{ submissions: SubmissionRow[]; deliveries: DeliveryRow[] }>(
             `query GetSubmissions($organizationId: uuid!) {
                 submissions(
                     where: { organization_id: { _eq: $organizationId } },
@@ -42,10 +48,28 @@ export async function GET(
                 ) {
                     id organization_id template_id data created_at issued_at
                 }
+                deliveries(where: { organization_id: { _eq: $organizationId } }) {
+                    submission_id status sent_at
+                }
             }`,
             { organizationId: auth.organizationId },
         );
-        return json({ submissions: data.submissions });
+        // The admin learns that a recipient exists, never the number itself.
+        const recipients = await hasuraAdmin<{ submission_recipients: Array<{ submission_id: string }> }>(
+            `query GetRecipientFlags($ids: [uuid!]!) {
+                submission_recipients(where: { submission_id: { _in: $ids } }) { submission_id }
+            }`,
+            { ids: data.submissions.map((s) => s.id) },
+        );
+        const withRecipient = new Set(recipients.submission_recipients.map((r) => r.submission_id));
+        const deliveryBySubmission = new Map(data.deliveries.map((d) => [d.submission_id, toView(d)]));
+        return json({
+            submissions: data.submissions.map((s) => ({
+                ...s,
+                has_recipient: withRecipient.has(s.id),
+                delivery: deliveryBySubmission.get(s.id) ?? null,
+            })),
+        });
     } catch (e) {
         return serverError(e, "api/org/[slug]/submissions");
     }
@@ -66,7 +90,10 @@ export async function POST(
     } catch {
         return json({ error: "Malformed JSON" }, { status: 400 });
     }
-    const { templateId, data } = parsed as { templateId?: unknown; data?: unknown };
+    const { templateId, data, nationalId } = parsed as { templateId?: unknown; data?: unknown; nationalId?: unknown };
+    if (nationalId !== undefined && (typeof nationalId !== "string" || !isValidNationalId(nationalId))) {
+        return json({ error: "Invalid national identity number", field: "nationalId" }, { status: 400 });
+    }
     if (typeof templateId !== "string" || !templateId) {
         return json({ error: "Missing templateId" }, { status: 400 });
     }
@@ -116,6 +143,12 @@ export async function POST(
             }`,
             { organizationId, templateId, data },
         );
+
+        // Kept only when the organisation offers Digipost and the platform can
+        // deliver there. Otherwise the number is dropped, not stored unused.
+        if (typeof nationalId === "string" && certificateChannel() && (await digipostEnabled(organizationId))) {
+            await storeRecipient(result.insert_submissions_one.id, normalizeNationalId(nationalId));
+        }
 
         await queueSubmissionNotice(organizationId);
         await dispatchNotices(publicOrigin(req));

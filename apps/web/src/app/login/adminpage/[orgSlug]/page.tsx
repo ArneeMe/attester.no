@@ -7,7 +7,9 @@ import { authHeader } from '@/lib/nhost';
 import {
     Button, Checkbox, Chip, FormControlLabel, Grid, Link, MenuItem, Paper, TextField, Typography
 } from '@mui/material';
-import { downloadBlob, issueCertificate, previewCertificate } from '@/app/login/adminpage/issueCertificate';
+import {
+    canReceiveDigipost, downloadBlob, issueCertificate, previewCertificate, type Delivery,
+} from '@/app/login/adminpage/issueCertificate';
 import { deleteSubmission } from "@/util/deleteSubmission";
 import ConfirmDialog from "@/util/confirmDialog";
 import SchemaDetails from '@/components/SchemaDetails';
@@ -16,6 +18,7 @@ import type { Submission } from '@attester/shared/types/submission';
 import type { FormSchema } from '@attester/shared/types/formSchema';
 import { hoursUntilDeletion } from '@attester/shared/retention';
 import { useAdminLang } from '@/util/useAdminLang';
+import DigipostSetting from './DigipostSetting';
 
 type SubmissionRow = {
     id: string;
@@ -24,6 +27,8 @@ type SubmissionRow = {
     data: Record<string, string>;
     created_at: string;
     issued_at: string | null;
+    has_recipient?: boolean;
+    delivery?: Delivery | null;
 };
 
 type FullTemplate = {
@@ -50,6 +55,8 @@ const AdminPage: React.FC = () => {
     const [batchBusy, setBatchBusy] = useState(false);
     const [openPDFDialog, setOpenPDFDialog] = useState(false);
     const [pdfUrl, setPdfUrl] = useState('');
+    const [sendDigipost, setSendDigipost] = useState(false);
+    const [digipostCheck, setDigipostCheck] = useState<'none' | 'checking' | 'yes' | 'no'>('none');
 
     const [searchText, setSearchText] = useState('');
     const [templateFilter, setTemplateFilter] = useState('');
@@ -72,6 +79,8 @@ const AdminPage: React.FC = () => {
                         data: row.data,
                         createdAt: new Date(row.created_at),
                         issuedAt: row.issued_at ? new Date(row.issued_at) : null,
+                        hasRecipient: row.has_recipient ?? false,
+                        delivery: row.delivery ?? null,
                     })));
                 } else {
                     const json = await subRes.json().catch(() => ({} as { error?: string }));
@@ -144,6 +153,14 @@ const AdminPage: React.FC = () => {
     const handleClick = (sub: Submission) => {
         setSelected(sub);
         setOpenDialog(true);
+        setSendDigipost(false);
+        setDigipostCheck('none');
+        if (sub.hasRecipient && sub.delivery?.status !== 'sent') {
+            setDigipostCheck('checking');
+            canReceiveDigipost(orgSlug, sub.id)
+                .then((ok) => { setDigipostCheck(ok ? 'yes' : 'no'); setSendDigipost(ok); })
+                .catch(() => setDigipostCheck('no'));
+        }
     };
 
     // Issuance is read straight off the submission's `issued_at` — the same
@@ -165,8 +182,15 @@ const AdminPage: React.FC = () => {
             return;
         }
         try {
-            const { blob, filename, verifyUrl } = await issueCertificate(orgSlug, selected.id);
+            const { blob, filename, verifyUrl, delivery } = await issueCertificate(
+                orgSlug, selected.id, { digipost: sendDigipost },
+            );
             markIssued(selected.id);
+            if (delivery) {
+                setSubmissions((prev) => prev.map((s) => (s.id === selected.id ? { ...s, delivery } : s)));
+                if (delivery.status === 'sent') toast.success(a.digipostSent);
+                else toast.error(a.digipostQueued);
+            }
             downloadBlob(blob, filename);
             setPdfUrl(verifyUrl);
             setOpenPDFDialog(true);
@@ -239,6 +263,7 @@ const AdminPage: React.FC = () => {
 
     return (
         <>
+            <DigipostSetting orgSlug={orgSlug} />
             <Grid container alignItems="center" spacing={2} sx={{ mb: 2 }}>
                 <Grid size={{ sm: 10 }}>
                     <Typography variant="h4" gutterBottom>{a.title}</Typography>
@@ -335,6 +360,18 @@ const AdminPage: React.FC = () => {
                                     {sub.issuedAt && (
                                         <Chip label={a.issuedChip} color="success" size="small" sx={{ mb: 0.5 }} />
                                     )}
+                                    {sub.delivery && (
+                                        <Chip
+                                            label={a.digipostChip[sub.delivery.status]}
+                                            color={sub.delivery.status === 'sent' ? 'success' : sub.delivery.status === 'failed' ? 'error' : 'warning'}
+                                            variant="outlined"
+                                            size="small"
+                                            sx={{ mb: 0.5, ml: 0.5 }}
+                                        />
+                                    )}
+                                    {!sub.delivery && sub.hasRecipient && (
+                                        <Chip label={a.digipostWanted} variant="outlined" size="small" sx={{ mb: 0.5, ml: 0.5 }} />
+                                    )}
                                     {tmpl && (
                                         <Typography variant="caption" color="text.secondary" display="block">
                                             {a.templateCaption(tmpl.name)}
@@ -383,7 +420,31 @@ const AdminPage: React.FC = () => {
                 title={a.confirmGenTitle}
                 message={a.confirmGenMsg}
                 details={selected && selectedSchema ? (
-                    <SchemaDetails schema={selectedSchema} data={selected.data} />
+                    <>
+                        <SchemaDetails schema={selectedSchema} data={selected.data} />
+                        {digipostCheck === 'checking' && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                                {a.digipostChecking}
+                            </Typography>
+                        )}
+                        {digipostCheck === 'yes' && (
+                            <FormControlLabel
+                                sx={{ mt: 1 }}
+                                control={
+                                    <Checkbox
+                                        checked={sendDigipost}
+                                        onChange={(e) => setSendDigipost(e.target.checked)}
+                                    />
+                                }
+                                label={a.digipostSend}
+                            />
+                        )}
+                        {digipostCheck === 'no' && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                                {a.digipostUnavailable}
+                            </Typography>
+                        )}
+                    </>
                 ) : null}
                 onConfirm={handleConfirm}
                 onClose={handleClose}

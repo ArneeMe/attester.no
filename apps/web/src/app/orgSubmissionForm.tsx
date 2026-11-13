@@ -1,6 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react';
-import { Box, Button, CircularProgress, Container, Grid, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Container, Grid, Paper, Stack, TextField, Typography } from '@mui/material';
 import Link from "next/link";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getOrgBySlug } from '@/lib/nhost';
@@ -13,6 +13,7 @@ import ConfirmDialog from "@/util/confirmDialog";
 import { getStrings } from '@/strings';
 import LanguageToggle from '@/components/LanguageToggle';
 import OrgLogo from '@/components/OrgLogo';
+import { isValidNationalId } from '@attester/shared/nationalId';
 
 interface Props {
     orgSlug: string;
@@ -40,6 +41,9 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
     const [chosenId, setChosenId] = useState<string | null>(templateIdOverride);
     const [loading, setLoading] = useState(true);
     const [formData, setFormData] = useState<Record<string, string>>({});
+    const [digipost, setDigipost] = useState(false);
+    const [nationalId, setNationalId] = useState('');
+    const [nationalIdError, setNationalIdError] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -54,6 +58,7 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
 
                 const [org, offeredJson] = await Promise.all([orgPromise, offeredPromise]);
                 if (org?.name) setOrgName(org.name);
+                setDigipost(org?.digipost ?? false);
 
                 const list: OfferedTemplate[] = offeredJson.templates ?? [];
                 setOffered(list);
@@ -103,6 +108,10 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
     };
 
     const handleSubmit = (data: Record<string, string>) => {
+        if (digipost && nationalId.trim() && !isValidNationalId(nationalId)) {
+            setNationalIdError(true);
+            return;
+        }
         setFormData(data);
         setOpenConfirmDialog(true);
     };
@@ -113,7 +122,11 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
             const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/submissions`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ templateId: template.id, data: formData }),
+                body: JSON.stringify({
+                    templateId: template.id,
+                    data: formData,
+                    ...(digipost && nationalId.trim() ? { nationalId: nationalId.trim() } : {}),
+                }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error ?? 'Server error');
@@ -196,7 +209,7 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
                     <Typography component="ol" variant="body2" color="text.secondary" sx={{ textAlign: 'left', pl: 3, mb: 3 }}>
                         {s.receivedSteps(orgName).map((step) => <li key={step}>{step}</li>)}
                     </Typography>
-                    <Button variant="outlined" onClick={() => { setFormData({}); setSubmitted(false); }}>
+                    <Button variant="outlined" onClick={() => { setFormData({}); setNationalId(''); setSubmitted(false); }}>
                         {s.sendAnother}
                     </Button>
                 </Paper>
@@ -231,6 +244,24 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
                 <Button variant="text" size="small" onClick={backToChooser} sx={{ px: 0, mb: 1 }}>
                     ← {s.chooseBack}
                 </Button>
+            )}
+
+            {digipost && (
+                <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                    <Typography variant="subtitle1" gutterBottom>{s.digipostTitle}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        {s.digipostBody(orgName)}
+                    </Typography>
+                    <TextField
+                        label={s.digipostLabel}
+                        value={nationalId}
+                        onChange={(e) => { setNationalId(e.target.value); setNationalIdError(false); }}
+                        error={nationalIdError}
+                        helperText={nationalIdError ? s.digipostInvalid : undefined}
+                        slotProps={{ htmlInput: { inputMode: 'numeric', autoComplete: 'off', maxLength: 13 } }}
+                        fullWidth
+                    />
+                </Paper>
             )}
 
             <SchemaForm

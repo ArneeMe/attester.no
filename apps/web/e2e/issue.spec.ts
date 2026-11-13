@@ -64,5 +64,5 @@ test('Generer PDF asks the server to issue and downloads what it returns', async
     await expect(page.getByRole('link', { name: VERIFY_URL })).toBeVisible();
     await expect(page.getByText('Utstedt', { exact: true })).toBeVisible();
     expect(issueCalls).toBe(1);
-    expect(issueBody).toBeNull();
+    expect(JSON.parse(issueBody ?? 'null')).toEqual({});
 });

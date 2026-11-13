@@ -12,6 +12,7 @@ export type OrgSummary = {
     id: string;
     slug: string;
     name: string;
+    digipost: boolean;
 };
 
 const _orgCache = new Map<string, OrgSummary>();
@@ -28,6 +29,7 @@ export async function getOrgBySlug(slug: string): Promise<OrgSummary> {
         id: json.organization.id,
         slug: json.organization.slug,
         name: json.organization.name,
+        digipost: json.digipost === true,
     };
     _orgCache.set(slug, org);
     return org;

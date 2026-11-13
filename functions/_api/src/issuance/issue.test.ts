@@ -4,6 +4,10 @@ import { canonicalHash } from "../../../_shared/src/canonicalHash";
 import { selectHashFields } from "../../../_shared/src/verifyFieldSelection";
 import { certificateInputs, osloDate, verifyUrl } from "./certificatePdf";
 import { issueCertificate, previewCertificate } from "./issue";
+import { randomBytes } from "node:crypto";
+import { useCertificateChannelForTests } from "../channels";
+import { seal } from "../lib/seal";
+import type { CertificateLetter } from "../ports";
 
 const starter = STARTER_TEMPLATES[0];
 const ORG = "11111111-1111-1111-1111-111111111111";
@@ -25,6 +29,9 @@ type Call = { query: string; variables: Record<string, unknown> };
 let calls: Call[];
 let existingCertificate: string | null;
 let submissionExists: boolean;
+let orgOffersDigipost: boolean;
+let sealedRecipient: string | null;
+let letters: CertificateLetter[];
 
 beforeEach(() => {
     process.env.HASURA_GRAPHQL_URL = "http://hasura.test/v1/graphql";
@@ -32,6 +39,15 @@ beforeEach(() => {
     calls = [];
     existingCertificate = null;
     submissionExists = true;
+    orgOffersDigipost = true;
+    sealedRecipient = null;
+    letters = [];
+    process.env.DELIVERY_KEY = randomBytes(32).toString("base64");
+    useCertificateChannelForTests({
+        name: "digipost",
+        canReceive: async () => true,
+        deliver: async (letter) => void letters.push(letter),
+    });
     vi.stubGlobal("fetch", async (_input: unknown, init?: RequestInit) => {
         const call = JSON.parse(String(init?.body)) as Call;
         calls.push(call);
@@ -41,6 +57,7 @@ beforeEach(() => {
                     submissions: submissionExists ? [{ data, template_id: TMPL }] : [],
                     org_assets: [],
                     certificates: existingCertificate ? [{ id: existingCertificate }] : [],
+                    organizations: [{ name: "Echo" }],
                 },
             });
         }
@@ -48,11 +65,35 @@ beforeEach(() => {
         if (call.query.includes("InsertCertificate")) {
             return Response.json({ data: { insert_certificates_one: { id: "cert-1" }, update_submissions_by_pk: { id: SUB } } });
         }
+        if (call.query.includes("OrgDigipost")) {
+            return Response.json({ data: { org_settings: [{ digipost_enabled: orgOffersDigipost }] } });
+        }
+        if (call.query.includes("LoadRecipient")) {
+            return Response.json({ data: { submission_recipients: sealedRecipient ? [{ national_id_enc: sealedRecipient }] : [] } });
+        }
+        if (call.query.includes("ExistingDelivery")) return Response.json({ data: { deliveries: [] } });
+        if (call.query.includes("mutation QueueDelivery")) {
+            return Response.json({
+                data: {
+                    insert_deliveries_one: {
+                        id: "del-1", submission_id: SUB, status: "queued", payload: call.variables.payload,
+                        attempts: 0, sent_at: null, expires_at: call.variables.expiresAt,
+                    },
+                },
+            });
+        }
+        if (call.query.includes("FinishDelivery") || call.query.includes("DeleteRecipient")) {
+            return Response.json({ data: {} });
+        }
         throw new Error("unexpected query");
     });
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+    vi.unstubAllGlobals();
+    useCertificateChannelForTests(undefined);
+    delete process.env.DELIVERY_KEY;
+});
 
 const request = { organizationId: ORG, orgSlug: "echo", submissionId: SUB, userId: "user-1", origin: "https://attester.no" };
 const isPdf = (bytes: Uint8Array) => Buffer.from(bytes.slice(0, 5)).toString() === "%PDF-";
@@ -123,6 +164,44 @@ describe("issueCertificate", () => {
         const result = await issueCertificate({ ...request, submissionId: "x" });
         expect(result.ok).toBe(false);
         expect(calls).toHaveLength(0);
+    });
+});
+
+describe("issueCertificate with Digipost delivery", () => {
+    it("issues, sends the same PDF to Digipost and reports it sent", async () => {
+        sealedRecipient = seal("01018099912");
+        const result = await issueCertificate({ ...request, deliver: "digipost" });
+        if (!result.ok) throw new Error(result.error);
+        expect(result.delivery).toMatchObject({ channel: "digipost", status: "sent" });
+        expect(letters).toHaveLength(1);
+        expect(letters[0].nationalId).toBe("01018099912");
+        expect(letters[0].subject).toBe("Attest fra Echo");
+        expect(Buffer.from(letters[0].pdf).equals(Buffer.from(result.pdf))).toBe(true);
+        expect(calls.some((c) => c.query.includes("InsertCertificate"))).toBe(true);
+        expect(calls.some((c) => c.query.includes("DeleteRecipient"))).toBe(true);
+    });
+
+    it("registers nothing when the submission has no recipient", async () => {
+        const result = await issueCertificate({ ...request, deliver: "digipost" });
+        expect(result).toMatchObject({ ok: false, status: 409 });
+        expect(calls.some((c) => c.query.includes("mutation"))).toBe(false);
+    });
+
+    it("registers nothing when the organisation has not turned Digipost on", async () => {
+        orgOffersDigipost = false;
+        sealedRecipient = seal("01018099912");
+        const result = await issueCertificate({ ...request, deliver: "digipost" });
+        expect(result).toMatchObject({ ok: false, status: 409 });
+        expect(calls.some((c) => c.query.includes("mutation"))).toBe(false);
+        expect(letters).toHaveLength(0);
+    });
+
+    it("leaves Digipost alone on a plain issue", async () => {
+        sealedRecipient = seal("01018099912");
+        const result = await issueCertificate(request);
+        if (!result.ok) throw new Error(result.error);
+        expect(result.delivery).toBeNull();
+        expect(letters).toHaveLength(0);
     });
 });
 

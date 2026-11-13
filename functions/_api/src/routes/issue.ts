@@ -11,6 +11,11 @@ export async function POST(
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof Response) return auth;
 
+    const body = (await req.json().catch(() => null)) as { deliver?: unknown } | null;
+    if (body?.deliver !== undefined && body.deliver !== "digipost") {
+        return json({ error: "Unknown delivery channel" }, { status: 400 });
+    }
+
     try {
         const result = await issueCertificate({
             organizationId: auth.organizationId,
@@ -18,11 +23,13 @@ export async function POST(
             submissionId: id,
             userId: auth.userId,
             origin: publicOrigin(req),
+            deliver: body?.deliver === "digipost" ? "digipost" : undefined,
         });
         if (!result.ok) return json({ error: result.error }, { status: result.status });
         return json({
             id: result.certificateId,
             alreadyIssued: result.alreadyIssued,
+            delivery: result.delivery,
             filename: result.filename,
             verifyUrl: result.verifyUrl,
             pdf: Buffer.from(result.pdf).toString("base64"),
