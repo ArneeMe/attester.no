@@ -35,6 +35,7 @@ means the token is missing or expired.
 | 401 | `{ "error": "Invalid session" }` | Sign in or refresh |
 | 403 | `{ "error": "Forbidden" }` | Signed in, but not a member of this organisation |
 | 404 | `{ "error": "..." }` | No such thing, or not in this organisation |
+| 429 | `{ "error": "..." }` | A limit is reached: the queue is full, or the day's Digipost letters are used |
 | 500, 502 | `{ "code": "server_error" }` | Our fault. Nothing more is said on purpose |
 
 ## What an admin app needs
@@ -51,7 +52,7 @@ All of these require membership of the organisation in the path.
 | `POST /org/:slug/submissions/:id/issue` | Issue the certificate. See below |
 | `DELETE /org/:slug/submissions/:id` | Delete a submission and its data |
 | `GET /org/:slug/certificates` | Issued certificates: ids, times and who issued. No personal data |
-| `GET /org/:slug/settings`, `PATCH` | `{ digipostAvailable, digipostEnabled }` |
+| `GET /org/:slug/settings` | `{ digipostAvailable, digipostEnabled }`. Only the platform owner can change it |
 
 ### The queue
 
@@ -117,7 +118,7 @@ POST /org/:slug/submissions/:id/issue
 | `GET /org/:slug/branding` | Logo for the public pages |
 | `GET /org/:slug/offered-templates` | The certificate types a volunteer can choose |
 | `GET /org/:slug/templates/:id` | One template's `form_schema`, for the form and the verify page |
-| `POST /org/:slug/submissions` | A volunteer's submission: `{ templateId, data, nationalId? }`. `data` is a flat map of strings |
+| `POST /org/:slug/submissions` | A volunteer's submission: `{ templateId, data, nationalId? }`. `data` is a flat map of strings and may only hold keys the template's form declares |
 | `GET /org/:slug/certificates/verify?submissionId=` | `{ hash, template_id }` for the verify page |
 | `POST /org-requests` | An organisation asking to be set up |
 

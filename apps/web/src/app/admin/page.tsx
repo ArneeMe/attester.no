@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
     Box, Button, CircularProgress, List, ListItem, ListItemText,
-    Paper, TextField, Typography,
+    Paper, Switch, TextField, Tooltip, Typography,
 } from '@mui/material';
 import { authHeader } from '@/lib/nhost';
 import { useAuth } from '@/util/auth';
@@ -16,7 +16,7 @@ import OrgRequests from './OrgRequests';
 import Shell from '@/components/landing/SignedInShell';
 import { headerLink } from '@/components/landing/SiteHeader';
 
-type Org = { id: string; slug: string; name: string };
+type Org = { id: string; slug: string; name: string; digipostEnabled?: boolean };
 
 const PlatformAdminPage: React.FC = () => {
     const user = useAuth();
@@ -32,6 +32,7 @@ const PlatformAdminPage: React.FC = () => {
     const [name, setName] = useState('');
     const [adminEmail, setAdminEmail] = useState('');
     const [busy, setBusy] = useState(false);
+    const [digipostAvailable, setDigipostAvailable] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -47,6 +48,7 @@ const PlatformAdminPage: React.FC = () => {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
             setOrgs(json.organizations);
+            setDigipostAvailable(json.digipostAvailable === true);
         } catch (e) {
             toast.error(`${a.loadError}: ${(e as Error).message}`);
             setOrgs([]);
@@ -58,6 +60,20 @@ const PlatformAdminPage: React.FC = () => {
         if (user === null) router.replace('/login');
         if (user) load();
     }, [user, router, load]);
+
+    const setDigipost = async (orgSlug: string, enabled: boolean) => {
+        try {
+            const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/settings`, {
+                method: 'PATCH',
+                headers: { 'content-type': 'application/json', ...authHeader() },
+                body: JSON.stringify({ digipostEnabled: enabled }),
+            });
+            if (!res.ok) throw new Error();
+            setOrgs((prev) => (prev ?? []).map((o) => (o.slug === orgSlug ? { ...o, digipostEnabled: enabled } : o)));
+        } catch {
+            toast.error(a.digipostError);
+        }
+    };
 
     const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -180,7 +196,19 @@ const PlatformAdminPage: React.FC = () => {
                         <ListItem
                             key={org.id}
                             secondaryAction={
-                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                    {digipostAvailable && (
+                                        <Tooltip title={a.digipostHelp}>
+                                            <Box component="label" sx={{ display: 'flex', alignItems: 'center' }}>
+                                                <Typography variant="body2">{a.digipostLabel}</Typography>
+                                                <Switch
+                                                    size="small"
+                                                    checked={org.digipostEnabled ?? false}
+                                                    onChange={(e) => setDigipost(org.slug, e.target.checked)}
+                                                />
+                                            </Box>
+                                        </Tooltip>
+                                    )}
                                     <Button size="small" component={Link} href={`/org/${org.slug}`} target="_blank">
                                         {a.formLink}
                                     </Button>

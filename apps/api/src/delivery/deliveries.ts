@@ -6,6 +6,8 @@ import { deleteRecipient } from "./recipients";
 // How long a letter may wait in the queue. After this the PDF and the
 // recipient are erased whether or not it was sent.
 export const DELIVERY_TTL_HOURS = 24;
+// Each letter costs attester.no money and carries its name.
+export const DIGIPOST_DAILY_LIMIT = 100;
 const MAX_ATTEMPTS = 5;
 const BATCH = 10;
 
@@ -166,4 +168,16 @@ export async function processDeliveries(now: Date = new Date()): Promise<number>
 
 export function toView(row: Pick<Row, "status" | "sent_at">): DeliveryView {
     return { channel: "digipost", status: row.status, sentAt: row.sent_at };
+}
+
+export async function deliveriesLastDay(organizationId: string, now: Date = new Date()): Promise<number> {
+    const data = await hasuraAdmin<{ deliveries_aggregate: { aggregate: { count: number } } }>(
+        `query DeliveriesLastDay($organizationId: uuid!, $since: timestamptz!) {
+            deliveries_aggregate(where: { organization_id: { _eq: $organizationId }, created_at: { _gte: $since } }) {
+                aggregate { count }
+            }
+        }`,
+        { organizationId, since: new Date(now.getTime() - 24 * 3600_000).toISOString() },
+    );
+    return data.deliveries_aggregate.aggregate.count;
 }

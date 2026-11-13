@@ -5,6 +5,8 @@ import { getUserByEmail } from "../lib/authUsers";
 import { createOrganizationWithMember, slugIsTaken } from "../lib/createOrg";
 import { MAX_NAME_LEN, MAX_SLUG_LEN, SLUG_RE } from "@attester/shared/orgRequest";
 import { serverError } from "../lib/apiError";
+import { certificateChannel } from "../channels";
+import { isEmail } from "../lib/input";
 
 export async function GET(req: Request) {
     const auth = await requirePlatformAdmin(req);
@@ -13,12 +15,18 @@ export async function GET(req: Request) {
     try {
         const data = await hasuraAdmin<{
             organizations: Array<{ id: string; slug: string; name: string }>;
+            org_settings: Array<{ organization_id: string }>;
         }>(
             `query AdminListOrgs {
                 organizations(order_by: { slug: asc }) { id slug name }
+                org_settings(where: { digipost_enabled: { _eq: true } }) { organization_id }
             }`,
         );
-        return json({ organizations: data.organizations });
+        const withDigipost = new Set(data.org_settings.map((s) => s.organization_id));
+        return json({
+            digipostAvailable: !!certificateChannel(),
+            organizations: data.organizations.map((o) => ({ ...o, digipostEnabled: withDigipost.has(o.id) })),
+        });
     } catch (e) {
         return serverError(e, "api/admin/orgs");
     }
@@ -38,7 +46,7 @@ export async function POST(req: Request) {
     if (typeof name !== "string" || !name.trim() || name.length > MAX_NAME_LEN) {
         return json({ error: "Ugyldig navn" }, { status: 400 });
     }
-    if (typeof adminEmail !== "string" || !adminEmail.includes("@")) {
+    if (!isEmail(adminEmail)) {
         return json({ error: "Ugyldig e-postadresse for første medlem" }, { status: 400 });
     }
 

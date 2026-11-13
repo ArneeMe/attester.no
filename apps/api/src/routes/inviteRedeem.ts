@@ -51,6 +51,10 @@ export async function POST(req: Request) {
             );
         }
 
+        if (!user.emailVerified) {
+            return json({ error: "Bekreft e-postadressen din før du bruker invitasjonen" }, { status: 403 });
+        }
+
         const existing = await hasuraAdmin<{ user_organizations: Array<{ user_id: string }> }>(
             `query AlreadyMember($userId: uuid!, $organizationId: uuid!) {
                 user_organizations(where: {

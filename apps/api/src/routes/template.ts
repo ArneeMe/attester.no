@@ -6,6 +6,7 @@ import { templateBelongsToOrg } from "../lib/ownership";
 import type { FormFieldSchema, FormSchema } from "@attester/shared/types/formSchema";
 import type { LookupListContent } from "@attester/shared/types/orgAssets";
 import { serverError } from "../lib/apiError";
+import { isUuid, readJsonObject } from "../lib/input";
 
 /**
  * Public lookup of a template's display metadata. The verify page calls this
@@ -25,6 +26,7 @@ export async function GET(
     { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
     const { slug, id } = await params;
+    if (!isUuid(id)) return json({ error: "Not found" }, { status: 404 });
 
     try {
         const organizationId = await resolveOrgIdBySlug(slug);
@@ -72,6 +74,7 @@ export async function PATCH(
     { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
     const { slug, id } = await params;
+    if (!isUuid(id)) return json({ error: "Not found" }, { status: 404 });
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof Response) return auth;
 
@@ -79,7 +82,7 @@ export async function PATCH(
         return json({ error: "Template not found" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await readJsonObject(req);
     if (typeof body.isOffered !== "boolean") {
         return json({ error: "isOffered (boolean) is required" }, { status: 400 });
     }
@@ -120,6 +123,7 @@ export async function DELETE(
     { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
     const { slug, id } = await params;
+    if (!isUuid(id)) return json({ error: "Not found" }, { status: 404 });
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof Response) return auth;
 

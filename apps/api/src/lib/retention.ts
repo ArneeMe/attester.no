@@ -15,6 +15,10 @@ import { retentionCutoffIso } from "@attester/shared/retention";
  * unissued rows is the admin's explicit action ("Slett data"). Do not
  * "simplify" this back to a created_at comparison.
  *
+ * The same pass erases the sealed PDF and recipient of any delivery that has
+ * waited past its time limit, so that limit holds even when the scheduler
+ * is off or the process has been asleep.
+ *
  * Deliberately org-UNscoped: this is a platform privacy guarantee, not a
  * tenant feature, and it only ever deletes. Never throws — an expired-row
  * sweep must not break the request that triggered it.
@@ -22,7 +26,7 @@ import { retentionCutoffIso } from "@attester/shared/retention";
 export async function sweepExpiredSubmissions(): Promise<void> {
     try {
         await hasuraAdmin(
-            `mutation SweepExpired($cutoff: timestamptz!) {
+            `mutation SweepExpired($cutoff: timestamptz!, $now: timestamptz!) {
                 delete_submissions(where: {
                     _and: [
                         { issued_at: { _is_null: false } },
@@ -31,8 +35,14 @@ export async function sweepExpiredSubmissions(): Promise<void> {
                 }) {
                     affected_rows
                 }
+                update_deliveries(
+                    where: { status: { _eq: "queued" }, expires_at: { _lt: $now } },
+                    _set: { status: "failed", payload: null }
+                ) {
+                    affected_rows
+                }
             }`,
-            { cutoff: retentionCutoffIso() },
+            { cutoff: retentionCutoffIso(), now: new Date().toISOString() },
         );
     } catch (e) {
         console.error("Retention sweep failed:", (e as Error).message);

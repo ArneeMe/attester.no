@@ -29,7 +29,7 @@ export function unseal(sealed: string): string {
     if (!k) throw new Error("DELIVERY_KEY not configured");
     const [version, iv, tag, body] = sealed.split(".");
     if (version !== "v1" || !iv || !tag || !body) throw new Error("Unknown sealed format");
-    const decipher = createDecipheriv("aes-256-gcm", k, Buffer.from(iv, "base64"));
+    const decipher = createDecipheriv("aes-256-gcm", k, Buffer.from(iv, "base64"), { authTagLength: 16 });
     decipher.setAuthTag(Buffer.from(tag, "base64"));
     return Buffer.concat([decipher.update(Buffer.from(body, "base64")), decipher.final()]).toString("utf8");
 }

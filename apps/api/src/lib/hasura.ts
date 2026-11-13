@@ -8,6 +8,7 @@ export async function hasuraAdmin<T = unknown>(query: string, variables?: Record
             "x-hasura-admin-secret": adminSecret(),
         },
         body: JSON.stringify({ query, variables }),
+        signal: AbortSignal.timeout(10_000),
     });
     const json = await res.json();
     if (json.errors?.length) throw new Error(json.errors[0].message);

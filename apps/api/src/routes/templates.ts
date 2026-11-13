@@ -5,6 +5,9 @@ import { clearOfferedForName } from "../lib/templateOffering";
 import type { FormSchema } from "@attester/shared/types/formSchema";
 import type { FieldBindings } from "@attester/shared/types/fieldBindings";
 import { serverError } from "../lib/apiError";
+import { readJsonObject } from "../lib/input";
+import { validateTemplateForSave } from "@attester/shared/validateTemplate";
+import type { Template } from "@pdfme/common";
 
 type TemplateRow = {
     id: string;
@@ -50,6 +53,7 @@ const MAX_BASE_PDF_LEN = 5 * 1024 * 1024;
 const MAX_TEMPLATE_NAME_LEN = 200;
 const MAX_TEMPLATE_DESC_LEN = 2000;
 const MAX_SCHEMAS_JSON_LEN = 2 * 1024 * 1024;
+const MAX_FORM_JSON_LEN = 256 * 1024;
 
 export async function POST(
     req: Request,
@@ -59,8 +63,9 @@ export async function POST(
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof Response) return auth;
 
-    const { name, description, basePdf, schemas, formSchema, fieldBindings, isOffered } = await req.json();
-    if (typeof name !== "string" || !name.trim()) {
+    const { name: rawName, description, basePdf, schemas, formSchema, fieldBindings, isOffered } = await readJsonObject(req);
+    const name = typeof rawName === "string" ? rawName.trim() : rawName;
+    if (typeof name !== "string" || !name) {
         return json({ error: "Missing or invalid name" }, { status: 400 });
     }
     if (name.length > MAX_TEMPLATE_NAME_LEN) {
@@ -94,6 +99,18 @@ export async function POST(
             return json({ error: "fieldBindings must be an object" }, { status: 400 });
         }
     }
+    if (JSON.stringify(formSchema ?? null).length + JSON.stringify(fieldBindings ?? null).length > MAX_FORM_JSON_LEN) {
+        return json({ error: "formSchema and fieldBindings are too large" }, { status: 413 });
+    }
+    if (typeof isOffered !== "boolean" && isOffered !== undefined) {
+        return json({ error: "isOffered must be true or false" }, { status: 400 });
+    }
+    // The designer runs the same check, but a browser can be bypassed. This
+    // is what guarantees every template has a QR code and the platform mark.
+    const problems = validateTemplateForSave({ basePdf, schemas } as Template);
+    if (problems.length > 0) {
+        return json({ error: problems[0] }, { status: 400 });
+    }
 
     try {
         const data = await hasuraAdmin<{
@@ -125,7 +142,7 @@ export async function POST(
         if (isOffered) {
             await clearOfferedForName(
                 auth.organizationId,
-                name.trim(),
+                name,
                 data.insert_templates_one.id,
             );
         }

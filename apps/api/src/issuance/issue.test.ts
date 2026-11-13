@@ -31,6 +31,7 @@ let existingCertificate: string | null;
 let submissionExists: boolean;
 let orgOffersDigipost: boolean;
 let sealedRecipient: string | null;
+let deliveriesToday: number;
 let letters: CertificateLetter[];
 
 beforeEach(() => {
@@ -41,6 +42,7 @@ beforeEach(() => {
     submissionExists = true;
     orgOffersDigipost = true;
     sealedRecipient = null;
+    deliveriesToday = 0;
     letters = [];
     process.env.DELIVERY_KEY = randomBytes(32).toString("base64");
     useCertificateChannelForTests({
@@ -72,6 +74,9 @@ beforeEach(() => {
             return Response.json({ data: { submission_recipients: sealedRecipient ? [{ national_id_enc: sealedRecipient }] : [] } });
         }
         if (call.query.includes("ExistingDelivery")) return Response.json({ data: { deliveries: [] } });
+        if (call.query.includes("DeliveriesLastDay")) {
+            return Response.json({ data: { deliveries_aggregate: { aggregate: { count: deliveriesToday } } } });
+        }
         if (call.query.includes("mutation QueueDelivery")) {
             return Response.json({
                 data: {
@@ -192,6 +197,15 @@ describe("issueCertificate with Digipost delivery", () => {
         sealedRecipient = seal("01018099912");
         const result = await issueCertificate({ ...request, deliver: "digipost" });
         expect(result).toMatchObject({ ok: false, status: 409 });
+        expect(calls.some((c) => c.query.includes("mutation"))).toBe(false);
+        expect(letters).toHaveLength(0);
+    });
+
+    it("stops at the daily limit before registering or sending anything", async () => {
+        sealedRecipient = seal("01018099912");
+        deliveriesToday = 100;
+        const result = await issueCertificate({ ...request, deliver: "digipost" });
+        expect(result).toMatchObject({ ok: false, status: 429 });
         expect(calls.some((c) => c.query.includes("mutation"))).toBe(false);
         expect(letters).toHaveLength(0);
     });

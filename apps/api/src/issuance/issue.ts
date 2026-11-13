@@ -9,7 +9,9 @@ import {
     type CertificateTemplate,
 } from "./certificatePdf";
 import { certificateChannel } from "../channels";
-import { attemptDelivery, queueDelivery, toView, type DeliveryView } from "../delivery/deliveries";
+import {
+    attemptDelivery, deliveriesLastDay, DIGIPOST_DAILY_LIMIT, queueDelivery, toView, type DeliveryView,
+} from "../delivery/deliveries";
 import { digipostEnabled, loadRecipient } from "../delivery/recipients";
 
 export type IssueRequest = {
@@ -138,6 +140,9 @@ export async function issueCertificate(req: IssueRequest): Promise<IssueResult> 
     if (req.deliver === "digipost") {
         if (!certificateChannel() || !(await digipostEnabled(req.organizationId))) {
             return { ok: false, status: 409, error: "Digipost delivery is not available for this organization" };
+        }
+        if ((await deliveriesLastDay(req.organizationId)) >= DIGIPOST_DAILY_LIMIT) {
+            return { ok: false, status: 429, error: "Daily Digipost limit reached for this organization" };
         }
         nationalId = await loadRecipient(req.submissionId);
         if (!nationalId) {

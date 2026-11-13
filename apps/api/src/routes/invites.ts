@@ -3,6 +3,7 @@ import { hasuraAdmin } from "../lib/hasura";
 import { requireOrgMemberBySlug } from "../lib/apiAuth";
 import { sendInviteEmail } from "../lib/notify";
 import { serverError } from "../lib/apiError";
+import { isEmail } from "../lib/input";
 
 export async function POST(
     req: Request,
@@ -13,7 +14,7 @@ export async function POST(
     if (auth instanceof Response) return auth;
 
     const { email } = await req.json().catch(() => ({} as { email?: unknown }));
-    if (typeof email !== "string" || !email.includes("@")) {
+    if (!isEmail(email)) {
         return json({ error: "Ugyldig e-postadresse" }, { status: 400 });
     }
     const normalized = email.trim().toLowerCase();

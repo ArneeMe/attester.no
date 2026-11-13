@@ -180,6 +180,66 @@ Steps 1, 2, 4, 5, 6 and 7 are on `develop`. Not done:
   tested against fakes. The first live run is the real test of the function
   bundle, the proxy, email and the Digipost signature.
 
+### Security audit (2026-11-13)
+
+An independent read of the API found no broken tenancy, no route missing its
+auth check and no query built from input. What it did find is fixed on
+`develop`: Digipost could be self-granted by an organisation, a submission
+could carry hidden fields, an unverified email could inherit rights, and
+several requests could exhaust the one shared process.
+
+Left open on purpose, each needing a decision or more than a small fix:
+
+- **The Cloudflare adapter is end of life.** `@cloudflare/next-on-pages` caps
+  Next at 15.5.2, which has a critical flaw. Next is now 15.5.29 and the
+  Pages build still works, with a peer warning. Move to the OpenNext adapter.
+- **`pdfjs-dist` under pdfme 5** has a known flaw where a malicious PDF runs
+  script when opened. It is only reached when an admin loads a PDF into the
+  designer in their own browser. The fix is pdfme 6, a major upgrade that
+  needs the designer and every template re-tested.
+- **Unissued submissions keep a sealed fødselsnummer as long as they wait.**
+  A time limit on the number alone (say 30 days) would close this without
+  touching the rule that unissued submissions are never swept.
+- **Lists are unpaged.** The submissions list, and the templates list with
+  every revision's PDF, grow without bound. The queue ceiling limits the
+  first. The second needs the list to stop returning `base_pdf`, which
+  touches three admin pages.
+- **A wrong fødselsnummer sends a certificate to the wrong person.** The
+  check digits catch typing errors, not someone entering another person's
+  number. The admin reviews the request but cannot see the number. Showing
+  the name Digipost has for the recipient before sending would close it.
+- **Members can add any existing account without its consent**, and the
+  answer reveals whether an email has an account. Invites already do this
+  job properly. Removing the direct add is a UI change.
+- **Two members removing each other at the same moment** can leave an
+  organisation with none. The platform owner can repair it.
+- **No rate limit.** The ceilings above bound the damage. Real limiting
+  belongs at the edge (Cloudflare) in front of both web and API.
+
+### Next steps, in the order they pay off
+
+1. **Go live on the new structure.** Deploy the API container, point
+   Cloudflare Pages at `apps/web`, run the migrations, then do one full pass
+   against the real services: sign in, submit, issue, verify on paper, one
+   email, one Digipost letter with the test certificate.
+2. **Error tracking.** Still the biggest blind spot. The API is now one
+   long-running process, so Sentry or a `platform_errors` table is a small
+   job. Store route and error kind only, never a request body.
+3. **Replace the Cloudflare adapter** with OpenNext, so Next can follow its
+   security releases without a peer warning.
+4. **Database changes in git.** Run `nhost init --remote` once, commit the
+   result, and let migrations and tracking deploy with the code. Four tables
+   were added by hand this round; that does not scale.
+5. **Tell the volunteer what happened.** The last silence: nothing reaches
+   the person who asked. Digipost delivery covers those who chose it. For the
+   rest, a status page behind the submission id needs no address at all.
+6. **A pending count in the org nav**, for admins without email notices.
+7. **The mobile app** against `docs/API.md`. Paging the submissions list and
+   slimming the templates list should come first, for its sake.
+8. **pdfme 6**, with the designer and all templates re-tested.
+9. **Hash v2** when a reason to touch certificates appears: escape the
+   separator and tag the version, as CLAUDE.md describes.
+
 ### Owner actions the code cannot do
 
 - Run the two new migrations and track their tables (`notices`,

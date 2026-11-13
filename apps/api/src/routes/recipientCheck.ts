@@ -2,6 +2,7 @@ import { json } from "../http";
 import { requireOrgMemberBySlug } from "../lib/apiAuth";
 import { submissionBelongsToOrg } from "../lib/ownership";
 import { serverError } from "../lib/apiError";
+import { isUuid } from "../lib/input";
 import { certificateChannel } from "../channels";
 import { digipostEnabled, loadRecipient } from "../delivery/recipients";
 
@@ -14,6 +15,7 @@ export async function POST(
     { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
     const { slug, id } = await params;
+    if (!isUuid(id)) return json({ error: "Not found" }, { status: 404 });
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof Response) return auth;
 

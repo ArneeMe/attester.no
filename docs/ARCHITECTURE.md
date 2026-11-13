@@ -183,8 +183,9 @@ time. Reliability comes from the row, not from a send succeeding:
 attester.no is the sender, on behalf of the organisation. The letter's
 subject names the organisation.
 
-1. An org admin turns it on (`org_settings.digipost_enabled`, the switch on
-   the dashboard, shown only when the platform has Digipost configured).
+1. The platform owner turns it on for an organisation at `/admin`
+   (`org_settings.digipost_enabled`). An organisation cannot grant it to
+   itself, and `DIGIPOST_DAILY_LIMIT` caps its letters per day.
 2. The public form then shows an optional fødselsnummer field. It is posted
    beside `data`, validated (`packages/shared/src/nationalId.ts`) and
    stored sealed in `submission_recipients`. If the org has not turned
@@ -217,6 +218,23 @@ that, at worst a notice email is sent twice.
 ## Security model
 
 - **Server is the only boundary.** Client-side guards are UX, not security.
+  That includes the template rules: the API runs `validateTemplateForSave`
+  itself, so a template without a QR code or the platform mark cannot be
+  stored by skipping the designer.
+- **A submission may only carry the fields its form declares.** The reviewer
+  sees the form's fields and nothing else, so an extra key would be hidden
+  from them while still able to fill an unbound PDF field or break the hash.
+  The POST rejects unknown keys. Do not loosen this to "ignore unknown keys".
+- **Ids are checked to be uuids before they reach Hasura** (`lib/input.ts`).
+  Hasura quotes a malformed uuid back in its error and errors are logged, so
+  this keeps caller-chosen text out of the log.
+- **Email addresses count only when verified.** The platform-admin allowlist
+  and invite redemption both require `emailVerified`. Otherwise whoever first
+  registers someone else's address inherits its rights.
+- **Bounded everywhere a stranger can write.** Anonymous bodies are capped at
+  128 KB before a route sees them, an organisation's unissued queue at 2,000
+  rows and pending organisation requests at 100. Hasura calls time out after
+  ten seconds.
 - Every org-scoped route calls `requireOrgMemberBySlug` (`apps/api/src/lib/apiAuth.ts`):
   verify JWT → resolve slug → check `user_organizations`. Object ownership is
   double-checked (`apps/api/src/lib/ownership.ts`) when ids come from the client.
