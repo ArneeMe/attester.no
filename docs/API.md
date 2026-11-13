@@ -47,8 +47,9 @@ All of these require membership of the organisation in the path.
 | Call | Purpose |
 |---|---|
 | `GET /me/organizations` | The organisations the signed-in user administers: `{ organizations: [{ id, slug, name, role }] }` |
-| `GET /org/:slug/submissions` | The queue. See below |
-| `GET /org/:slug/templates` | Templates with `form_schema`, to label a submission's fields |
+| `GET /org/:slug/submissions?limit=&offset=` | The queue, a page at a time. See below |
+| `GET /org/:slug/templates` | Templates with `form_schema`, to label a submission's fields. Light: no PDF and no layout |
+| `GET /org/:slug/templates/:id/full` | One template with its PDF and layout. Megabytes; only a designer needs it |
 | `POST /org/:slug/submissions/:id/preview` | The PDF with a watermark. Registers nothing |
 | `POST /org/:slug/submissions/:id/recipient-check` | `{ canReceive }`: can this one be sent to Digipost |
 | `POST /org/:slug/submissions/:id/issue` | Issue the certificate. See below |
@@ -60,6 +61,7 @@ All of these require membership of the organisation in the path.
 
 ```json
 {
+  "total": 1,
   "submissions": [
     {
       "id": "uuid",
@@ -75,6 +77,8 @@ All of these require membership of the organisation in the path.
 }
 ```
 
+- Oldest first. `limit` defaults to 200 and is at most 500. `total` is the
+  whole queue, so keep asking with a higher `offset` until you have it all.
 - `issued_at` set means the certificate is issued. The submission is deleted
   24 hours after that, so it disappears from this list.
 - `has_recipient` means the volunteer asked for Digipost. The fødselsnummer

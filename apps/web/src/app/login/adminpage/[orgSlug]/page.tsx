@@ -37,6 +37,8 @@ type FullTemplate = {
     form_schema: FormSchema | null;
 };
 
+const PAGE_SIZE = 500;
+
 const AdminPage: React.FC = () => {
     const { orgSlug } = useParams<{ orgSlug: string }>();
     const { strings } = useAdminLang();
@@ -65,14 +67,27 @@ const AdminPage: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
+                const page = (offset: number) =>
+                    fetch(
+                        `/api/v1/org/${encodeURIComponent(orgSlug)}/submissions?limit=${PAGE_SIZE}&offset=${offset}`,
+                        { headers: authHeader() },
+                    );
                 const [subRes, tmplRes] = await Promise.all([
-                    fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/submissions`, { headers: authHeader() }),
+                    page(0),
                     fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/templates`, { headers: authHeader() }),
                 ]);
 
                 if (subRes.ok) {
-                    const json = await subRes.json() as { submissions: SubmissionRow[] };
-                    setSubmissions((json.submissions ?? []).map((row): Submission => ({
+                    const json = await subRes.json() as { submissions: SubmissionRow[]; total?: number };
+                    const rows = json.submissions ?? [];
+                    while (rows.length < (json.total ?? 0)) {
+                        const more = await page(rows.length);
+                        if (!more.ok) break;
+                        const next = ((await more.json()) as { submissions: SubmissionRow[] }).submissions ?? [];
+                        if (next.length === 0) break;
+                        rows.push(...next);
+                    }
+                    setSubmissions(rows.map((row): Submission => ({
                         id: row.id,
                         organizationId: row.organization_id,
                         templateId: row.template_id,

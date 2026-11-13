@@ -1,5 +1,5 @@
 import { authHeader } from '@/lib/nhost';
-import type { PDFTemplate } from '@attester/shared/types/templateTypes';
+import type { PDFTemplate, TemplateSummary } from '@attester/shared/types/templateTypes';
 import type { FormSchema } from '@attester/shared/types/formSchema';
 import type { FieldBindings } from '@attester/shared/types/fieldBindings';
 import type { Template } from '@pdfme/common';
@@ -19,18 +19,39 @@ type TemplateRow = {
     updated_at: string;
 };
 
-export async function getTemplates(orgSlug: string): Promise<PDFTemplate[]> {
+const fromRow = (row: TemplateRow): PDFTemplate => ({
+    id: row.id,
+    name: row.name,
+    description: row.description ?? undefined,
+    basePdf: row.base_pdf,
+    schemas: row.schemas,
+    formSchema: row.form_schema ?? undefined,
+    fieldBindings: row.field_bindings ?? undefined,
+    isOffered: row.is_offered,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+});
+
+export async function getFullTemplate(orgSlug: string, templateId: string): Promise<PDFTemplate> {
+    const res = await fetch(
+        `/api/v1/org/${encodeURIComponent(orgSlug)}/templates/${encodeURIComponent(templateId)}/full`,
+        { headers: authHeader() },
+    );
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? 'Failed to load template');
+    return fromRow(json.template as TemplateRow);
+}
+
+export async function getTemplates(orgSlug: string): Promise<TemplateSummary[]> {
     const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/templates`, {
         headers: authHeader(),
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error ?? 'Failed to load templates');
-    return (json.templates as TemplateRow[]).map((row) => ({
+    return (json.templates as Array<Omit<TemplateRow, 'base_pdf' | 'schemas'>>).map((row) => ({
         id: row.id,
         name: row.name,
         description: row.description ?? undefined,
-        basePdf: row.base_pdf,
-        schemas: row.schemas,
         formSchema: row.form_schema ?? undefined,
         fieldBindings: row.field_bindings ?? undefined,
         isOffered: row.is_offered,

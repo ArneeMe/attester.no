@@ -28,6 +28,7 @@ import * as settings from "./routes/settings";
 import * as submission from "./routes/submission";
 import * as submissions from "./routes/submissions";
 import * as template from "./routes/template";
+import * as templateFull from "./routes/templateFull";
 import * as templates from "./routes/templates";
 
 const router = new Router()
@@ -48,6 +49,7 @@ const router = new Router()
     .add("/org/:slug/assets/:id", asset)
     .add("/org/:slug/templates", templates)
     .add("/org/:slug/templates/:id", template)
+    .add("/org/:slug/templates/:id/full", templateFull)
     .add("/org/:slug/submissions", submissions)
     .add("/org/:slug/submissions/:id", submission)
     .add("/org/:slug/submissions/:id/issue", issue)

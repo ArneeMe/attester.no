@@ -296,7 +296,9 @@ reportError(e, source, place)          apps/api/src/errors/report.ts
   registers someone else's address inherits its rights.
 - **Bounded everywhere a stranger can write.** Anonymous bodies are capped at
   128 KB before a route sees them, an organisation's unissued queue at 2,000
-  rows and pending organisation requests at 100. Hasura calls time out after
+  rows and pending organisation requests at 100. Lists are bounded too: the
+  submissions list is paged (500 at most), and the templates list carries no
+  PDF or layout; `templates/:id/full` serves those one template at a time. Hasura calls time out after
   ten seconds.
 - Every org-scoped route calls `requireOrgMemberBySlug` (`apps/api/src/lib/apiAuth.ts`):
   verify JWT → resolve slug → check `user_organizations`. Object ownership is

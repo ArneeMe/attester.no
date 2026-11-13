@@ -18,11 +18,12 @@ import EditIcon from '@mui/icons-material/Edit';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useToast } from '@/components/ToastProvider';
 import {
+    getFullTemplate,
     getTemplates,
     saveTemplate,
     setTemplateOffered,
 } from '@/util/databaseInteractions/templateService';
-import type { PDFTemplate } from '@attester/shared/types/templateTypes';
+import type { TemplateSummary } from '@attester/shared/types/templateTypes';
 import { useAdminLang } from '@/util/useAdminLang';
 
 export default function MalerPage() {
@@ -30,7 +31,7 @@ export default function MalerPage() {
     const { lang, strings } = useAdminLang();
     const a = strings.admin.templates;
     const toast = useToast();
-    const [templates, setTemplates] = useState<PDFTemplate[] | null>(null);
+    const [templates, setTemplates] = useState<TemplateSummary[] | null>(null);
     const [pendingId, setPendingId] = useState<string | null>(null);
 
     const reload = async () => {
@@ -47,7 +48,7 @@ export default function MalerPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orgSlug]);
 
-    const handleToggleOffered = async (t: PDFTemplate) => {
+    const handleToggleOffered = async (t: TemplateSummary) => {
         if (!t.id) return;
         const next = !t.isOffered;
         setPendingId(t.id);
@@ -62,13 +63,14 @@ export default function MalerPage() {
         }
     };
 
-    const handleDuplicate = async (t: PDFTemplate) => {
+    const handleDuplicate = async (t: TemplateSummary) => {
         try {
+            const full = await getFullTemplate(orgSlug, t.id!);
             await saveTemplate(orgSlug, {
                 name: a.copyOf(t.name),
                 description: t.description,
-                basePdf: t.basePdf,
-                schemas: t.schemas,
+                basePdf: full.basePdf,
+                schemas: full.schemas,
                 formSchema: t.formSchema,
                 fieldBindings: t.fieldBindings,
                 isOffered: false,
