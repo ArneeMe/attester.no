@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { handleApi } from "./app";
 
 type NodeRequest = IncomingMessage & {
     rawBody?: string | Buffer;
@@ -42,8 +41,4 @@ export async function sendResponse(res: ServerResponse, response: Response): Pro
     res.statusCode = response.status;
     response.headers.forEach((value, key) => res.setHeader(key, value));
     res.end(Buffer.from(await response.arrayBuffer()));
-}
-
-export async function nodeHandler(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    await sendResponse(res, await handleApi(await toRequest(req)));
 }

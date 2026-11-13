@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { nodeHandler } from "./nodeHost";
+import { nodeHandler } from "./apiHost";
 
 const port = Number(process.env.PORT ?? 8787);
 

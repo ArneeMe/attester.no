@@ -1,4 +1,5 @@
-import { json } from "../http";
+import { json, publicOrigin } from "../http";
+import { dispatchNotices, queueSubmissionNotice } from "../notices/submissionWaiting";
 import { hasuraAdmin } from "../lib/hasura";
 import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "../lib/apiAuth";
 import { templateBelongsToOrg } from "../lib/ownership";
@@ -115,6 +116,9 @@ export async function POST(
             }`,
             { organizationId, templateId, data },
         );
+
+        await queueSubmissionNotice(organizationId);
+        await dispatchNotices(publicOrigin(req));
 
         return json({ submission: result.insert_submissions_one });
     } catch (e) {

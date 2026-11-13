@@ -77,7 +77,7 @@ CREATE INDEX IF NOT EXISTS org_assets_kind_idx ON org_assets(organization_id, ki
 --
 -- issued_at is stamped when the certificate is inserted, and it is the
 -- deletion clock: the sweep removes rows whose issued_at is older than the
--- regeneration window (src/util/retention.ts). NULL means "not issued yet",
+-- regeneration window (functions/_shared/src/retention.ts). NULL means "not issued yet",
 -- and those rows are never swept — they wait for an admin, who clears them
 -- with the explicit "Slett data" action. See CLAUDE.md "Volunteer deletion".
 CREATE TABLE IF NOT EXISTS submissions (
@@ -157,13 +157,28 @@ CREATE TABLE IF NOT EXISTS org_requests (
 );
 CREATE INDEX IF NOT EXISTS org_requests_status_idx ON org_requests(status, created_at);
 
+-- Outbox for email notices to an organisation's admins. A row says that
+-- something is waiting for an organisation and nothing else: no submission
+-- id, no volunteer field, no recipient address. Recipients are looked up
+-- from the membership table when the notice is sent.
+CREATE TABLE IF NOT EXISTS notices (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    kind text NOT NULL CHECK (kind IN ('submission_waiting')),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    sent_at timestamptz,
+    attempts int NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS notices_unsent_idx ON notices(created_at) WHERE sent_at IS NULL;
+CREATE INDEX IF NOT EXISTS notices_org_idx ON notices(organization_id);
+
 -- Hasura console steps (fresh install):
 --   1. Data → "Untracked tables/views" → track every table above.
 --   2. Relationships: object relationships on each organization_id /
 --      template_id column, mirroring the tracked FKs.
---   3. No role permissions needed — the Next.js API routes talk to Hasura
---      with the admin secret and enforce tenancy in code
---      (src/lib/server/apiAuth.ts).
+--   3. No role permissions needed — the API talks to Hasura with the
+--      admin secret and enforces tenancy in code
+--      (functions/_api/src/lib/apiAuth.ts).
 --   4. Create the first org + member by hand until the onboarding UI
 --      exists:
 --        INSERT INTO organizations (slug, name) VALUES ('myorg', 'My Org');

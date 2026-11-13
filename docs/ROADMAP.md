@@ -27,19 +27,10 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
   third vendor but host-agnostic. If a table, store message and route only —
   never request bodies, or it becomes the volunteer-data store the privacy
   model forbids. Do this before promoting beyond people you know.
-- **Email for notifications** — ntfy now pushes owner notifications
-  (`NTFY_TOPIC`, `functions/_api/src/lib/notifyOwner.ts`), which unblocked the owner
-  half without an account, an API key or a verified domain. Email is still
-  wanted as the durable second channel, and it needs a decision:
-  `RESEND_API_KEY`/`NOTIFY_EMAIL_FROM` power invite emails only, and a Resend
-  account means verifying `attester.no` as a sender via DNS first.
-  **Nhost cannot supply this**: its SMTP settings drive Hasura Auth's own mail
-  only — there is no generic send endpoint — and the edge runtime has no raw
-  TCP, so nothing here can speak SMTP at all. Any email must go over an HTTPS
-  API. When it lands, reliability must come from the row plus a lazy retry
-  (a `notified_at` column), not from a send succeeding; the ntfy step is
-  deliberately fire-and-forget, because a failed push costs a ping and never
-  the request.
+- **Email sending needs DNS.** Admin notices and invites go through Resend
+  (`RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`). Resend only sends from `attester.no`
+  once its DKIM records are in DNS. A working mailbox is not enough. Until
+  then nothing is queued or sent and the platform behaves as before.
 - **`hei@attester.no`** — referenced in the help dialog and /om. Must
   actually exist.
 - **Privacy policy** — deliberately NOT shipped. A drafted `/personvern` was
@@ -50,13 +41,11 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
 
 ## Known gaps
 
-- **Two of the three silences remain.** The owner is now pushed a notification
-  when an organisation applies. Org admins are still not told a submission is
-  waiting, and the volunteer still hears nothing after submitting and cannot
-  check or chase. Since unissued rows are never auto-deleted (see below)
-  nothing is *lost*, but a submission can sit unseen for weeks. Cheapest next
-  move, and it needs no channel at all: a pending count in the org nav and the
-  picker.
+- **One of the three silences remains.** The owner is pushed a notification
+  when an organisation applies, and org admins are emailed when a submission
+  is waiting. The volunteer still hears nothing after submitting and cannot
+  check or chase. A pending count in the org nav would still help admins who
+  have no email provider configured.
 
 - **A failed request is now invisible to everyone.** #61 stopped routes
   returning the caught message, which was right — it was leaking Hasura's

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { handleApi } from "./app";
-import { nodeHandler } from "./nodeHost";
+import { nodeHandler } from "./apiHost";
 
 const hasuraCalls: Array<{ query: string; variables: Record<string, unknown> }> = [];
 let hasuraData: Record<string, unknown> = {};

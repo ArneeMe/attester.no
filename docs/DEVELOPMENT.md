@@ -134,7 +134,16 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
      dialog shows the link to copy manually) and optional `NTFY_TOPIC` (unset
      ⇒ the owner is not notified of new org requests). The topic name is its
      only secret, so generate one rather than choosing it.
-4. One-time Nhost setup (Settings → Auth):
+4. One-time Nhost setup for scheduled work. In the Hasura console, Events →
+   Cron Triggers → Create:
+   - Webhook: `{{NHOST_FUNCTIONS_URL}}/tick`
+   - Schedule: `*/10 * * * *`
+   - Header: `nhost-webhook-secret` from env `NHOST_WEBHOOK_SECRET`
+   - Retries: 3, timeout 60 s
+
+   Without it the platform still works: the sweep and the outbox also run
+   when the submissions API is used.
+5. One-time Nhost setup (Settings → Auth):
    - **Allowed Redirect URLs** must contain every origin you use, with the
      `/login/reset` path — production, `http://localhost:3000`, and a
      wildcard for Cloudflare previews (`https://*.<project>.pages.dev/...`).

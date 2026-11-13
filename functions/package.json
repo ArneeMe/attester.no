@@ -14,6 +14,6 @@
     "typescript": "^5"
   },
   "scripts": {
-    "bundle-check": "esbuild api.ts --bundle --platform=node --target=node22 --outfile=/dev/null"
+    "bundle-check": "esbuild api.ts tick.ts --bundle --platform=node --target=node22 --outdir=/tmp/attester-functions-bundle"
   }
 }
