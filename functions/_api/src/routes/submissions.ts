@@ -146,8 +146,16 @@ export async function POST(
 
         // Kept only when the organisation offers Digipost and the platform can
         // deliver there. Otherwise the number is dropped, not stored unused.
-        if (typeof nationalId === "string" && certificateChannel() && (await digipostEnabled(organizationId))) {
-            await storeRecipient(result.insert_submissions_one.id, normalizeNationalId(nationalId));
+        // The submission is already saved. Failing here would make the
+        // volunteer send it again, so they lose Digipost, not the request.
+        if (typeof nationalId === "string") {
+            try {
+                if (certificateChannel() && (await digipostEnabled(organizationId))) {
+                    await storeRecipient(result.insert_submissions_one.id, normalizeNationalId(nationalId));
+                }
+            } catch (e) {
+                console.error("Storing recipient failed:", (e as Error).name);
+            }
         }
 
         await queueSubmissionNotice(organizationId);
