@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { json } from "../http";
 import { sweepExpiredSubmissions } from "../lib/retention";
 import { dispatchNotices } from "../notices/submissionWaiting";
+import { processDeliveries } from "../delivery/deliveries";
 
 const digest = (value: string) => createHash("sha256").update(value).digest();
 
@@ -20,5 +21,6 @@ export async function handleTick(req: Request): Promise<Response> {
     const origin = (process.env.PUBLIC_APP_URL ?? "https://attester.no").replace(/\/+$/, "");
     await sweepExpiredSubmissions();
     const notices = await dispatchNotices(origin);
-    return json({ ok: true, notices });
+    const deliveries = await processDeliveries();
+    return json({ ok: true, notices, deliveries });
 }

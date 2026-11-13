@@ -54,6 +54,7 @@ beforeEach(() => {
             rows.forEach((r) => (r.sent_at = String(v.now)));
         } else if (q.includes("NoticeAttempt")) unsent.forEach((r) => r.attempts++);
         else if (q.includes("SweepExpired")) data = { delete_submissions: { affected_rows: 0 } };
+        else if (q.includes("QueuedDeliveries")) data = { deliveries: [] };
         else throw new Error(`unexpected query ${q.slice(0, 40)}`);
         return Response.json({ data });
     });
@@ -146,7 +147,7 @@ describe("tick", () => {
         await queueSubmissionNotice(ORG);
         const req = new Request("http://fn.test/v1/tick", { method: "POST", headers: { "nhost-webhook-secret": "s3cret" } });
         const res = await handleTick(req);
-        expect(await res.json()).toEqual({ ok: true, notices: 1 });
+        expect(await res.json()).toEqual({ ok: true, notices: 1, deliveries: 0 });
         expect(calls.some((c) => c.query.includes("SweepExpired"))).toBe(true);
     });
 });

@@ -59,6 +59,12 @@ browser or app ──► attester.no/api/v1/<path>      apps/web/src/app/api/v1/
 - `invites` — 7-day tokens; redemption requires session email == invited email.
 - `notices` — outbox for emails to an org's admins. Organisation id and kind
   only; see "Channels and the outbox".
+- `org_settings` — per-org switches (`digipost_enabled`). `organizations`
+  stays identity only.
+- `submission_recipients` — a sealed fødselsnummer for Digipost, apart from
+  the certificate data. Deleted on delivery or with the submission.
+- `deliveries` — delivery queue and record. Holds a sealed PDF only while
+  queued.
 - `org_requests` — organisations asking to be set up, pending until a platform
   admin approves or rejects. `org_number` (organisasjonsnummer) is optional:
   many student societies and local chapters are not registered. Contact
@@ -154,6 +160,7 @@ and must cope, so the platform runs without any provider.
 | Port | Carries | Adapter today |
 |---|---|---|
 | `NoticeChannel` | "Something is waiting" emails and invites. Never volunteer data | Resend (`RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`) |
+| `CertificateChannel` | A finished certificate to a person's own mailbox | Digipost (`DIGIPOST_BROKER_ID`, `DIGIPOST_PRIVATE_KEY`, `DIGIPOST_API_URL`), and only when `DELIVERY_KEY` is set |
 
 **The `notices` table is the outbox.** A row holds an organisation id and a
 kind, nothing else. Recipients are read from the membership table at send
@@ -166,8 +173,38 @@ time. Reliability comes from the row, not from a send succeeding:
 - One email per organisation per `NOTICE_QUIET_HOURS`. A notice queued inside
   the window goes out when it ends, unless the queue was cleared meanwhile.
 
+### Digipost delivery
+
+attester.no is the sender, on behalf of the organisation. The letter's
+subject names the organisation.
+
+1. An org admin turns it on (`org_settings.digipost_enabled`, the switch on
+   the dashboard, shown only when the platform has Digipost configured).
+2. The public form then shows an optional fødselsnummer field. It is posted
+   beside `data`, validated (`functions/_shared/src/nationalId.ts`) and
+   stored sealed in `submission_recipients`. If the org has not turned
+   Digipost on, the number is dropped, not stored.
+3. In the issue dialog the dashboard asks `.../recipient-check`. The server
+   asks Digipost whether that person has a mailbox and answers yes or no.
+4. Issuing with `{ "deliver": "digipost" }` renders the PDF, registers the
+   certificate, puts the sealed PDF and recipient in `deliveries` and tries
+   to send at once. On success the payload and the recipient row are erased
+   and the row reads "sent via Digipost at T". On failure the row stays
+   queued and the tick retries it.
+5. The admin still gets the PDF in the response, whatever Digipost answers.
+
+`deliveries` is both the queue and the record. One row per certificate and
+channel, so a repeat issue cannot send twice. The delivery id is also the
+Digipost message id, so a retry of a letter Digipost already took is
+answered as a duplicate and counted as sent.
+
+The adapter (`adapters/digipostChannel.ts`) is written from Digipost's
+official Java client and `api_v8.xsd`: requests signed with RSA-SHA256 over a
+canonical string, the entry point read for links, one multipart request per
+letter. It has been tested against a fake, not against Digipost.
+
 **The tick** (`functions/tick.ts` → `jobs/tick.ts`) is the scheduled entry
-point: retention sweep, then the outbox. It requires the `nhost-webhook-secret`
+point: retention sweep, the outbox, then queued deliveries. It requires the `nhost-webhook-secret`
 header. Everything it does also runs lazily elsewhere, so a missed tick delays
 work and loses nothing. Setting up the schedule is an owner action, see
 DEVELOPMENT.md.

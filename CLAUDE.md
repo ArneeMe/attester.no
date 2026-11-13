@@ -88,6 +88,35 @@ What IS acceptable:
   with no payload describing what the cert says. Low priority, but allowed.
 - An outbox row saying "organisation X has something waiting" (`notices`).
   It holds no submission id and no recipient address.
+- A delivery row saying "the certificate for submission id X was sent via
+  Digipost at time T" (`deliveries`). See "Digipost delivery" below.
+
+### Digipost delivery
+
+An organisation can let volunteers receive the certificate in Digipost. That
+needs a fødselsnummer, the most sensitive field this system touches, and a
+PDF that waits in a queue while it is sent. Both are deliberate, bounded
+exceptions to "the server keeps nothing". These rules keep them bounded:
+
+- **The fødselsnummer is never certificate data.** It travels as its own
+  field, lives in `submission_recipients`, and must never be put in
+  `submissions.data`. That is what keeps it out of the QR link and the hash.
+- **It is sealed.** `functions/_api/src/lib/seal.ts` encrypts it with
+  `DELIVERY_KEY`, which exists only in the function's environment. A copy of
+  the database alone reveals no fødselsnummer and no queued PDF. Without the
+  key the Digipost feature is off. Do not add a plaintext fallback.
+- **It never reaches a client or a log.** The admin API says only that a
+  recipient exists (`has_recipient`). Provider errors are logged by code,
+  never by message, because the message can quote the request.
+- **It dies early.** Deleted when Digipost accepts the letter, and otherwise
+  with its submission (cascade), so the retention sweep covers it.
+- **A queued PDF is temporary.** `deliveries.payload` holds the sealed PDF
+  and recipient only while `status = 'queued'`. A CHECK constraint makes the
+  database refuse a payload on a sent or failed row. After
+  `DELIVERY_TTL_HOURS` or five attempts the payload is erased whether or not
+  the letter went out. Do not lengthen this into storage.
+- **No print fallback.** The adapter sends no print details, so a person
+  without Digipost is refused and the admin hands over the PDF as before.
 
 ### Volunteer deletion
 

@@ -1,6 +1,8 @@
 import { json } from "../http";
 import { hasuraAdmin } from "../lib/hasura";
 import { serverError } from "../lib/apiError";
+import { certificateChannel } from "../channels";
+import { digipostEnabled } from "../delivery/recipients";
 
 type OrgRow = {
     id: string;
@@ -24,7 +26,8 @@ export async function GET(
         );
         const org = data.organizations[0];
         if (!org) return json({ error: "Not found" }, { status: 404 });
-        return json({ organization: org });
+        const digipost = !!certificateChannel() && (await digipostEnabled(org.id));
+        return json({ organization: org, digipost });
     } catch (e) {
         return serverError(e, "api/org/[slug]");
     }

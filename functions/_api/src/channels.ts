@@ -1,5 +1,7 @@
+import { digipostChannel, digipostConfigFromEnv } from "./adapters/digipostChannel";
 import { resendNoticeChannel } from "./adapters/resendNoticeChannel";
-import type { NoticeChannel } from "./ports";
+import { sealingAvailable } from "./lib/seal";
+import type { CertificateChannel, NoticeChannel } from "./ports";
 
 let noticeOverride: NoticeChannel | null | undefined;
 
@@ -14,4 +16,22 @@ export function noticeChannel(): NoticeChannel | null {
 
 export function useNoticeChannelForTests(channel: NoticeChannel | null | undefined): void {
     noticeOverride = channel;
+}
+
+let certificateOverride: CertificateChannel | null | undefined;
+let digipost: CertificateChannel | null = null;
+
+// Null unless a provider and the sealing key are both configured: a letter
+// waiting to be sent is always stored sealed.
+export function certificateChannel(): CertificateChannel | null {
+    if (!sealingAvailable()) return null;
+    if (certificateOverride !== undefined) return certificateOverride;
+    const config = digipostConfigFromEnv();
+    if (!config) return null;
+    digipost ??= digipostChannel(config);
+    return digipost;
+}
+
+export function useCertificateChannelForTests(channel: CertificateChannel | null | undefined): void {
+    certificateOverride = channel;
 }

@@ -12,3 +12,19 @@ export type Notice = {
 export interface NoticeChannel {
     send(notice: Notice): Promise<void>;
 }
+
+export type CertificateLetter = {
+    // Stable per delivery. The provider must treat a repeat as the same letter.
+    id: string;
+    nationalId: string;
+    subject: string;
+    filename: string;
+    pdf: Uint8Array;
+};
+
+// Delivers a finished certificate to a person's own mailbox.
+export interface CertificateChannel {
+    readonly name: "digipost";
+    canReceive(nationalId: string): Promise<boolean>;
+    deliver(letter: CertificateLetter): Promise<void>;
+}
