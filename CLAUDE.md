@@ -127,7 +127,7 @@ exceptions to "the server keeps nothing". These rules keep them bounded:
   field, lives in `submission_recipients`, and must never be put in
   `submissions.data`. That is what keeps it out of the QR link and the hash.
 - **It is sealed.** `apps/api/src/lib/seal.ts` encrypts it with
-  `DELIVERY_KEY`, which exists only in the function's environment. A copy of
+  `DELIVERY_KEY`, which exists only in the API's environment. A copy of
   the database alone reveals no fødselsnummer and no queued PDF. Without the
   key the Digipost feature is off. Do not add a plaintext fallback.
 - **It never reaches a client or a log.** The admin API says only that a

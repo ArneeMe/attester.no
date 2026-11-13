@@ -3,16 +3,61 @@
 Deliberate future work, with the reasoning captured so it doesn't have to be
 re-derived. Items are parked, not forgotten — each says what unblocks it.
 
-## Near-term (unblocked, just needs doing)
+## Where things stand (2026-11-13)
 
-- **Live end-to-end pass against real Nhost** before onboarding a stranger
-  org: password reset email, signup, invite redemption, issue + verify one
-  attest on paper, and confirm the sweep deletes an *issued* submission after
-  the window while leaving an unissued one alone.
-- **Pilot**: echo + one external org through the full lifecycle. The
-  onboarding path now exists end to end — a request at `/ny-organisasjon`,
-  approval at `/admin`, and an invite to the contact address — so the
-  external org no longer needs hand-holding through signup.
+`main` is the MVP: one Next.js app that is also the backend. `develop` holds
+the rebuild described under "The platform rebuild" below, eleven PRs (#70 to
+#80). `develop` is green in CI and has never been deployed.
+
+On `develop`, built and tested:
+
+| Area | State |
+|---|---|
+| Monorepo: `apps/web`, `apps/api`, `packages/shared` | Done |
+| API as a container with its own scheduler | Done. CI builds the image and checks it starts |
+| Server renders the PDF and registers the certificate | Done |
+| Email notices to admins through an outbox | Done |
+| Digipost delivery, granted per organisation by the owner | Done |
+| Security audit and fixes | Done. Open items listed below |
+| Own error tracking and JSON logging | Done for the API |
+| `docs/API.md` for the mobile app | Done |
+
+**What "tested" means here.** Unit tests, e2e tests with the API mocked, and
+the built server run by hand against a stub database. Nothing has met the
+real Nhost, Resend or Digipost. The Digipost adapter was written from
+Digipost's official Java client and schema and has never sent a letter.
+The first deploy is the real test.
+
+**Urgent, and separate from the rebuild:** `main` runs Next 15.5.2, which has
+a critical flaw that allows code to run on the server. `develop` is on
+15.5.29. Take that bump to `main` on its own if the cut-over is not close.
+
+### Cut-over checklist, in order
+
+Details for each step are in DEVELOPMENT.md "Deploy checklist".
+
+1. Turn on email verification in Nhost. The API refuses `/admin` and invite
+   redemption to an unverified address.
+2. Run the three new migrations and track their tables in Hasura:
+   `2026-11-notices.sql` (`notices`), `2026-11-digipost.sql` (`org_settings`,
+   `submission_recipients`, `deliveries`) and `2026-11-platform-errors.sql`
+   (`platform_errors`). The admin dashboard fails without the second one.
+3. Choose a host for the API container, deploy it and set its secrets.
+   `PUBLIC_APP_URL` is required.
+4. Point Cloudflare Pages at `apps/web` and set `API_URL` to the API's `/v1`
+   root. The Cloudflare preview check has failed on every PR since the
+   monorepo move, most likely because the project still builds from the repo
+   root.
+5. Merge `develop` to `main`.
+6. One full pass against the real services: sign in, password reset, invite,
+   submit, issue, verify on paper, and confirm the sweep deletes an issued
+   submission after the window and leaves an unissued one alone. Then check
+   that `/admin` shows no errors.
+7. Optional, each can wait: Resend DKIM records in DNS for email; the
+   Digipost sender agreement, the key as PEM and `DELIVERY_KEY` for Digipost.
+
+After that, the **pilot**: echo plus one external organisation through the
+whole lifecycle.
 
 ## Needs a decision or an account (owner: the human)
 
@@ -61,10 +106,12 @@ re-derived. Items are parked, not forgotten — each says what unblocks it.
   + admin UI + policy decisions (who may revoke, is it visible publicly).
   Nothing stores personal data, so revocation is purely a trust feature.
 - **Rate limiting.** Removed entirely (2026-08) — the in-memory limiter was
-  per-isolate on the edge runtime, so it never really bounded anything. If
-  abuse becomes real, do it properly with Cloudflare KV/Durable Objects or at
-  the CDN edge rather than reinstating best-effort in-process counters. The
-  anonymous POST still enforces body-size and field-length caps.
+  per-isolate on the edge runtime, so it never really bounded anything. The
+  API is now one long-running process, so an in-process limiter would work
+  for a single instance. Not built: the ceilings on body size, queue length
+  and pending requests bound the damage, and a limiter in the process dies
+  the day there are two instances. If abuse becomes real, put it in a proxy
+  in front of the API, and keep it something that moves with the code.
 - **Media out of Postgres.** Logos/signatures are base64 in `org_assets`
   jsonb — fine at pilot scale, a cost/perf smell as orgs multiply. Move to
   Nhost Storage; the seam is `ImageUpload.tsx` + `resolveBinding`'s asset
@@ -154,20 +201,15 @@ Not planned: tenancy in Hasura row permissions. Clients never talk to Hasura,
 so tenancy stays in one tested code path in `apps/api`. Customer API keys
 are not built either, but `/v1` leaves room for them.
 
-### Status (2026-11-13)
-
-Steps 1, 2, 4, 5, 6 and 7 are on `develop`. Not done:
+### Not done from the list above
 
 - **Step 3, Nhost config in git.** Hasura metadata and `nhost.toml` were not
   written by hand. A deploy replaces the live metadata, and a wrong file
   would untrack tables in production. The safe start is `nhost init --remote`
   against the real project, committed as is. Migrations still live in
   `scripts/migrations/` and are run by hand.
-- **Step 8, the mobile app.** The API it needs exists: bearer token, list
-  submissions, preview, issue, deliver. Nothing mobile-specific was added.
-- **Nothing has run against Nhost, Resend or Digipost.** Everything is
-  tested against fakes. The first live run is the real test of the function
-  bundle, the proxy, email and the Digipost signature.
+- **Step 8, the mobile app.** The API it needs exists and is documented in
+  `docs/API.md`. Nothing mobile-specific was added.
 
 ### Security audit (2026-11-13)
 
@@ -207,10 +249,8 @@ Left open on purpose, each needing a decision or more than a small fix:
 
 ### Next steps, in the order they pay off
 
-1. **Go live on the new structure.** Deploy the API container, point
-   Cloudflare Pages at `apps/web`, run the migrations, then do one full pass
-   against the real services: sign in, submit, issue, verify on paper, one
-   email, one Digipost letter with the test certificate.
+1. **Go live on the new structure.** The cut-over checklist at the top of
+   this file.
 2. **Finish error tracking.** The API half is built. Left, in order:
    - An uptime check from outside against `/healthz` and the front page.
      Self-hosted Uptime Kuma or Gatus is open source and needs one small
@@ -225,7 +265,7 @@ Left open on purpose, each needing a decision or more than a small fix:
 3. **Replace the Cloudflare adapter** with OpenNext, so Next can follow its
    security releases without a peer warning.
 4. **Database changes in git.** Run `nhost init --remote` once, commit the
-   result, and let migrations and tracking deploy with the code. Four tables
+   result, and let migrations and tracking deploy with the code. Five tables
    were added by hand this round; that does not scale.
 5. **Tell the volunteer what happened.** The last silence: nothing reaches
    the person who asked. Digipost delivery covers those who chose it. For the
@@ -236,17 +276,6 @@ Left open on purpose, each needing a decision or more than a small fix:
 8. **pdfme 6**, with the designer and all templates re-tested.
 9. **Hash v2** when a reason to touch certificates appears: escape the
    separator and tag the version, as CLAUDE.md describes.
-
-### Owner actions the code cannot do
-
-- Run the two new migrations and track their tables (`notices`,
-  `org_settings`, `submission_recipients`, `deliveries`).
-- Digipost: convert the certificate to a PEM key and set the secrets, see
-  DEVELOPMENT.md.
-- Choose a host for the API container, deploy it and set its secrets.
-- Point Cloudflare Pages at `apps/web`.
-- Add the DNS records Resend asks for, so mail can be sent from `attester.no`.
-- Sign the Digipost sender agreement and supply the certificate as a secret.
 
 ## Explicitly frozen
 

@@ -60,8 +60,7 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 - Ids received from the client get an ownership check
   (`templateBelongsToOrg`, `submissionBelongsToOrg`) before use.
 - Anonymous write endpoints get explicit size caps and strict shape
-  validation. There is no rate limiter (dropped — per-isolate in-memory state
-  made it best-effort only).
+  validation and a ceiling on how much can pile up. There is no rate limiter.
 - Hasura: only through `hasuraAdmin<T>(query, variables)`. Values go in
   variables, NEVER in the query string. Multiple root fields in one mutation
   run in a single transaction — use that for atomicity (see the /admin org
@@ -109,8 +108,10 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 - In sandboxes with a pre-provisioned Chromium, run e2e with
   `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium` instead of `playwright install`.
 - `.claude/` is gitignored (AI worktrees live there) — keep it that way.
-- The edge runtime has no `setInterval`/cron, no Node `crypto` module (use
-  Web Crypto), and per-isolate memory only.
+- `apps/web` runs on the edge runtime: no `setInterval`/cron, no Node
+  `crypto` module (use Web Crypto), per-isolate memory only. `apps/api` is
+  plain Node and has none of these limits. Shared code in `packages/shared`
+  must run in both, so it uses Web Crypto and no Node modules.
 - `next-env.d.ts` is generated and lint-ignored; don't edit or lint it.
 
 ## Deploy checklist (per release)
@@ -120,7 +121,9 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
    root with `npm run pages:build -w @attester/web` and output directory
    `apps/web/.vercel/output/static`.
 2. Run any new `scripts/migrations/*.sql` in the Hasura console and (re-)track
-   affected tables.
+   affected tables. The first deploy of the rebuild needs three:
+   `2026-11-notices.sql`, `2026-11-digipost.sql` and
+   `2026-11-platform-errors.sql`.
 3. Env vars are split by who needs them.
    - **Cloudflare Pages (web):** `NEXT_PUBLIC_NHOST_*`, `API_URL` (the API's
      `/v1` root, e.g. `https://api.attester.no/v1`) and `NHOST_ADMIN_SECRET`,
