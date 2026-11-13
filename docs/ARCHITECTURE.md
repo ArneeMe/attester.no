@@ -209,7 +209,10 @@ answered as a duplicate and counted as sent.
 The adapter (`adapters/digipostChannel.ts`) is written from Digipost's
 official Java client and `api_v8.xsd`: requests signed with RSA-SHA256 over a
 canonical string, the entry point read for links, one multipart request per
-letter. It has been tested against a fake, not against Digipost.
+letter. It has been tested against a fake, not against Digipost. It has
+also been compared with the owner's Android Digipost client in
+`arneeme/apps`, written separately from the same sources: the signed string,
+the headers and the multipart layout agree.
 
 **The scheduler** (`jobs/scheduled.ts`) runs inside the API process every ten
 minutes: retention sweep, the outbox, then queued deliveries. Everything it
