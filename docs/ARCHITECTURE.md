@@ -291,9 +291,8 @@ reportError(e, source, place)          apps/api/src/errors/report.ts
   testable. Never treat an unlisted slug as secret.
 - The anonymous submissions POST is size-capped (64 KB body, per-field
   length limit) and enforces a flat string→string data shape. There is no
-  rate limiter: the in-memory one was dropped because per-isolate state on
-  the edge runtime made it best-effort theatre. See ROADMAP if abuse ever
-  becomes real.
+  rate limiter; the ceilings listed above bound what a script can do. See
+  ROADMAP if abuse ever becomes real.
 - There are exactly **two** unauthenticated write paths. The second is
   `POST /api/v1/org-requests`, where an organisation asks to be set up. Same
   shape of defence as the submissions POST — body cap, per-field caps, strict

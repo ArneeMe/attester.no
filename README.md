@@ -6,7 +6,9 @@ En enkel løsning for å lage attester som kan verifiseres digitalt.
 
 Når noen trenger en attest, fyller de ut et skjema med navn, rolle og tidsperiode. Systemet lager en PDF, og lagrer en hash av innholdet i databasen. Attesten får en QR-kode som lenker til en verifiseringsside — der kan hvem som helst sjekke at attesten er ekte.
 
-Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og oppdatere signaturer.
+Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og oppdatere signaturer. En organisasjon kan også la den frivillige få attesten rett i Digipost.
+
+`main` er MVP-en. `develop` har en ombygging som ikke er satt i drift ennå. Status og sjekklisten for overgangen står øverst i [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Tech
 
@@ -32,10 +34,16 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
   ikke automatisk — de venter på administratoren (se CLAUDE.md).
 - `certificates` — kun id, hash, template-id, org-id, tidsstempel.
   Ingen personalia.
+- `notices` — utboks for e-postvarsler til admin. Bare org-id.
+- `org_settings`, `submission_recipients`, `deliveries` — Digipost:
+  om org-en har det, et kryptert fødselsnummer som slettes når brevet er
+  sendt, og kø og kvittering for sendingen.
+- `platform_errors` — systemets egne feil. Ingenting om brukeren.
 
 Se [CLAUDE.md](CLAUDE.md) for personvernsmodellen og hvorfor det er
 viktig at strukturen forblir slik. Utfyllende dokumentasjon ligger i
-[docs/](docs/): arkitektur, utviklingsguide, roadmap, ideer og SEO.
+[docs/](docs/): arkitektur, utviklingsguide, API-referanse, roadmap, ideer
+og SEO.
 
 ## Struktur
 
@@ -65,10 +73,12 @@ echo-databasen.
 
 ## Kjøre lokalt
 
-Krever Nhost-miljøvariabler i `.env.local` — kopier fra `.env.example`.
+Web-appen trenger miljøvariabler i `apps/web/.env.local`. Kopier fra
+`apps/web/.env.example`. API-et trenger sine egne, se
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ```bash
-cp .env.example .env.local
 npm install
-npm run dev
+npm run dev -w @attester/api   # API-et på :8787
+npm run dev                    # web-appen på :3000
 ```
