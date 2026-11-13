@@ -146,7 +146,9 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
    these as secrets on the API container:
    - `DELIVERY_KEY`: `openssl rand -base64 32`. Seals fødselsnummer and
      queued PDFs. Losing it makes queued letters unreadable, nothing else.
-   - `DIGIPOST_BROKER_ID`: the sender id from Digipost.
+   - `DIGIPOST_BROKER_ID`: the sender id from Digipost. Requests are signed as
+     this sender. `DIGIPOST_SENDER_ID` is only for sending on behalf of
+     another sender; leave it unset otherwise.
    - `DIGIPOST_PRIVATE_KEY`: the private key as PEM. From the `.p12`:
      `openssl pkcs12 -in cert.p12 -nocerts -nodes | openssl pkey`. If the
      secret store dislikes newlines, base64 the PEM; both forms are read.

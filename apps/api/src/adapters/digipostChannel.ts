@@ -2,7 +2,10 @@ import { createHash, createPrivateKey, createSign, randomBytes, type KeyObject }
 import type { CertificateChannel, CertificateLetter } from "../ports";
 
 // Digipost's sender API, written from the official Java client
-// (github.com/digipost/digipost-api-client-java) and its api_v8.xsd.
+// (github.com/digipost/digipost-api-client-java) and its api_v8.xsd, and
+// checked line by line against the owner's own Android client
+// (arneeme/apps, android/digipost/Digipost.kt), which signs and sends the
+// same way.
 //
 // Every request is signed with the sender's private key over a canonical
 // string: method, path, the date, content-hash and user-id headers, and the
@@ -12,12 +15,15 @@ import type { CertificateChannel, CertificateLetter } from "../ports";
 
 const MEDIA_TYPE = "application/vnd.digipost-v8+xml";
 const NAMESPACE = "http://api.digipost.no/schema/v8";
-const TIMEOUT_MS = 8000;
+const TIMEOUT_MS = 20_000;
 
 export type DigipostConfig = {
     apiUrl: string;
     brokerId: string;
     privateKeyPem: string;
+    // Only when sending on behalf of another sender. Left out, Digipost uses
+    // the sender the request is signed as.
+    senderId?: string;
 };
 
 export class DigipostError extends Error {
@@ -59,12 +65,12 @@ export function identificationXml(nationalId: string): string {
     );
 }
 
-export function messageXml(senderId: string, letter: CertificateLetter): string {
+export function messageXml(senderId: string | undefined, letter: CertificateLetter): string {
     return (
         `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
         + `<message xmlns="${NAMESPACE}">`
         + `<message-id>${xml(letter.id)}</message-id>`
-        + `<sender-id>${xml(senderId)}</sender-id>`
+        + (senderId ? `<sender-id>${xml(senderId)}</sender-id>` : "")
         + `<recipient><personal-identification-number>${xml(letter.nationalId)}</personal-identification-number></recipient>`
         + `<primary-document>`
         + `<uuid>${xml(letter.id)}</uuid>`
@@ -125,6 +131,7 @@ export function digipostChannel(config: DigipostConfig): CertificateChannel {
         if (body && contentSha256 && contentType) {
             headers["X-Content-SHA256"] = contentSha256;
             headers["Content-Type"] = contentType;
+            headers["MIME-Version"] = "1.0";
         }
         const res = await fetch(base + pathAndQuery, {
             method,
@@ -171,7 +178,7 @@ export function digipostChannel(config: DigipostConfig): CertificateChannel {
 
         async deliver(letter: CertificateLetter): Promise<void> {
             const boundary = `attester-${randomBytes(16).toString("hex")}`;
-            const body = multipartBody(boundary, messageXml(config.brokerId, letter), letter.id, letter.pdf);
+            const body = multipartBody(boundary, messageXml(config.senderId, letter), letter.id, letter.pdf);
             let result: string;
             try {
                 result = await send(
@@ -203,5 +210,6 @@ export function digipostConfigFromEnv(): DigipostConfig | null {
         apiUrl: process.env.DIGIPOST_API_URL ?? "https://api.test.digipost.no",
         brokerId,
         privateKeyPem,
+        senderId: process.env.DIGIPOST_SENDER_ID || undefined,
     };
 }

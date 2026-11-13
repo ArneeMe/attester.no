@@ -109,11 +109,14 @@ describe("digipost channel", () => {
         expect(parts[1]).toContain("Content-Type: application/vnd.digipost-v8+xml");
         expect(parts[2]).toContain(`filename="${letter.id}"`);
         expect(parts[2]).toContain("Content-Type: application/pdf");
+        expect(req.headers.get("mime-version")).toBe("1.0");
+        expect(parts[1]).not.toContain("<sender-id>");
         const pdf = Buffer.from(parts[2].slice(parts[2].indexOf("\r\n\r\n") + 4, -2), "latin1");
         expect(Array.from(pdf)).toEqual(Array.from(letter.pdf));
     });
 
     it("addresses the letter by fødselsnummer and asks for no print fallback", () => {
+        expect(messageXml(undefined, letter)).not.toContain("sender-id");
         const message = messageXml("1234", letter);
         expect(message).toContain("<personal-identification-number>01018099912</personal-identification-number>");
         expect(message).toContain("<sender-id>1234</sender-id>");
