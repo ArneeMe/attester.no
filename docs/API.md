@@ -1,7 +1,7 @@
 # API
 
 The `/v1` API that every client uses: the web app, an admin mobile app, and
-some day customers. The route table is `functions/_api/src/app.ts`. Keep this
+some day customers. The route table is `apps/api/src/app.ts`. Keep this
 file in step with it.
 
 ## Reaching it
@@ -9,7 +9,7 @@ file in step with it.
 | From | Base URL |
 |---|---|
 | Anything on the web | `https://attester.no/api/v1` |
-| Directly | `https://<subdomain>.functions.<region>.nhost.run/v1/api?__path=` + the path |
+| Directly | The API container's own address + `/v1` |
 
 Both reach the same code. The first is a forwarder in the web app and is the
 one to use unless you have a reason not to.

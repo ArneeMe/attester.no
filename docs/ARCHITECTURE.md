@@ -9,11 +9,11 @@ never be broken, read [CLAUDE.md](../CLAUDE.md) first — this file explains
 | Layer | Technology | Notes |
 |---|---|---|
 | Frontend | Next.js 15 App Router, React 19, MUI 7 in `apps/web` | On Cloudflare Pages via `@cloudflare/next-on-pages`. Every route exports `runtime = 'edge'` |
-| API | `functions/_api`, plain `Request` → `Response` handlers | Hosted by one Nhost Function (`functions/api.ts`, Node). Runs on any Node host: `npm run dev -w @attester/api` |
-| Shared code | `functions/_shared` | Hash, validation, types. Imported by web and API |
+| API | `apps/api`, plain `Request` → `Response` handlers | A long-running Node process in a container (`Dockerfile`). Bundled to one file with esbuild. Locally: `npm run dev -w @attester/api` |
+| Shared code | `packages/shared` | Hash, validation, types. Imported by web and API as `@attester/shared/...` |
 | Database | Postgres via Hasura GraphQL (Nhost) | Only the API talks to Hasura, with the **admin secret**; tenancy is enforced in API code, NOT in Hasura permissions |
 | Auth | Nhost Auth (email/password) | JWT verified server-side with `jose` against remote JWKS |
-| PDF | pdfme 5, rendered by the API (`functions/_api/src/issuance/`) | The server already holds the submission until issuance. The PDF is returned, never stored |
+| PDF | pdfme 5, rendered by the API (`apps/api/src/issuance/`) | The server already holds the submission until issuance. The PDF is returned, never stored |
 
 ## How a request travels
 
@@ -21,17 +21,22 @@ never be broken, read [CLAUDE.md](../CLAUDE.md) first — this file explains
 browser or app ──► attester.no/api/v1/<path>      apps/web/src/app/api/v1/[...path]
                      │  forwards, holds no secret
                      ▼
-                   API_URL?__path=/<path>          functions/api.ts
-                     │  functions/_api/src/app.ts picks the route
+                   API_URL/<path>                  apps/api/src/server.ts
+                     │  apps/api/src/app.ts picks the route
                      ▼
                    Hasura (admin secret)
 ```
 
-- The route table is `functions/_api/src/app.ts`. One file per route in
-  `functions/_api/src/routes/`, exporting `GET`/`POST`/... like a Next route.
-- Nhost Functions only answer their exact file path, so the route travels in
-  the `__path` query parameter. The forwarder in the web app hides that and
-  keeps calls same-origin. A mobile app can use either URL.
+- The route table is `apps/api/src/app.ts`. One file per route in
+  `apps/api/src/routes/`, exporting `GET`/`POST`/... like a Next route.
+- `server.ts` is the only file that knows it is a Node server. It serves
+  `/v1/*`, answers `/healthz`, caps request bodies at `MAX_BODY_BYTES` and
+  starts the scheduler.
+- The forwarder in the web app keeps browser calls same-origin, so the API
+  needs no CORS. A mobile app can call the container directly.
+- Links the API hands out (QR codes, invite and notice emails) are built from
+  `PUBLIC_APP_URL`, never from the request. The Host header is the caller's to
+  choose.
 - The web app keeps exactly one database call of its own: the frozen legacy
   route `apps/web/src/app/api/certificates/verify/route.ts`. That is why
   `apps/web/src/lib/server/hasura.ts` and `apiError.ts` still exist there and
@@ -88,9 +93,9 @@ remember to check its queue, as before.
 ### 2. Issue
 Admin dashboard → "Generer PDF" →
 `POST /api/v1/org/[slug]/submissions/[id]/issue`. The server
-(`functions/_api/src/issuance/issue.ts`) loads the submission, its template
+(`apps/api/src/issuance/issue.ts`) loads the submission, its template
 and the org's assets, renders the PDF, computes the canonical hash
-(`functions/_shared/src/canonicalHash.ts`) and stores it (idempotent per
+(`packages/shared/src/canonicalHash.ts`) and stores it (idempotent per
 submission; records `issued_by`). The same mutation stamps
 `submissions.issued_at`, so a certificate can never exist without its deletion
 clock started. The response carries the PDF (base64) and the verify URL
@@ -105,7 +110,7 @@ so a template that fails to render leaves no certificate behind.
 
 The submission then survives for `ISSUED_RETENTION_HOURS` so the PDF can be
 regenerated (lost file, misprint, late-spotted typo); the retention sweep
-(`functions/_api/src/lib/retention.ts`) removes it on the next touch of the
+(`apps/api/src/lib/retention.ts`) removes it on the next touch of the
 submissions API. Re-issuing does **not** re-stamp `issued_at`, so
 regenerating can't extend retention.
 
@@ -116,7 +121,7 @@ hash fetched by `submissionId`. Match ⇒ green. The database never learns what
 was attested; the URL carries the data.
 
 Which params feed the hash is narrowed by `selectHashFields`
-(`functions/_shared/src/verifyFieldSelection.ts`): once the template's `form_schema` is
+(`packages/shared/src/verifyFieldSelection.ts`): once the template's `form_schema` is
 loaded, only its declared field keys (plus `id`) count. That makes the
 verifier immune to incidental params — the `lang` UI switch, or the
 `utm_*`/`fbclid` junk that messaging apps append to shared links — which
@@ -152,7 +157,7 @@ once overrode a contained button's `contrastText` through a nested
 
 ## Channels and the outbox
 
-The core never imports a provider. `functions/_api/src/ports.ts` names what it
+The core never imports a provider. `apps/api/src/ports.ts` names what it
 needs, `adapters/` holds one file per provider, and `channels.ts` picks the
 adapter from the environment. A caller gets `null` when nothing is configured
 and must cope, so the platform runs without any provider.
@@ -168,7 +173,7 @@ time. Reliability comes from the row, not from a send succeeding:
 
 - A submission queues at most one unsent notice per organisation.
 - `dispatchNotices` sends what is queued. It runs right after a submission and
-  on every tick. A failed send leaves the row and counts an attempt; after
+  on every scheduled round. A failed send leaves the row and counts an attempt; after
   five the row is left alone.
 - One email per organisation per `NOTICE_QUIET_HOURS`. A notice queued inside
   the window goes out when it ends, unless the queue was cleared meanwhile.
@@ -181,7 +186,7 @@ subject names the organisation.
 1. An org admin turns it on (`org_settings.digipost_enabled`, the switch on
    the dashboard, shown only when the platform has Digipost configured).
 2. The public form then shows an optional fødselsnummer field. It is posted
-   beside `data`, validated (`functions/_shared/src/nationalId.ts`) and
+   beside `data`, validated (`packages/shared/src/nationalId.ts`) and
    stored sealed in `submission_recipients`. If the org has not turned
    Digipost on, the number is dropped, not stored.
 3. In the issue dialog the dashboard asks `.../recipient-check`. The server
@@ -190,7 +195,7 @@ subject names the organisation.
    certificate, puts the sealed PDF and recipient in `deliveries` and tries
    to send at once. On success the payload and the recipient row are erased
    and the row reads "sent via Digipost at T". On failure the row stays
-   queued and the tick retries it.
+   queued and the scheduler retries it.
 5. The admin still gets the PDF in the response, whatever Digipost answers.
 
 `deliveries` is both the queue and the record. One row per certificate and
@@ -203,22 +208,22 @@ official Java client and `api_v8.xsd`: requests signed with RSA-SHA256 over a
 canonical string, the entry point read for links, one multipart request per
 letter. It has been tested against a fake, not against Digipost.
 
-**The tick** (`functions/tick.ts` → `jobs/tick.ts`) is the scheduled entry
-point: retention sweep, the outbox, then queued deliveries. It requires the `nhost-webhook-secret`
-header. Everything it does also runs lazily elsewhere, so a missed tick delays
-work and loses nothing. Setting up the schedule is an owner action, see
-DEVELOPMENT.md.
+**The scheduler** (`jobs/scheduled.ts`) runs inside the API process every ten
+minutes: retention sweep, the outbox, then queued deliveries. Everything it
+does also runs lazily elsewhere, so a missed round delays work and loses
+nothing. With more than one API instance each runs its own; the jobs tolerate
+that, at worst a notice email is sent twice.
 
 ## Security model
 
 - **Server is the only boundary.** Client-side guards are UX, not security.
-- Every org-scoped route calls `requireOrgMemberBySlug` (`functions/_api/src/lib/apiAuth.ts`):
+- Every org-scoped route calls `requireOrgMemberBySlug` (`apps/api/src/lib/apiAuth.ts`):
   verify JWT → resolve slug → check `user_organizations`. Object ownership is
-  double-checked (`functions/_api/src/lib/ownership.ts`) when ids come from the client.
+  double-checked (`apps/api/src/lib/ownership.ts`) when ids come from the client.
 - Platform-level actions (`/api/v1/admin/*`) additionally require the caller's
   `auth.users` email to be on the `PLATFORM_ADMIN_EMAILS` env allowlist
-  (`functions/_api/src/lib/platformAdmin.ts`). Unset ⇒ surface disabled.
-- `UNLISTED_ORG_SLUGS` (a constant in `functions/_shared/src/orgVisibility.ts`, applied in
+  (`apps/api/src/lib/platformAdmin.ts`). Unset ⇒ surface disabled.
+- `UNLISTED_ORG_SLUGS` (a constant in `packages/shared/src/orgVisibility.ts`, applied in
   `listPublicOrgs`) hides orgs from the front-page picker and the sitemap.
   Edit the list and deploy. It is a **discovery** filter, not access control:
   `/org/<slug>` still serves an unlisted org, by design, so test orgs stay
@@ -231,7 +236,7 @@ DEVELOPMENT.md.
 - There are exactly **two** unauthenticated write paths. The second is
   `POST /api/v1/org-requests`, where an organisation asks to be set up. Same
   shape of defence as the submissions POST — body cap, per-field caps, strict
-  string validation (`functions/_shared/src/orgRequest.ts`) — plus a honeypot field that
+  string validation (`packages/shared/src/orgRequest.ts`) — plus a honeypot field that
   returns the same success a real submission gets, so a bot has nothing to
   tune against. It writes a `pending` row and nothing else: creating the
   organisation requires a platform admin approving it at `/admin`, where the
@@ -244,10 +249,10 @@ DEVELOPMENT.md.
   rather than attaching a member, so the applicant needs no prior account and
   a leaked link still grants nothing (redeem requires the session email to
   match).
-- All Hasura access goes through `hasuraAdmin()` (`functions/_api/src/lib/hasura.ts`)
+- All Hasura access goes through `hasuraAdmin()` (`apps/api/src/lib/hasura.ts`)
   with GraphQL **variables only** — never interpolate values into query text.
 - **Owner notifications say that something is waiting, never what.**
-  `notifyPlatformOwner()` (`functions/_api/src/lib/notifyOwner.ts`) pushes via ntfy,
+  `notifyPlatformOwner()` (`apps/api/src/lib/notifyOwner.ts`) pushes via ntfy,
   where the topic name is the only secret and anyone who learns it reads every
   message. So the payload carries no organisation name, slug, contact details
   or message text — just a link to `/admin`. It never throws: a failed
@@ -284,8 +289,8 @@ here, keep the failure modes distinguishable.
 - No Hasura row-level permissions — tenancy lives in app code by design;
   every new route MUST call the guards.
 - The retention sweep still runs lazily on the submissions routes even though
-  the tick runs it too. The tick depends on a schedule the owner must set up;
-  the lazy call is what makes deletion happen regardless.
+  the scheduler runs it too. A host may put an idle container to sleep; the
+  lazy call is what makes deletion happen regardless.
 - Unissued submissions have no expiry. Deleting a volunteer's application
   before a human read it is worse than holding it, so the sweep's
   `issued_at IS NOT NULL` guard is load-bearing (product decision, 2026-08).

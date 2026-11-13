@@ -67,6 +67,6 @@ at approval, and listing role-holders for the human already judging.
 
 **A signal, not a gate.** Many student societies are not registered at all and
 are exactly the audience — which is why `orgNumber` on `org_requests` is
-optional and MOD11-validated (`functions/_shared/src/orgRequest.ts`).
+optional and MOD11-validated (`packages/shared/src/orgRequest.ts`).
 
 ## (add the next idea below this line)

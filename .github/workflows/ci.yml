@@ -36,28 +36,24 @@ jobs:
           NEXT_PUBLIC_NHOST_SUBDOMAIN: ci-placeholder
           NEXT_PUBLIC_NHOST_REGION: eu-central-1
 
-  functions:
+  api-image:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: functions
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
+      - name: Build the API image
+        run: docker build -t attester-api .
 
-      # The same install Nhost runs on deploy. It must work without the
-      # workspace, or the functions do not build there.
-      - name: Install as Nhost does
-        run: npm ci --no-workspaces --ignore-scripts
-
-      - name: Typecheck
-        run: npx tsc --noEmit
-
-      - name: Bundle
-        run: npm run bundle-check
+      # Proves the bundle starts and answers. No database is reachable, so
+      # only the routes that need none are asked.
+      - name: Start it and ask for health
+        run: |
+          docker run -d --name api -p 8787:8787 -e SCHEDULER=off attester-api
+          for i in $(seq 1 20); do curl -sf http://localhost:8787/healthz && break; sleep 1; done
+          curl -sf http://localhost:8787/healthz
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8787/v1/org/x/certificates)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8787/nope)" = "404"
+          docker logs api
 
   e2e:
     runs-on: ubuntu-latest

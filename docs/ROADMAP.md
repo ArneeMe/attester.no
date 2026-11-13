@@ -94,33 +94,29 @@ revisit. Integrations are now the goal, so this replaces that decision.
 The work lands on `develop`, not `main`. The cut-over needs downtime and the
 owner chooses when. See CLAUDE.md "How this repo is worked".
 
-### Target layout
+### Layout
 
 ```
-apps/web             Next.js on Cloudflare Pages. UI only.
-functions/           Nhost Functions. A few thin hosts, nothing else.
-functions/_shared    Hash, cert params, types, validation, PDF input. One copy.
-functions/_api       The backend: /v1 handlers, use cases, ports and adapters.
-nhost/               nhost.toml, Hasura metadata and migrations, in git.
+apps/web          Next.js on Cloudflare Pages. UI only.
+apps/api          The backend: /v1 handlers, use cases, ports and adapters.
+packages/shared   Hash, cert params, types, validation, PDF input. One copy.
+Dockerfile        Builds apps/api into one container.
 ```
 
-The backend code sits under `functions/` because Nhost installs function
-dependencies with workspaces off and only documents sharing code through
-`_`-prefixed folders there. Those folders are also npm workspaces, so the web
-app imports the same files by package name.
-
-Nhost Functions give no sub-path routing and the free plan allows ten
-functions with a ten second limit. So one function, `functions/api.ts`, hosts
-the whole `/v1` API and takes the route as a parameter. The web app forwards
-`/api/v1/*` to it, which keeps the public URL clean and the calls same-origin.
+Nhost Functions were tried first and dropped (2026-11-13): no sub-path
+routing, ten functions and ten seconds on the free plan, a project that
+pauses after a week idle, and no npm workspaces. The API now runs as a
+long-running Node process in a container. Nhost still provides Postgres,
+Hasura and Auth. A Java rewrite was weighed and declined: pdfme is
+JavaScript only, and the hash code would exist in two languages.
 
 ### Principles
 
 1. **One API, every client.** Web, mobile and any later customer use the same
    versioned `/v1` HTTP API with bearer tokens. No client gets a private route.
-2. **The backend is host-neutral.** `functions/_api` handlers take a web-standard
-   `Request` and return a `Response`. Nhost Functions is one host; a plain Node
-   server runs the same code for local work and tests.
+2. **The backend is host-neutral.** `apps/api` handlers take a web-standard
+   `Request` and return a `Response`. Only `server.ts` knows it is a Node
+   server, so the same code can move to another host.
 3. **Ports and adapters.** The core names what it needs (`Store`,
    `NoticeChannel`, `CertificateChannel`, `Clock`) and never imports a provider.
    Hasura, Resend and Digipost are adapters. A new channel is a new adapter.
@@ -153,11 +149,11 @@ organisation.
 
 ### Steps, one PR each
 
-1. Monorepo layout and `functions/_shared`. No change in behaviour, hash output
+1. Monorepo layout and `packages/shared`. No change in behaviour, hash output
    byte-identical.
-2. `functions/_api` with the existing routes ported behind `/v1`, a Node dev
-   host, and the web app as a plain client of it.
-3. Nhost in git: `nhost.toml`, migrations, metadata, the Functions host.
+2. `apps/api` with the existing routes ported behind `/v1`, and the web app
+   as a plain client of it.
+3. Nhost in git: `nhost.toml`, migrations, metadata.
 4. Server-side PDF rendering and issuance through the API.
 5. Outbox and the email channel: tell admins a submission is waiting.
 6. Digipost: the opt-in, the fødselsnummer field, identify, deliver.
@@ -166,12 +162,12 @@ organisation.
 8. API shape the mobile app needs (list pending, approve, issue, deliver).
 
 Not planned: tenancy in Hasura row permissions. Clients never talk to Hasura,
-so tenancy stays in one tested code path in `functions/_api`. Customer API keys
+so tenancy stays in one tested code path in `apps/api`. Customer API keys
 are not built either, but `/v1` leaves room for them.
 
 ### Status (2026-11-13)
 
-Steps 1, 2, 4, 5 and 6 are on `develop`, and the tick from step 7. Not done:
+Steps 1, 2, 4, 5, 6 and 7 are on `develop`. Not done:
 
 - **Step 3, Nhost config in git.** Hasura metadata and `nhost.toml` were not
   written by hand. A deploy replaces the live metadata, and a wrong file
@@ -190,7 +186,7 @@ Steps 1, 2, 4, 5 and 6 are on `develop`, and the tick from step 7. Not done:
   `org_settings`, `submission_recipients`, `deliveries`).
 - Digipost: convert the certificate to a PEM key and set the secrets, see
   DEVELOPMENT.md.
-- Connect the Nhost project to the repo and set its secrets.
+- Choose a host for the API container, deploy it and set its secrets.
 - Point Cloudflare Pages at `apps/web`.
 - Add the DNS records Resend asks for, so mail can be sent from `attester.no`.
 - Sign the Digipost sender agreement and supply the certificate as a secret.
@@ -199,5 +195,5 @@ Steps 1, 2, 4, 5 and 6 are on `develop`, and the tick from step 7. Not done:
 
 - The legacy `/verify` route and everything listed under it in CLAUDE.md —
   untouched until ~2030.
-- The v1 canonical-hash contract (`functions/_shared/src/canonicalHash.ts` +
+- The v1 canonical-hash contract (`packages/shared/src/canonicalHash.ts` +
   `certParams.ts`) — any change invalidates printed certificates.

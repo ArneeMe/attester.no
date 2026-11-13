@@ -5,6 +5,10 @@ export const runtime = "edge";
 
 async function forward(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
     const { path } = await params;
+    // A dot segment would let the URL climb out of the API's /v1 root.
+    if (path.some((segment) => segment === "." || segment === "..")) {
+        return Response.json({ error: "Not found" }, { status: 404 });
+    }
     let target: string;
     try {
         target = apiUrl("/" + path.map(encodeURIComponent).join("/"), req.nextUrl.searchParams);
