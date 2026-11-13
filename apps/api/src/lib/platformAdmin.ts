@@ -35,7 +35,9 @@ export async function requirePlatformAdmin(
 
     const [user] = await getUsersByIds([session.userId]);
     const email = user?.email?.toLowerCase();
-    if (!email || !admins.has(email)) {
+    // Without this, whoever first registers an allowlisted address that has
+    // no account yet would become platform admin.
+    if (!email || !user.emailVerified || !admins.has(email)) {
         return json({ error: "Forbidden" }, { status: 403 });
     }
     return { userId: session.userId, email };

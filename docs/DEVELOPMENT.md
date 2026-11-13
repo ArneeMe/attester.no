@@ -147,7 +147,7 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
      `https://api.test.digipost.no`. Production must be set by name:
      `https://api.digipost.no`.
 
-   Then turn Digipost on for one organisation on its dashboard and issue one
+   Then turn Digipost on for one organisation at `/admin` and issue one
    certificate to a test person. Never paste the key or a real fødselsnummer
    into a chat, an issue or a commit.
 5. One-time Nhost setup (Settings → Auth):
@@ -157,6 +157,8 @@ CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
      A missing entry fails password reset with `The value of
      "options.redirectTo" is not allowed` — it's an allowlist, not a bug.
    - **Client URL** should be the production origin, not localhost.
+   - **Email verification must be on.** The API refuses platform-admin access
+     and invite redemption for an unverified address.
    - Email verification and the minimum password length are project settings,
      not code. `PASSWORD_MIN_LENGTH` in `apps/web/src/util/auth.ts` only mirrors the
      latter for a friendly client-side message — keep the two in sync.

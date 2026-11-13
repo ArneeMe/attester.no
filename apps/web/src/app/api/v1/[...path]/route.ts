@@ -34,8 +34,10 @@ async function forward(req: NextRequest, { params }: { params: Promise<{ path: s
         console.error("api proxy:", (e as Error).message);
         return Response.json({ code: "server_error" }, { status: 502 });
     }
-    const out = new Headers();
-    for (const name of ["content-type", "content-disposition", "cache-control"]) {
+    // Answers depend on who asks. Nothing between the API and the browser
+    // may keep a copy.
+    const out = new Headers({ "cache-control": "no-store" });
+    for (const name of ["content-type", "content-disposition"]) {
         const value = upstream.headers.get(name);
         if (value) out.set(name, value);
     }

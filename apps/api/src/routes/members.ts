@@ -3,6 +3,7 @@ import { hasuraAdmin } from "../lib/hasura";
 import { requireOrgMemberBySlug } from "../lib/apiAuth";
 import { getUserByEmail, getUsersByIds } from "../lib/authUsers";
 import { serverError } from "../lib/apiError";
+import { isEmail, isUuid } from "../lib/input";
 
 type MembershipRow = { user_id: string; role: string };
 
@@ -52,7 +53,7 @@ export async function POST(
     if (auth instanceof Response) return auth;
 
     const { email } = await req.json().catch(() => ({} as { email?: unknown }));
-    if (typeof email !== "string" || !email.includes("@")) {
+    if (!isEmail(email)) {
         return json({ error: "Ugyldig e-postadresse" }, { status: 400 });
     }
 
@@ -96,7 +97,7 @@ export async function DELETE(
     if (auth instanceof Response) return auth;
 
     const { userId } = await req.json().catch(() => ({} as { userId?: unknown }));
-    if (typeof userId !== "string" || !userId) {
+    if (!isUuid(userId)) {
         return json({ error: "Missing userId" }, { status: 400 });
     }
 
@@ -114,11 +115,18 @@ export async function DELETE(
             );
         }
 
+        // Their open invites go too. Otherwise a member on the way out invites
+        // a second address of their own and walks back in.
         await hasuraAdmin(
             `mutation RemoveMember($userId: uuid!, $organizationId: uuid!) {
                 delete_user_organizations(where: {
                     user_id: { _eq: $userId },
                     organization_id: { _eq: $organizationId }
+                }) { affected_rows }
+                delete_invites(where: {
+                    organization_id: { _eq: $organizationId },
+                    created_by: { _eq: $userId },
+                    redeemed_at: { _is_null: true }
                 }) { affected_rows }
             }`,
             { userId, organizationId: auth.organizationId },

@@ -24,7 +24,7 @@ export async function verifyJwt(authHeader: string | null): Promise<JwtClaims | 
     const jwks = getJwks();
 
     try {
-        const { payload } = await jwtVerify(token, jwks);
+        const { payload } = await jwtVerify(token, jwks, { algorithms: ["RS256", "RS384", "RS512", "ES256", "ES384", "EdDSA"] });
         const hasuraClaims = payload[HASURA_CLAIMS_KEY] as Record<string, unknown> | undefined;
         const userId =
             (hasuraClaims?.["x-hasura-user-id"] as string | undefined) ??

@@ -4,6 +4,7 @@ import { requireOrgMemberBySlug } from "../lib/apiAuth";
 import { validateAssetContent } from "@attester/shared/validateAssetContent";
 import type { AssetRow, AssetKind } from "@attester/shared/types/orgAssets";
 import { serverError } from "../lib/apiError";
+import { readJsonObject } from "../lib/input";
 
 const VALID_KINDS: AssetKind[] = ['signature', 'logo', 'body_text', 'lookup_list'];
 const MAX_ASSET_NAME_LEN = 200;
@@ -42,9 +43,9 @@ export async function POST(
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof Response) return auth;
 
-    const body = await req.json();
+    const body = await readJsonObject(req);
     const { kind, name, content, isDefault, sortOrder } = body;
-    if (!kind || !VALID_KINDS.includes(kind)) {
+    if (typeof kind !== "string" || !VALID_KINDS.includes(kind as AssetKind)) {
         return json({ error: "Invalid or missing kind" }, { status: 400 });
     }
     if (typeof name !== "string" || !name.trim()) {
@@ -56,7 +57,7 @@ export async function POST(
     if (content === undefined || content === null || typeof content !== "object") {
         return json({ error: "Missing content" }, { status: 400 });
     }
-    const v = validateAssetContent(kind, content);
+    const v = validateAssetContent(kind as AssetKind, content);
     if (!v.ok) return json({ error: v.error }, { status: 400 });
 
     try {

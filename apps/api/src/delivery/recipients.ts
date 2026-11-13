@@ -41,3 +41,19 @@ export async function digipostEnabled(organizationId: string): Promise<boolean> 
     );
     return data.org_settings[0]?.digipost_enabled ?? false;
 }
+
+export async function deleteRecipientsOfOrg(organizationId: string): Promise<void> {
+    const data = await hasuraAdmin<{ submissions: Array<{ id: string }> }>(
+        `query SubmissionIdsOfOrg($organizationId: uuid!) {
+            submissions(where: { organization_id: { _eq: $organizationId } }) { id }
+        }`,
+        { organizationId },
+    );
+    if (data.submissions.length === 0) return;
+    await hasuraAdmin(
+        `mutation DeleteRecipientsOfOrg($ids: [uuid!]!) {
+            delete_submission_recipients(where: { submission_id: { _in: $ids } }) { affected_rows }
+        }`,
+        { ids: data.submissions.map((s) => s.id) },
+    );
+}

@@ -2,9 +2,10 @@ import { json } from "../http";
 import { dispatchNotices, queueSubmissionNotice } from "../notices/submissionWaiting";
 import { hasuraAdmin } from "../lib/hasura";
 import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "../lib/apiAuth";
-import { templateBelongsToOrg } from "../lib/ownership";
 import { sweepExpiredSubmissions } from "../lib/retention";
 import { serverError } from "../lib/apiError";
+import { isUuid } from "../lib/input";
+import type { FormSchema } from "@attester/shared/types/formSchema";
 import { certificateChannel } from "../channels";
 import { toView, type DeliveryStatus } from "../delivery/deliveries";
 import { digipostEnabled, storeRecipient } from "../delivery/recipients";
@@ -15,6 +16,19 @@ import { isValidNationalId, normalizeNationalId } from "@attester/shared/nationa
 // of headroom for any realistic form.
 const MAX_SUBMISSION_BYTES = 64 * 1024;
 const MAX_FIELD_VALUE_LEN = 8 * 1024;
+const MAX_UNISSUED_PER_ORG = 2000;
+const MAX_FIELDS_WITHOUT_SCHEMA = 60;
+const MAX_KEY_LEN = 100;
+
+function unknownField(schema: FormSchema | null, data: Record<string, string>): string | null {
+    const keys = Object.keys(data);
+    if (!Array.isArray(schema)) {
+        if (keys.length > MAX_FIELDS_WITHOUT_SCHEMA) return keys[MAX_FIELDS_WITHOUT_SCHEMA];
+        return keys.find((k) => k.length > MAX_KEY_LEN) ?? null;
+    }
+    const declared = new Set(schema.map((f) => f.key));
+    return keys.find((k) => !declared.has(k)) ?? null;
+}
 
 type SubmissionRow = {
     id: string;
@@ -90,11 +104,11 @@ export async function POST(
     } catch {
         return json({ error: "Malformed JSON" }, { status: 400 });
     }
-    const { templateId, data, nationalId } = parsed as { templateId?: unknown; data?: unknown; nationalId?: unknown };
+    const { templateId, data, nationalId } = (parsed ?? {}) as { templateId?: unknown; data?: unknown; nationalId?: unknown };
     if (nationalId !== undefined && (typeof nationalId !== "string" || !isValidNationalId(nationalId))) {
         return json({ error: "Invalid national identity number", field: "nationalId" }, { status: 400 });
     }
-    if (typeof templateId !== "string" || !templateId) {
+    if (!isUuid(templateId)) {
         return json({ error: "Missing templateId" }, { status: 400 });
     }
     if (!data || typeof data !== "object" || Array.isArray(data)) {
@@ -125,8 +139,35 @@ export async function POST(
         // Cross-org guard: the templateId in the body MUST belong to the org
         // in the URL slug. Without this check, anyone could submit using a
         // different org's template id, breaking cert rendering later.
-        if (!(await templateBelongsToOrg(templateId, organizationId))) {
+        const check = await hasuraAdmin<{
+            templates: Array<{ form_schema: FormSchema | null }>;
+            submissions_aggregate: { aggregate: { count: number } };
+        }>(
+            `query SubmissionPreflight($templateId: uuid!, $organizationId: uuid!) {
+                templates(where: { id: { _eq: $templateId }, organization_id: { _eq: $organizationId } }, limit: 1) {
+                    form_schema
+                }
+                submissions_aggregate(where: { organization_id: { _eq: $organizationId }, issued_at: { _is_null: true } }) {
+                    aggregate { count }
+                }
+            }`,
+            { templateId, organizationId },
+        );
+        const template = check.templates[0];
+        if (!template) {
             return json({ error: "Template does not belong to this organization" }, { status: 400 });
+        }
+        // Unissued submissions are never swept, so without a ceiling an
+        // anonymous script could fill one organisation's queue without end.
+        if (check.submissions_aggregate.aggregate.count >= MAX_UNISSUED_PER_ORG) {
+            return json({ error: "This organization cannot take more requests right now" }, { status: 429 });
+        }
+        // Only what the form asks for. The reviewer sees the form's fields
+        // and nothing else, so an extra key would be a hidden one: it could
+        // fill an unbound PDF field, or make a certificate that never verifies.
+        const unknown = unknownField(template.form_schema, data as Record<string, string>);
+        if (unknown !== null) {
+            return json({ error: `Unknown field "${unknown.slice(0, 60)}"` }, { status: 400 });
         }
 
         const result = await hasuraAdmin<{
@@ -159,7 +200,9 @@ export async function POST(
         }
 
         await queueSubmissionNotice(organizationId);
-        await dispatchNotices();
+        // Not awaited: sending can take seconds per organisation, and the
+        // scheduler sends whatever this misses.
+        void dispatchNotices();
 
         return json({ submission: result.insert_submissions_one });
     } catch (e) {

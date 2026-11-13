@@ -1,18 +1,23 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-// Larger than any real request: an asset is a base64 image of a few MB.
+// Signed-in callers upload templates: a PDF of up to 5 MB plus its layout.
 export const MAX_BODY_BYTES = 12 * 1024 * 1024;
+// Anonymous callers only ever send a form. Without this, anyone could make
+// the server hold megabytes per request before a route gets to refuse it.
+export const MAX_ANONYMOUS_BODY_BYTES = 128 * 1024;
 
 export class BodyTooLarge extends Error {}
 
 function readBody(req: IncomingMessage): Promise<Buffer | undefined> {
     if (req.method === "GET" || req.method === "HEAD") return Promise.resolve(undefined);
+    const limit = req.headers.authorization ? MAX_BODY_BYTES : MAX_ANONYMOUS_BODY_BYTES;
+    if (Number(req.headers["content-length"] ?? 0) > limit) return Promise.reject(new BodyTooLarge());
     return new Promise((resolve, reject) => {
         const chunks: Buffer[] = [];
         let size = 0;
         req.on("data", (chunk: Buffer) => {
             size += chunk.length;
-            if (size > MAX_BODY_BYTES) {
+            if (size > limit) {
                 req.destroy();
                 reject(new BodyTooLarge());
                 return;

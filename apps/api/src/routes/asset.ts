@@ -4,6 +4,7 @@ import { requireOrgMemberBySlug } from "../lib/apiAuth";
 import { validateAssetContent } from "@attester/shared/validateAssetContent";
 import type { AssetKind, AssetRow } from "@attester/shared/types/orgAssets";
 import { serverError } from "../lib/apiError";
+import { isUuid, readJsonObject } from "../lib/input";
 
 const MAX_ASSET_NAME_LEN = 200;
 
@@ -24,6 +25,7 @@ export async function PATCH(
     { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
     const { slug, id } = await params;
+    if (!isUuid(id)) return json({ error: "Not found" }, { status: 404 });
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof Response) return auth;
 
@@ -33,7 +35,7 @@ export async function PATCH(
         return json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body = await req.json();
+    const body = await readJsonObject(req);
     const set: Record<string, unknown> = {};
     if (typeof body.name === "string") {
         if (body.name.length > MAX_ASSET_NAME_LEN) {
@@ -72,6 +74,7 @@ export async function DELETE(
     { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
     const { slug, id } = await params;
+    if (!isUuid(id)) return json({ error: "Not found" }, { status: 404 });
     const auth = await requireOrgMemberBySlug(req, slug);
     if (auth instanceof Response) return auth;
 

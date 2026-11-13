@@ -24,9 +24,15 @@ function isStringOrEmpty(v: unknown): v is string {
  * skip the (also-present) client-side validation, or from a future feature
  * that builds asset rows programmatically.
  */
+const MAX_CONTENT_JSON_LEN = 2 * 1024 * 1024;
+
 export function validateAssetContent(kind: AssetKind, content: unknown): ValidationResult {
     if (!isPlainObject(content)) {
         return { ok: false, error: "Asset content must be an object" };
+    }
+    // The checks below look at known keys only. This bounds everything else.
+    if (JSON.stringify(content).length > MAX_CONTENT_JSON_LEN) {
+        return { ok: false, error: "Asset content too large" };
     }
 
     switch (kind) {

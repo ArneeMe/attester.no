@@ -7,6 +7,8 @@ import { notifyPlatformOwner } from "../lib/notifyOwner";
 
 const MAX_BODY_BYTES = 8 * 1024;
 
+const MAX_PENDING_REQUESTS = 100;
+
 export async function POST(req: Request) {
     const body = await req.text();
     if (body.length > MAX_BODY_BYTES) {
@@ -46,6 +48,17 @@ export async function POST(req: Request) {
         );
         if (pending.org_requests.length > 0) {
             return json({ error: "slug_pending", field: "slug" }, { status: 409 });
+        }
+
+        // Each pending request pings the owner and holds its slug. A script
+        // must not be able to do either without limit.
+        const waiting = await hasuraAdmin<{ org_requests_aggregate: { aggregate: { count: number } } }>(
+            `query PendingRequestCount {
+                org_requests_aggregate(where: { status: { _eq: "pending" } }) { aggregate { count } }
+            }`,
+        );
+        if (waiting.org_requests_aggregate.aggregate.count >= MAX_PENDING_REQUESTS) {
+            return json({ error: "too_many_pending" }, { status: 429 });
         }
 
         await hasuraAdmin(

@@ -110,13 +110,21 @@ exceptions to "the server keeps nothing". These rules keep them bounded:
 - **It never reaches a client or a log.** The admin API says only that a
   recipient exists (`has_recipient`). Provider errors are logged by code,
   never by message, because the message can quote the request.
-- **It dies early.** Deleted when Digipost accepts the letter, and otherwise
-  with its submission (cascade), so the retention sweep covers it.
+- **It dies with its purpose.** Deleted when Digipost accepts the letter,
+  when the organisation loses Digipost, and otherwise with its submission
+  (cascade). An unissued submission is never swept, so its sealed number
+  waits as long as the submission does. Copy must not claim otherwise.
+- **Only the platform owner grants Digipost.** Every letter goes out in
+  attester.no's name and at its cost, so the switch sits behind
+  `requirePlatformAdmin`, and `DIGIPOST_DAILY_LIMIT` caps letters per
+  organisation per day. Do not move the switch back to the org's admins.
 - **A queued PDF is temporary.** `deliveries.payload` holds the sealed PDF
   and recipient only while `status = 'queued'`. A CHECK constraint makes the
   database refuse a payload on a sent or failed row. After
   `DELIVERY_TTL_HOURS` or five attempts the payload is erased whether or not
-  the letter went out. Do not lengthen this into storage.
+  the letter went out. The retention sweep does the erasing too, so the limit
+  holds with the scheduler off. Deleting a submission cancels its queued
+  letter. Do not lengthen this into storage.
 - **No print fallback.** The adapter sends no print details, so a person
   without Digipost is refused and the admin hands over the PDF as before.
 
@@ -256,6 +264,12 @@ slot in the cert URL **and** in the hash inputs. The verifier reads
 v1 forever; new certs get the new algorithm. Storing the `v` on the
 certificates row (alongside the hash) lets the verifier route without
 trusting the URL.
+
+One known weakness to fix in v2: pairs are joined as `key=value&key=value`
+without escaping. `name=Ola&role=Leder` in one field hashes the same as two
+separate fields, so a link holder can move text between declared fields and
+still see "verified". The moved text stays visible, and v1 is frozen, so it
+is recorded here and not changed.
 
 NOT implemented today and deliberately not added preemptively — the
 dispatch costs nothing once we actually need v2, and adding it before
