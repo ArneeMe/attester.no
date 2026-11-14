@@ -5,6 +5,7 @@ import { requireOrgMemberBySlug, resolveOrgIdBySlug } from "../lib/apiAuth";
 import { sweepExpiredSubmissions } from "../lib/retention";
 import { serverError } from "../lib/apiError";
 import { isUuid } from "../lib/input";
+import { newStatusToken } from "../status/status";
 import type { FormSchema } from "@attester/shared/types/formSchema";
 import { certificateChannel } from "../channels";
 import { toView, type DeliveryStatus } from "../delivery/deliveries";
@@ -194,19 +195,21 @@ export async function POST(
             return json({ error: `Unknown field "${unknown.slice(0, 60)}"` }, { status: 400 });
         }
 
+        const status = newStatusToken();
         const result = await hasuraAdmin<{
             insert_submissions_one: { id: string; created_at: string };
         }>(
             `mutation InsertSubmission(
-                $organizationId: uuid!, $templateId: uuid!, $data: jsonb!
+                $organizationId: uuid!, $templateId: uuid!, $data: jsonb!, $statusTokenHash: String!
             ) {
                 insert_submissions_one(object: {
                     organization_id: $organizationId,
                     template_id: $templateId,
-                    data: $data
+                    data: $data,
+                    status_token_hash: $statusTokenHash
                 }) { id created_at }
             }`,
-            { organizationId, templateId, data },
+            { organizationId, templateId, data, statusTokenHash: status.hash },
         );
 
         // Kept only when the organisation offers Digipost and the platform can
@@ -228,7 +231,8 @@ export async function POST(
         // scheduler sends whatever this misses.
         void dispatchNotices();
 
-        return json({ submission: result.insert_submissions_one });
+        // The only time the token leaves the server. Only its hash is kept.
+        return json({ submission: result.insert_submissions_one, statusToken: status.token });
     } catch (e) {
         return serverError(e, "api/org/[slug]/submissions");
     }

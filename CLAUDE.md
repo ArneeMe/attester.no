@@ -95,6 +95,29 @@ What IS acceptable:
 - An error row saying "this code path failed N times" (`platform_errors`).
   See "Logs and errors" below.
 
+### The volunteer's status link
+
+A volunteer can follow their request and remind the organisation, without an
+account and without the platform learning who they are. Keep it that way:
+
+- **The link is the only key, and the server does not hold it.** A random
+  token is returned once, when the submission is made. Only its SHA-256 is
+  stored (`submissions.status_token_hash`). A copy of the database can
+  neither look a request up nor send a reminder.
+- **The token travels after the `#` and in request bodies, never in a path
+  or a query.** Browsers do not send the fragment, so it stays out of logs,
+  proxies and the Referer header. Do not move it into the URL.
+- **The status answer is dates only.** Never return a name, a field or the
+  submission id from `POST /org/:slug/status`.
+- **"Not found" must not say why.** A wrong link, a deleted request and
+  another organisation's request get the same answer. The token dies with
+  the submission, so nothing remains to tell them apart, and nothing should
+  be added to do so.
+- **A reminder is the ordinary notice.** It queues "something is waiting"
+  for the organisation and names nobody. It is bounded per request (not in
+  the first three days, weekly at most, three in all) and by the outbox's
+  own limit per organisation.
+
 ### Logs and errors
 
 The platform records its own failures and nothing about the people who hit

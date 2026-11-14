@@ -110,10 +110,10 @@ export async function dispatchNotices(now: Date = new Date()): Promise<number> {
                 if (org && org.waiting && org.emails.length > 0) {
                     await channel.send({
                         to: org.emails,
-                        subject: `Ny forespørsel om attest hos ${org.name}`,
+                        subject: `Forespørsler om attest venter hos ${org.name}`,
                         text:
-                            `Det har kommet en ny forespørsel om attest til ${org.name} på attester.no.\n\n`
-                            + `Logg inn for å behandle den:\n${origin}/login/adminpage/${encodeURIComponent(org.slug)}\n`,
+                            `Det ligger forespørsler om attest og venter hos ${org.name} på attester.no.\n\n`
+                            + `Logg inn for å behandle dem:\n${origin}/login/adminpage/${encodeURIComponent(org.slug)}\n`,
                     });
                     sent++;
                 }

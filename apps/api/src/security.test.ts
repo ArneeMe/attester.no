@@ -87,6 +87,14 @@ describe("anonymous submission", () => {
         expect((await submit({ name: "Ola" })).status).toBe(200);
     });
 
+    it("hands back a status token once and stores only its hash", async () => {
+        const body = (await (await submit({ name: "Ola" })).json()) as { statusToken: string };
+        expect(body.statusToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
+        const insert = mutations().find((c) => c.query.includes("InsertSubmission"))!;
+        expect(insert.variables.statusTokenHash).toMatch(/^[0-9a-f]{64}$/);
+        expect(JSON.stringify(insert.variables)).not.toContain(body.statusToken);
+    });
+
     it("refuses a field the form never asked for, which the reviewer would not see", async () => {
         const res = await submit({ name: "Ola", brand: "not attester.no" });
         expect(res.status).toBe(400);

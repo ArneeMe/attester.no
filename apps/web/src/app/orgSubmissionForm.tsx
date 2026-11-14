@@ -44,6 +44,8 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
     const [digipost, setDigipost] = useState(false);
     const [nationalId, setNationalId] = useState('');
     const [nationalIdError, setNationalIdError] = useState(false);
+    const [statusToken, setStatusToken] = useState('');
+    const [copied, setCopied] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -130,6 +132,7 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error ?? 'Server error');
+            setStatusToken(typeof json.statusToken === 'string' ? json.statusToken : '');
             setOpenConfirmDialog(false);
             setSubmitted(true);
             window.scrollTo({ top: 0 });
@@ -197,6 +200,10 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
         );
     }
 
+    const statusLink = typeof window === 'undefined'
+        ? ''
+        : `${window.location.origin}/org/${encodeURIComponent(orgSlug)}/status${lang === 'en' ? '?lang=en' : ''}#${statusToken}`;
+
     if (submitted) {
         return (
             <Container component="main" maxWidth="sm">
@@ -209,7 +216,33 @@ const OrgSubmissionForm: React.FC<Props> = ({ orgSlug }) => {
                     <Typography component="ol" variant="body2" color="text.secondary" sx={{ textAlign: 'left', pl: 3, mb: 3 }}>
                         {s.receivedSteps(orgName).map((step) => <li key={step}>{step}</li>)}
                     </Typography>
-                    <Button variant="outlined" onClick={() => { setFormData({}); setNationalId(''); setSubmitted(false); }}>
+                    {statusToken && (
+                        <Paper variant="outlined" sx={{ p: 2, mb: 3, textAlign: 'left' }}>
+                            <Typography variant="subtitle1" gutterBottom>{strings.status.linkTitle}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                                {strings.status.linkBody}
+                            </Typography>
+                            <Typography
+                                component={Link}
+                                href={statusLink}
+                                variant="body2"
+                                sx={{ display: 'block', wordBreak: 'break-all', mb: 1.5 }}
+                            >
+                                {statusLink}
+                            </Typography>
+                            <Button
+                                size="small"
+                                variant="contained"
+                                onClick={async () => {
+                                    await navigator.clipboard.writeText(statusLink);
+                                    setCopied(true);
+                                }}
+                            >
+                                {copied ? strings.status.copied : strings.status.copy}
+                            </Button>
+                        </Paper>
+                    )}
+                    <Button variant="outlined" onClick={() => { setFormData({}); setNationalId(''); setStatusToken(''); setCopied(false); setSubmitted(false); }}>
                         {s.sendAnother}
                     </Button>
                 </Paper>

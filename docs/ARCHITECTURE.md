@@ -86,6 +86,14 @@ browser or app ──► attester.no/api/v1/<path>      apps/web/src/app/api/v1/
 `POST /api/v1/org/[slug]/submissions` (size-capped, flat-string-shape enforced,
 template-ownership-checked) → row in `submissions` with `issued_at` NULL.
 
+The answer carries a `statusToken`, shown to the volunteer once as a link:
+`/org/[slug]/status#<token>`. That page (`StatusClient`) posts the token to
+`POST /api/v1/org/[slug]/status` and gets dates back: sent in, issued, sent
+to Digipost, deleted. Once the request has waited three days it offers
+"send reminder", which queues the same notice a new submission does
+(`routes/statusRemind.ts`). The rules are in CLAUDE.md "The volunteer's
+status link".
+
 The same request queues a notice for the organisation and tries to send it:
 one email to the org's admins saying a request is waiting, with a link to the
 dashboard and nothing about the volunteer. See "Channels and the outbox".
@@ -316,8 +324,8 @@ reportError(e, source, place)          apps/api/src/errors/report.ts
   length limit) and enforces a flat string→string data shape. There is no
   rate limiter; the ceilings listed above bound what a script can do. See
   ROADMAP if abuse ever becomes real.
-- There are exactly **three** unauthenticated write paths: submissions,
-  organisation requests and error reports (see "Logs and errors"). The second is
+- There are exactly **four** unauthenticated write paths: submissions,
+  organisation requests, error reports and the volunteer's reminder (see "Logs and errors"). The second is
   `POST /api/v1/org-requests`, where an organisation asks to be set up. Same
   shape of defence as the submissions POST — body cap, per-field caps, strict
   string validation (`packages/shared/src/orgRequest.ts`) — plus a honeypot field that

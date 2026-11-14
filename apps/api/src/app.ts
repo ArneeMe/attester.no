@@ -24,6 +24,8 @@ import * as org from "./routes/org";
 import * as orgRequests from "./routes/orgRequests";
 import * as publicOrgs from "./routes/publicOrgs";
 import * as recipientCheck from "./routes/recipientCheck";
+import * as status from "./routes/status";
+import * as statusRemind from "./routes/statusRemind";
 import * as settings from "./routes/settings";
 import * as submission from "./routes/submission";
 import * as submissions from "./routes/submissions";
@@ -56,6 +58,8 @@ const router = new Router()
     .add("/org/:slug/submissions/:id/preview", preview)
     .add("/org/:slug/submissions/:id/recipient-check", recipientCheck)
     .add("/org/:slug/settings", settings)
+    .add("/org/:slug/status", status)
+    .add("/org/:slug/status/remind", statusRemind)
     .add("/org/:slug/certificates", certificates)
     .add("/org/:slug/certificates/verify", certificateVerify)
     .add("/org/:slug/invites", invites)
