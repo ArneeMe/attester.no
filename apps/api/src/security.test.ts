@@ -198,9 +198,28 @@ describe("removing a member", () => {
         const other = "55555555-5555-5555-5555-555555555555";
         answers.GetMembers = { user_organizations: [{ user_id: USER, role: "admin", created_at: "" }, { user_id: other, role: "admin", created_at: "" }] };
         answers.RemoveMember = {};
+        answers.RemoveMemberInvites = {};
         const res = await call("DELETE", "/org/echo/members", { userId: other });
         expect(res.status).toBe(200);
-        expect(mutations()[0].query).toContain("delete_invites");
+        expect(mutations()[1].query).toContain("delete_invites");
+    });
+
+    it("puts the member back when a simultaneous removal emptied the organisation", async () => {
+        const other = "55555555-5555-5555-5555-555555555555";
+        const both = { user_organizations: [{ user_id: USER, role: "admin" }, { user_id: other, role: "admin" }] };
+        answers.GetMembers = both;
+        answers.RemoveMember = {};
+        answers.RestoreMember = {};
+        const scripted = globalThis.fetch;
+        vi.stubGlobal("fetch", async (input: unknown, init?: RequestInit) => {
+            const res = await scripted(input as RequestInfo, init);
+            if (String(init?.body).includes("RemoveMember")) answers.GetMembers = { user_organizations: [] };
+            return res;
+        });
+        const res = await call("DELETE", "/org/echo/members", { userId: other });
+        expect(res.status).toBe(409);
+        expect(mutations()[1].variables).toMatchObject({ userId: other, role: "admin" });
+        expect(mutations()).toHaveLength(2);
     });
 
     it("cannot add an account directly, only invite it", async () => {
