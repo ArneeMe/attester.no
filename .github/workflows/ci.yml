@@ -55,6 +55,36 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8787/nope)" = "404"
           docker logs api
 
+  # The whole system for real: Postgres, Hasura, Nhost Auth, the API image,
+  # a mail catcher and a fake Digipost, then one pass through every flow.
+  stack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start the test rig
+        run: npm run stack:up
+
+      - name: Run the smoke test
+        shell: bash
+        run: npm run stack:smoke 2>&1 | tee smoke.log
+
+      - name: Summarise
+        if: always()
+        run: tail -n 45 smoke.log >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Show service logs
+        if: failure()
+        run: npm run stack:logs
+
   e2e:
     runs-on: ubuntu-latest
     steps:

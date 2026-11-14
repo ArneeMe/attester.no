@@ -23,10 +23,12 @@ On `develop`, built and tested:
 | `docs/API.md` for the mobile app | Done |
 
 **What "tested" means here.** Unit tests, e2e tests with the API mocked, and
-the built server run by hand against a stub database. Nothing has met the
-real Nhost, Resend or Digipost. The Digipost adapter was written from
-Digipost's official Java client and schema and has never sent a letter.
-The first deploy is the real test.
+the local test rig (DEVELOPMENT.md "The local test rig"), which runs the real
+Postgres, Hasura, Nhost Auth and API image and passes every flow through
+them in CI. Not yet met: Nhost's hosted project, Cloudflare Pages, Resend and
+the real Digipost. The Digipost adapter passes a fake that checks signatures
+the way Digipost does, and matches the owner's Android client, but has never
+sent a real letter.
 
 **Urgent, and separate from the rebuild:** `main` runs Next 15.5.2, which has
 a critical flaw that allows code to run on the server. `develop` is on

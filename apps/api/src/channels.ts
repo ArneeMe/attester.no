@@ -1,4 +1,5 @@
 import { digipostChannel, digipostConfigFromEnv } from "./adapters/digipostChannel";
+import { mailpitNoticeChannel } from "./adapters/mailpitNoticeChannel";
 import { resendNoticeChannel } from "./adapters/resendNoticeChannel";
 import { sealingAvailable } from "./lib/seal";
 import { hasuraErrorSink } from "./adapters/hasuraErrorSink";
@@ -12,7 +13,10 @@ export function noticeChannel(): NoticeChannel | null {
     if (noticeOverride !== undefined) return noticeOverride;
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.NOTIFY_EMAIL_FROM;
-    return apiKey && from ? resendNoticeChannel(apiKey, from) : null;
+    if (apiKey && from) return resendNoticeChannel(apiKey, from);
+    // The local test rig catches mail instead of sending it.
+    const mailpit = process.env.MAILPIT_URL;
+    return mailpit && from ? mailpitNoticeChannel(mailpit, from) : null;
 }
 
 export function useNoticeChannelForTests(channel: NoticeChannel | null | undefined): void {

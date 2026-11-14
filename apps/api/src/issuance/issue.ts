@@ -10,7 +10,7 @@ import {
 } from "./certificatePdf";
 import { certificateChannel } from "../channels";
 import {
-    attemptDelivery, deliveriesLastDay, DIGIPOST_DAILY_LIMIT, queueDelivery, toView, type DeliveryView,
+    attemptDelivery, deliveriesLastDay, DIGIPOST_DAILY_LIMIT, findDelivery, queueDelivery, toView, type DeliveryView,
 } from "../delivery/deliveries";
 import { digipostEnabled, loadRecipient } from "../delivery/recipients";
 
@@ -137,6 +137,7 @@ export async function issueCertificate(req: IssueRequest): Promise<IssueResult> 
 
     // Settle whether delivery is possible before anything is registered.
     let nationalId: string | null = null;
+    let earlier: Awaited<ReturnType<typeof findDelivery>> = null;
     if (req.deliver === "digipost") {
         if (!certificateChannel() || !(await digipostEnabled(req.organizationId))) {
             return { ok: false, status: 409, error: "Digipost delivery is not available for this organization" };
@@ -144,9 +145,15 @@ export async function issueCertificate(req: IssueRequest): Promise<IssueResult> 
         if ((await deliveriesLastDay(req.organizationId)) >= DIGIPOST_DAILY_LIMIT) {
             return { ok: false, status: 429, error: "Daily Digipost limit reached for this organization" };
         }
-        nationalId = await loadRecipient(req.submissionId);
-        if (!nationalId) {
-            return { ok: false, status: 409, error: "This submission has no Digipost recipient" };
+        // A letter already sent or waiting is the answer. The recipient is
+        // erased once Digipost has it, so asking for one again would refuse
+        // a harmless repeat.
+        earlier = await findDelivery(req.organizationId, req.submissionId);
+        if (!earlier || earlier.status === "failed") {
+            nationalId = await loadRecipient(req.submissionId);
+            if (!nationalId) {
+                return { ok: false, status: 409, error: "This submission has no Digipost recipient" };
+            }
         }
     }
 
@@ -184,6 +191,12 @@ export async function issueCertificate(req: IssueRequest): Promise<IssueResult> 
         certificateId = inserted.insert_certificates_one.id;
     }
 
-    const delivery = nationalId ? await deliver(req, loaded, nationalId, rendered) : null;
+    let delivery: DeliveryView | null = null;
+    if (nationalId) {
+        delivery = await deliver(req, loaded, nationalId, rendered);
+    } else if (earlier) {
+        const status = await attemptDelivery(earlier);
+        delivery = { ...toView(earlier), status };
+    }
     return { ok: true, certificateId, alreadyIssued, delivery, ...rendered };
 }

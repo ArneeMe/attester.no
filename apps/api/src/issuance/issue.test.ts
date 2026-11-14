@@ -32,6 +32,7 @@ let submissionExists: boolean;
 let orgOffersDigipost: boolean;
 let sealedRecipient: string | null;
 let deliveriesToday: number;
+let earlierDelivery: Record<string, unknown> | null;
 let letters: CertificateLetter[];
 
 beforeEach(() => {
@@ -43,6 +44,7 @@ beforeEach(() => {
     orgOffersDigipost = true;
     sealedRecipient = null;
     deliveriesToday = 0;
+    earlierDelivery = null;
     letters = [];
     process.env.DELIVERY_KEY = randomBytes(32).toString("base64");
     useCertificateChannelForTests({
@@ -74,6 +76,7 @@ beforeEach(() => {
             return Response.json({ data: { submission_recipients: sealedRecipient ? [{ national_id_enc: sealedRecipient }] : [] } });
         }
         if (call.query.includes("ExistingDelivery")) return Response.json({ data: { deliveries: [] } });
+        if (call.query.includes("FindDelivery")) return Response.json({ data: { deliveries: earlierDelivery ? [earlierDelivery] : [] } });
         if (call.query.includes("DeliveriesLastDay")) {
             return Response.json({ data: { deliveries_aggregate: { aggregate: { count: deliveriesToday } } } });
         }
@@ -184,6 +187,17 @@ describe("issueCertificate with Digipost delivery", () => {
         expect(Buffer.from(letters[0].pdf).equals(Buffer.from(result.pdf))).toBe(true);
         expect(calls.some((c) => c.query.includes("InsertCertificate"))).toBe(true);
         expect(calls.some((c) => c.query.includes("DeleteRecipient"))).toBe(true);
+    });
+
+    it("answers a repeat with the letter already sent, though the recipient is long erased", async () => {
+        existingCertificate = "cert-0";
+        earlierDelivery = { id: "del-0", submission_id: SUB, status: "sent", payload: null, attempts: 0, sent_at: "2026-11-13T10:00:00Z", expires_at: "2026-11-14T10:00:00Z" };
+        const result = await issueCertificate({ ...request, deliver: "digipost" });
+        if (!result.ok) throw new Error(result.error);
+        expect(result.alreadyIssued).toBe(true);
+        expect(result.delivery).toEqual({ channel: "digipost", status: "sent", sentAt: "2026-11-13T10:00:00Z" });
+        expect(letters).toHaveLength(0);
+        expect(calls.some((c) => c.query.includes("LoadRecipient"))).toBe(false);
     });
 
     it("registers nothing when the submission has no recipient", async () => {
