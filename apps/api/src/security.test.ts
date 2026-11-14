@@ -236,6 +236,16 @@ describe("retention sweep", () => {
         expect(sweep.query).toContain("issued_at: { _is_null: false }");
         expect(sweep.query).toContain('_set: { status: "failed", payload: null }');
     });
+
+    it("deletes a fødselsnummer that has waited too long, and leaves its submission", async () => {
+        const { sweepExpiredSubmissions } = await import("./lib/retention");
+        const before = Date.now();
+        await sweepExpiredSubmissions();
+        const sweep = calls.find((c) => c.query.includes("SweepExpired"))!;
+        expect(sweep.query).toContain("delete_submission_recipients(where: { created_at: { _lt: $recipientCutoff } })");
+        const age = before - Date.parse(String(sweep.variables.recipientCutoff));
+        expect(Math.round(age / 86_400_000)).toBe(30);
+    });
 });
 
 describe("Digipost recipient check", () => {

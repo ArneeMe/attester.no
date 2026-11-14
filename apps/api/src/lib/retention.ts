@@ -1,5 +1,5 @@
 import { hasuraAdmin } from "./hasura";
-import { retentionCutoffIso } from "@attester/shared/retention";
+import { recipientCutoffIso, retentionCutoffIso } from "@attester/shared/retention";
 import { reportError } from "../errors/report";
 
 /**
@@ -20,6 +20,10 @@ import { reportError } from "../errors/report";
  * waited past its time limit, so that limit holds even when the scheduler
  * is off or the process has been asleep.
  *
+ * It also deletes a sealed fødselsnummer that has waited longer than
+ * RECIPIENT_RETENTION_DAYS. Only the number goes. The submission stays, and
+ * the certificate is handed over by the organisation instead of Digipost.
+ *
  * Deliberately org-UNscoped: this is a platform privacy guarantee, not a
  * tenant feature, and it only ever deletes. Never throws — an expired-row
  * sweep must not break the request that triggered it.
@@ -27,7 +31,7 @@ import { reportError } from "../errors/report";
 export async function sweepExpiredSubmissions(): Promise<void> {
     try {
         await hasuraAdmin(
-            `mutation SweepExpired($cutoff: timestamptz!, $now: timestamptz!) {
+            `mutation SweepExpired($cutoff: timestamptz!, $now: timestamptz!, $recipientCutoff: timestamptz!) {
                 delete_submissions(where: {
                     _and: [
                         { issued_at: { _is_null: false } },
@@ -42,8 +46,11 @@ export async function sweepExpiredSubmissions(): Promise<void> {
                 ) {
                     affected_rows
                 }
+                delete_submission_recipients(where: { created_at: { _lt: $recipientCutoff } }) {
+                    affected_rows
+                }
             }`,
-            { cutoff: retentionCutoffIso(), now: new Date().toISOString() },
+            { cutoff: retentionCutoffIso(), now: new Date().toISOString(), recipientCutoff: recipientCutoffIso() },
         );
     } catch (e) {
         reportError(e, "job", "retention-sweep");

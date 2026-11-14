@@ -24,6 +24,12 @@ export function retentionCutoffIso(now: number = Date.now()): string {
     return new Date(now - ISSUED_RETENTION_HOURS * 60 * 60 * 1000).toISOString();
 }
 
+export const RECIPIENT_RETENTION_DAYS = 30;
+
+export function recipientCutoffIso(now: number = Date.now()): string {
+    return new Date(now - RECIPIENT_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
 /**
  * Whole hours until an issued submission is deleted (min 0), counted from
  * `issuedAt`. Returns null for a submission that hasn't been issued — there

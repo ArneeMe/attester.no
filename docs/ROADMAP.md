@@ -64,10 +64,12 @@ Details for each step are in DEVELOPMENT.md "Deploy checklist".
    without the second, and submitting fails without the fourth.
 3. Choose a host for the API container, deploy it and set its secrets.
    `PUBLIC_APP_URL` is required.
-4. Point Cloudflare Pages at `apps/web` and set `API_URL` to the API's `/v1`
-   root. The Cloudflare preview check has failed on every PR since the
-   monorepo move, most likely because the project still builds from the repo
-   root.
+4. Change the Cloudflare Pages build: keep the repo root as root directory,
+   build with `npm run pages:build -w @attester/web` and serve
+   `apps/web/.vercel/output/static`. Set `API_URL` to the API's `/v1` root.
+   The Cloudflare preview check has failed on every PR since the monorepo
+   move, most likely because the project still uses the old build command
+   and output directory.
 5. Merge `develop` to `main`.
 6. One full pass against the real services: sign in, password reset, invite,
    submit, issue, verify on paper, and confirm the sweep deletes an issued
@@ -174,7 +176,8 @@ JavaScript only, and the hash code would exist in two languages.
    mobile client or a delivery channel can issue.
 5. **Nothing outlives its purpose.** A rendered PDF exists only in a delivery
    row until the channel confirms, with a hard time limit behind it. A
-   fødselsnummer is deleted the moment Digipost accepts the letter. What stays
+   fødselsnummer is deleted the moment Digipost accepts the letter, and after
+   30 days if no letter was sent. What stays
    is "sent via Digipost at time T".
 6. **Email carries notices, never certificates.** "Your organisation has a new
    request" and nothing about who or what.
@@ -241,9 +244,6 @@ Left open on purpose, each needing a decision or more than a small fix:
   script when opened. It is only reached when an admin loads a PDF into the
   designer in their own browser. The fix is pdfme 6, a major upgrade that
   needs the designer and every template re-tested.
-- **Unissued submissions keep a sealed fødselsnummer as long as they wait.**
-  A time limit on the number alone (say 30 days) would close this without
-  touching the rule that unissued submissions are never swept.
 - **A wrong fødselsnummer sends a certificate to the wrong person.** The
   check digits catch typing errors, not someone entering another person's
   number. The admin reviews the request but cannot see the number. Showing
