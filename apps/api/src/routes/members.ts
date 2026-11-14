@@ -7,6 +7,8 @@ import { isUuid } from "../lib/input";
 
 type MembershipRow = { user_id: string; role: string };
 
+const LAST_MEMBER = "Kan ikke fjerne det siste medlemmet i organisasjonen";
+
 async function listMemberships(organizationId: string): Promise<MembershipRow[]> {
     const data = await hasuraAdmin<{ user_organizations: MembershipRow[] }>(
         `query GetMembers($organizationId: uuid!) {
@@ -58,34 +60,53 @@ export async function DELETE(
     }
 
     try {
-        // Lockout guard: an org must always keep at least one member —
-        // there is no super-admin UI to re-add one.
         const memberships = await listMemberships(auth.organizationId);
-        if (!memberships.some((m) => m.user_id === userId)) {
+        const target = memberships.find((m) => m.user_id === userId);
+        if (!target) {
             return json({ error: "Brukeren er ikke medlem" }, { status: 404 });
         }
         if (memberships.length <= 1) {
-            return json(
-                { error: "Kan ikke fjerne det siste medlemmet i organisasjonen" },
-                { status: 400 },
-            );
+            return json({ error: LAST_MEMBER }, { status: 400 });
         }
 
-        // Their open invites go too. Otherwise a member on the way out invites
-        // a second address of their own and walks back in.
+        const vars = { userId, organizationId: auth.organizationId };
         await hasuraAdmin(
             `mutation RemoveMember($userId: uuid!, $organizationId: uuid!) {
                 delete_user_organizations(where: {
                     user_id: { _eq: $userId },
                     organization_id: { _eq: $organizationId }
                 }) { affected_rows }
+            }`,
+            vars,
+        );
+
+        // Two members removing each other both pass the check above. Whoever
+        // finds the organisation empty afterwards puts their removal back.
+        if ((await listMemberships(auth.organizationId)).length === 0) {
+            await hasuraAdmin(
+                `mutation RestoreMember($userId: uuid!, $organizationId: uuid!, $role: String!) {
+                    insert_user_organizations_one(object: {
+                        user_id: $userId,
+                        organization_id: $organizationId,
+                        role: $role
+                    }) { user_id }
+                }`,
+                { ...vars, role: target.role },
+            );
+            return json({ error: LAST_MEMBER }, { status: 409 });
+        }
+
+        // Their open invites go too. Otherwise a member on the way out invites
+        // a second address of their own and walks back in.
+        await hasuraAdmin(
+            `mutation RemoveMemberInvites($userId: uuid!, $organizationId: uuid!) {
                 delete_invites(where: {
                     organization_id: { _eq: $organizationId },
                     created_by: { _eq: $userId },
                     redeemed_at: { _is_null: true }
                 }) { affected_rows }
             }`,
-            { userId, organizationId: auth.organizationId },
+            vars,
         );
         return json({ ok: true });
     } catch (e) {
