@@ -74,7 +74,12 @@ jobs:
         run: npm run stack:up
 
       - name: Run the smoke test
-        run: npm run stack:smoke
+        shell: bash
+        run: npm run stack:smoke 2>&1 | tee smoke.log
+
+      - name: Summarise
+        if: always()
+        run: tail -n 45 smoke.log >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: Show service logs
         if: failure()

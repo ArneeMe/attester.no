@@ -166,6 +166,20 @@ export async function processDeliveries(now: Date = new Date()): Promise<number>
     return sent;
 }
 
+export async function findDelivery(organizationId: string, submissionId: string): Promise<Row | null> {
+    const data = await hasuraAdmin<{ deliveries: Row[] }>(
+        `query FindDelivery($organizationId: uuid!, $submissionId: String!) {
+            deliveries(where: {
+                organization_id: { _eq: $organizationId },
+                submission_id: { _eq: $submissionId },
+                channel: { _eq: "digipost" }
+            }, limit: 1) { ${FIELDS} }
+        }`,
+        { organizationId, submissionId },
+    );
+    return data.deliveries[0] ?? null;
+}
+
 export function toView(row: Pick<Row, "status" | "sent_at">): DeliveryView {
     return { channel: "digipost", status: row.status, sentAt: row.sent_at };
 }

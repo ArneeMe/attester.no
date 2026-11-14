@@ -185,5 +185,5 @@ Stopp og slett alt:     npm run stack:down
 const command = process.argv[2];
 if (command === "up") up().catch((e) => { console.error(e.message); process.exit(1); });
 else if (command === "down") { writeKeys(); docker("down", "-v"); }
-else if (command === "logs") { writeKeys(); docker("logs", "--tail", "200"); }
+else if (command === "logs") { writeKeys(); docker("logs", "--tail", "60", "api", "auth", "digipost"); }
 else if (command) { console.error("Bruk: up | down | logs"); process.exit(1); }
