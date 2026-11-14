@@ -183,7 +183,7 @@ and must cope, so the platform runs without any provider.
 
 | Port | Carries | Adapter today |
 |---|---|---|
-| `NoticeChannel` | "Something is waiting" emails and invites. Never volunteer data | Resend (`RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`) |
+| `NoticeChannel` | "Something is waiting" emails and invites. Never volunteer data | Resend (`RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`). In the local test rig: Mailpit (`MAILPIT_URL`), which catches mail and sends none |
 | `CertificateChannel` | A finished certificate to a person's own mailbox | Digipost (`DIGIPOST_BROKER_ID`, `DIGIPOST_PRIVATE_KEY`, `DIGIPOST_API_URL`), and only when `DELIVERY_KEY` is set |
 
 **The `notices` table is the outbox.** A row holds an organisation id and a
@@ -229,7 +229,9 @@ canonical string, the entry point read for links, one multipart request per
 letter. It has been tested against a fake, not against Digipost. It has
 also been compared with the owner's Android Digipost client in
 `arneeme/apps`, written separately from the same sources: the signed string,
-the headers and the multipart layout agree.
+the headers and the multipart layout agree. The local test rig runs it
+against `dev/fake-digipost.mjs`, which verifies each signature with the
+public key as Digipost does.
 
 **The scheduler** (`jobs/scheduled.ts`) runs inside the API process every ten
 minutes: retention sweep, the outbox, then queued deliveries. Everything it
