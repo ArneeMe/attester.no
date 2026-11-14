@@ -55,32 +55,16 @@ const MembersPage: React.FC = () => {
         if (busy || !newEmail) return;
         setBusy(true);
         try {
-            const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/members`, {
+            const res = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/invites`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json', ...authHeader() },
                 body: JSON.stringify({ email: newEmail }),
             });
             const json = await res.json();
-            if (res.status === 404) {
-                // No account yet — create an invite instead. The link joins
-                // them to the org automatically once they register/log in
-                // with the invited email.
-                const invRes = await fetch(`/api/v1/org/${encodeURIComponent(orgSlug)}/invites`, {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json', ...authHeader() },
-                    body: JSON.stringify({ email: newEmail }),
-                });
-                const invJson = await invRes.json();
-                if (!invRes.ok) throw new Error(invJson.error ?? `HTTP ${invRes.status}`);
-                setInviteLink(invJson.link);
-                setInviteEmailed(invJson.emailed);
-                setNewEmail('');
-                return;
-            }
             if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+            setInviteLink(json.link);
+            setInviteEmailed(json.emailed);
             setNewEmail('');
-            toast.success(a.added);
-            await load();
         } catch (err) {
             toast.error((err as Error).message);
         } finally {

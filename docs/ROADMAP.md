@@ -248,9 +248,6 @@ Left open on purpose, each needing a decision or more than a small fix:
   check digits catch typing errors, not someone entering another person's
   number. The admin reviews the request but cannot see the number. Showing
   the name Digipost has for the recipient before sending would close it.
-- **Members can add any existing account without its consent**, and the
-  answer reveals whether an email has an account. Invites already do this
-  job properly. Removing the direct add is a UI change.
 - **Two members removing each other at the same moment** can leave an
   organisation with none. The platform owner can repair it.
 - **No rate limit.** The ceilings above bound the damage. Real limiting

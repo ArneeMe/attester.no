@@ -22,7 +22,12 @@ const RegisterPage: React.FC = () => {
     const lang = searchParams.get('lang');
     const inviteToken = searchParams.get('invite');
     const s = getStrings(lang).auth;
-    const withLang = (path: string) => (lang === 'en' ? `${path}?lang=en` : path);
+    const withInvite = (path: string) => {
+        const query = new URLSearchParams();
+        if (lang === 'en') query.set('lang', 'en');
+        if (inviteToken) query.set('invite', inviteToken);
+        return query.size ? `${path}?${query}` : path;
+    };
     const toast = useToast();
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -146,7 +151,7 @@ const RegisterPage: React.FC = () => {
                         </Box>
                     </>
                 )}
-                <Link href={withLang('/login')}>{s.hasAccount}</Link>
+                <Link href={withInvite('/login')}>{s.hasAccount}</Link>
                 <Box sx={{ mt: 2 }}>
                     <LanguageToggle />
                 </Box>
