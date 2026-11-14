@@ -6,7 +6,6 @@ import { useParams, useSearchParams } from 'next/navigation';
 import {
     Box,
     Container,
-    Paper,
     TextField,
     Typography,
     Alert,
@@ -45,7 +44,7 @@ export default function TemplateEditorPage() {
                 {d.title}
             </Typography>
 
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 720 }}>
                 {d.intro}
             </Typography>
 
@@ -55,11 +54,15 @@ export default function TemplateEditorPage() {
                 </Alert>
             )}
 
-            <Paper sx={{ p: 3, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                    {d.infoTitle}
-                </Typography>
-
+            <DesignerComponent
+                orgSlug={orgSlug}
+                templateName={templateName}
+                templateDescription={templateDescription}
+                isOffered={isOffered}
+                initialTemplateId={loadTemplateId}
+                onError={setError}
+                onSuccess={setSuccessMessage}
+                saveFields={
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
                     <TextField
                         label={d.nameLabel}
@@ -86,32 +89,13 @@ export default function TemplateEditorPage() {
                         label={d.offeredLabel}
                     />
                 </Box>
-            </Paper>
-
-            <DesignerComponent
-                orgSlug={orgSlug}
-                templateName={templateName}
-                templateDescription={templateDescription}
-                isOffered={isOffered}
-                initialTemplateId={loadTemplateId}
-                onError={setError}
-                onSuccess={setSuccessMessage}
+                }
                 onTemplateLoad={(name, desc, def) => {
                     setTemplateName(name);
                     setTemplateDescription(desc);
                     setIsOffered(def);
                 }}
             />
-
-            <Paper sx={{ p: 2, mt: 2, bgcolor: 'info.light' }}>
-                <Typography variant="subtitle2" gutterBottom>
-                    {d.howToTitle}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                    {d.howToPrefix}<code>name</code>,{' '}
-                    <code>role</code>{d.howToSuffix}
-                </Typography>
-            </Paper>
 
             <Snackbar
                 open={!!successMessage}

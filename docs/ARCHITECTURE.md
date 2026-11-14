@@ -159,6 +159,14 @@ landing-layer; the verify client uses tokens but is hand-rolled; signed-in
 pages have landing-layer chrome and MUI contents. The volunteer form and the
 four auth pages are still entirely MUI.
 
+The template editor (`edit_pdf`) is the first admin page with landing-layer
+structure: numbered sections with serif headings from the tokens, MUI only
+for the inputs. It shows one plain line per PDF field
+(`packages/shared/src/describeBinding.ts` turns a binding into "fixed text",
+"from the form", "filled in automatically" and so on) and keeps the detailed
+settings closed until asked for. The stored `field_bindings` are unchanged;
+only how they are shown is.
+
 Use `PageShell` for a new public page. Inside admin, MUI is correct until
 someone decides otherwise — converting a page is a deliberate act.
 
