@@ -29,10 +29,10 @@ jobs:
         run: npm test
 
       - name: Build
-        run: npm run build
+        run: npm run cf:build -w @attester/web
         env:
           # Build-time placeholders — the real values live in the Cloudflare
-          # Pages project. The build only needs them to exist.
+          # Cloudflare Worker. The build only needs them to exist.
           NEXT_PUBLIC_NHOST_SUBDOMAIN: ci-placeholder
           NEXT_PUBLIC_NHOST_REGION: eu-central-1
 

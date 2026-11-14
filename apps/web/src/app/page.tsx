@@ -12,8 +12,6 @@ import SplitSection from '@/components/landing/SplitSection';
 import VerifyLinkForm from '@/components/landing/VerifyLinkForm';
 import { body, c, dividedRows, gutter, lede } from '@/app/style/tokens';
 
-export const runtime = 'edge';
-
 export async function generateMetadata({
     searchParams,
 }: {

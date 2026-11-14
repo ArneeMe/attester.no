@@ -8,7 +8,7 @@ never be broken, read [CLAUDE.md](../CLAUDE.md) first — this file explains
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Frontend | Next.js 15 App Router, React 19, MUI 7 in `apps/web` | On Cloudflare Pages via `@cloudflare/next-on-pages`. Every route exports `runtime = 'edge'` |
+| Frontend | Next.js 15 App Router, React 19, MUI 7 in `apps/web` | On Cloudflare Workers via the OpenNext adapter (`@opennextjs/cloudflare`). Routes use the Node runtime with `nodejs_compat` |
 | API | `apps/api`, plain `Request` → `Response` handlers | A long-running Node process in a container (`Dockerfile`). Bundled to one file with esbuild. Locally: `npm run dev -w @attester/api` |
 | Shared code | `packages/shared` | Hash, validation, types. Imported by web and API as `@attester/shared/...` |
 | Database | Postgres via Hasura GraphQL (Nhost) | Only the API talks to Hasura, with the **admin secret**; tenancy is enforced in API code, NOT in Hasura permissions |
@@ -295,7 +295,7 @@ reportError(e, source, place)          apps/api/src/errors/report.ts
   - A page sends at most five reports per load.
 - **Not covered:** the API being down altogether. It cannot report its own
   death, and the web app's reports go to the API. That takes a check from
-  outside, see ROADMAP. Whether `instrumentation.ts` runs on Cloudflare Pages
+  outside, see ROADMAP. Whether `instrumentation.ts` runs on Cloudflare Workers
   has not been seen in production; it builds there.
 
 ## Security model

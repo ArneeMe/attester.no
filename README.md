@@ -17,7 +17,7 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
 - Material UI
 - Nhost (Postgres + Hasura + Auth)
 - pdfme for PDF-generering på serveren
-- Cloudflare Pages for web, en container for API-et
+- Cloudflare Workers for web (via OpenNext), en container for API-et
 
 ## Datamodell i grove trekk
 

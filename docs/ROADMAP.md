@@ -29,7 +29,7 @@ On `develop`, built and tested:
 **What "tested" means here.** Unit tests, e2e tests with the API mocked, and
 the local test rig (DEVELOPMENT.md "The local test rig"), which runs the real
 Postgres, Hasura, Nhost Auth and API image and passes every flow through
-them in CI. Not yet met: Nhost's hosted project, Cloudflare Pages, Resend and
+them in CI. Not yet met: Nhost's hosted project, Cloudflare Workers, Resend and
 the real Digipost. The Digipost adapter passes a fake that checks signatures
 the way Digipost does, and matches the owner's Android client, but has never
 sent a real letter.
@@ -64,12 +64,16 @@ Details for each step are in DEVELOPMENT.md "Deploy checklist".
    without the second, and submitting fails without the fourth.
 3. Choose a host for the API container, deploy it and set its secrets.
    `PUBLIC_APP_URL` is required.
-4. Change the Cloudflare Pages build: keep the repo root as root directory,
-   build with `npm run pages:build -w @attester/web` and serve
-   `apps/web/.vercel/output/static`. Set `API_URL` to the API's `/v1` root.
-   The Cloudflare preview check has failed on every PR since the monorepo
-   move, most likely because the project still uses the old build command
-   and output directory.
+4. Move the web app from Cloudflare Pages to a Cloudflare Worker named
+   `attester-no`, connected to the repo with Workers Builds: root directory
+   the repo root, build command `npm run cf:build -w @attester/web`, deploy
+   command `npx wrangler deploy -c apps/web/wrangler.toml`. Set
+   `NEXT_PUBLIC_NHOST_*` as build variables, `API_URL` (the API's `/v1`
+   root) and `NHOST_ADMIN_SECRET` as runtime secrets, then move the
+   `attester.no` domain from the Pages project to the Worker. These settings
+   are not verified against Cloudflare; staging will show. The Pages
+   preview check fails on every PR to `develop` until the Pages project is
+   removed.
 5. Merge `develop` to `main`.
 6. One full pass against the real services: sign in, password reset, invite,
    submit, issue, verify on paper, and confirm the sweep deletes an issued
@@ -148,7 +152,7 @@ owner chooses when. See CLAUDE.md "How this repo is worked".
 ### Layout
 
 ```
-apps/web          Next.js on Cloudflare Pages. UI only.
+apps/web          Next.js on Cloudflare Workers. UI only.
 apps/api          The backend: /v1 handlers, use cases, ports and adapters.
 packages/shared   Hash, cert params, types, validation, PDF input. One copy.
 Dockerfile        Builds apps/api into one container.
@@ -237,9 +241,6 @@ several requests could exhaust the one shared process.
 
 Left open on purpose, each needing a decision or more than a small fix:
 
-- **The Cloudflare adapter is end of life.** `@cloudflare/next-on-pages` caps
-  Next at 15.5.2, which has a critical flaw. Next is now 15.5.29 and the
-  Pages build still works, with a peer warning. Move to the OpenNext adapter.
 - **`pdfjs-dist` under pdfme 5** has a known flaw where a malicious PDF runs
   script when opened. It is only reached when an admin loads a PDF into the
   designer in their own browser. The fix is pdfme 6, a major upgrade that
@@ -276,17 +277,15 @@ Asked 2026-11-13, not answered yet. None of them blocks the cut-over.
      container. Needs somewhere to run.
    - Log retention. Logs live as long as the container host keeps stdout.
      If that is too short, run Vector with Loki or plain files on a volume.
-3. **Replace the Cloudflare adapter** with OpenNext, so Next can follow its
-   security releases without a peer warning.
-4. **Database changes in git.** Run `nhost init --remote` once, commit the
+3. **Database changes in git.** Run `nhost init --remote` once, commit the
    result, and let migrations and tracking deploy with the code. Five tables
    were added by hand this round; that does not scale.
-5. **The mobile app** against `docs/API.md`. The Android app in
+4. **The mobile app** against `docs/API.md`. The Android app in
    `arneeme/apps` still calls the unversioned `/api/...` paths and will stop
    working at cut-over until it is moved to `/api/v1/...`. It can also issue
    now, since the server renders the PDF.
-6. **pdfme 6**, with the designer and all templates re-tested.
-7. **Hash v2** when a reason to touch certificates appears: escape the
+5. **pdfme 6**, with the designer and all templates re-tested.
+6. **Hash v2** when a reason to touch certificates appears: escape the
    separator and tag the version, as CLAUDE.md describes.
 
 ## Explicitly frozen

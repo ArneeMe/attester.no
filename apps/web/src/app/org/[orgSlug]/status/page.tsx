@@ -1,8 +1,6 @@
 import StatusClient from './StatusClient';
 import PageShell from '@/components/landing/PageShell';
 
-export const runtime = 'edge';
-
 // The link holds a secret after the "#". It must never be indexed or shared
 // by a preview, and the page must send no referrer onwards.
 export const metadata = {

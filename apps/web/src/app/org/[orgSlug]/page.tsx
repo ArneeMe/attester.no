@@ -1,8 +1,6 @@
 import OrgSubmissionForm from "@/app/orgSubmissionForm";
 import { getOrgNameBySlug } from "@/lib/publicOrgs";
 
-export const runtime = 'edge';
-
 export async function generateMetadata({
     params,
 }: {

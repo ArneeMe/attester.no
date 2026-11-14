@@ -6,8 +6,6 @@ import PageShell from '@/components/landing/PageShell';
 import { gutter } from '@/app/style/tokens';
 import RequestOrgForm from './RequestOrgForm';
 
-export const runtime = 'edge';
-
 export async function generateMetadata({
     searchParams,
 }: {
