@@ -19,6 +19,12 @@ const LoginPage: React.FC = () => {
     const inviteToken = searchParams.get('invite');
     const s = getStrings(lang).auth;
     const withLang = (path: string) => (lang === 'en' ? `${path}?lang=en` : path);
+    const withInvite = (path: string) => {
+        const query = new URLSearchParams();
+        if (lang === 'en') query.set('lang', 'en');
+        if (inviteToken) query.set('invite', inviteToken);
+        return query.size ? `${path}?${query}` : path;
+    };
     const toast = useToast();
 
     useEffect(() => {
@@ -102,7 +108,7 @@ const LoginPage: React.FC = () => {
                         <Link href={withLang('/login/glemt')} style={{ fontSize: '0.875rem' }}>
                             {s.forgotPassword}
                         </Link>
-                        <Link href={withLang('/registrer')} style={{ fontSize: '0.875rem' }}>
+                        <Link href={withInvite('/registrer')} style={{ fontSize: '0.875rem' }}>
                             {s.registerLink}
                         </Link>
                     </Box>

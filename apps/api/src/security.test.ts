@@ -202,6 +202,11 @@ describe("removing a member", () => {
         expect(res.status).toBe(200);
         expect(mutations()[0].query).toContain("delete_invites");
     });
+
+    it("cannot add an account directly, only invite it", async () => {
+        const res = await call("POST", "/org/echo/members", { email: "noen@example.com" });
+        expect(res.status).toBe(405);
+    });
 });
 
 describe("retention sweep", () => {
