@@ -37,7 +37,7 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
 - `notices` — utboks for e-postvarsler til admin. Bare org-id.
 - `org_settings`, `submission_recipients`, `deliveries` — Digipost:
   om org-en har det, et kryptert fødselsnummer som slettes når brevet er
-  sendt, og kø og kvittering for sendingen.
+  sendt og senest etter 30 dager, og kø og kvittering for sendingen.
 - `platform_errors` — systemets egne feil. Ingenting om brukeren.
 
 Se [CLAUDE.md](CLAUDE.md) for personvernsmodellen og hvorfor det er

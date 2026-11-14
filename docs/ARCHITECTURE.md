@@ -67,7 +67,8 @@ browser or app ──► attester.no/api/v1/<path>      apps/web/src/app/api/v1/
 - `org_settings` — per-org switches (`digipost_enabled`). `organizations`
   stays identity only.
 - `submission_recipients` — a sealed fødselsnummer for Digipost, apart from
-  the certificate data. Deleted on delivery or with the submission.
+  the certificate data. Deleted on delivery, with the submission, or after
+  30 days, whichever comes first.
 - `deliveries` — delivery queue and record. Holds a sealed PDF only while
   queued.
 - `platform_errors` — the platform's own failures, one row per distinct

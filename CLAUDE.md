@@ -162,8 +162,9 @@ exceptions to "the server keeps nothing". These rules keep them bounded:
   never by message, because the message can quote the request.
 - **It dies with its purpose.** Deleted when Digipost accepts the letter,
   when the organisation loses Digipost, and otherwise with its submission
-  (cascade). An unissued submission is never swept, so its sealed number
-  waits as long as the submission does. Copy must not claim otherwise.
+  (cascade). An unissued submission is never swept, so the sweep deletes
+  the number alone after `RECIPIENT_RETENTION_DAYS`. The submission stays
+  and the organisation hands the certificate over itself.
 - **Only the platform owner grants Digipost.** Every letter goes out in
   attester.no's name and at its cost, so the switch sits behind
   `requirePlatformAdmin`, and `DIGIPOST_DAILY_LIMIT` caps letters per

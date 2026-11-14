@@ -3,7 +3,7 @@
 // Language is chosen by ?lang=en so it resolves identically in server and
 // client components and survives link sharing.
 
-import { ISSUED_RETENTION_HOURS } from '@attester/shared/retention';
+import { ISSUED_RETENTION_HOURS, RECIPIENT_RETENTION_DAYS } from '@attester/shared/retention';
 
 export type Lang = 'no' | 'en';
 
@@ -132,7 +132,7 @@ const no = {
         confirmButton: 'Ja, lagre',
         submitError: 'Feil ved lagring av data: ',
         digipostTitle: 'Vil du ha attesten i Digipost?',
-        digipostBody: (org: string) => `${org} kan sende attesten rett til Digipost-postkassen din. Da trenger vi fødselsnummeret ditt for å finne postkassen. Det står ikke på attesten, brukes ikke til noe annet og slettes når attesten er sendt. Lar du feltet stå tomt, får du attesten fra ${org} som vanlig.`,
+        digipostBody: (org: string) => `${org} kan sende attesten rett til Digipost-postkassen din. Da trenger vi fødselsnummeret ditt for å finne postkassen. Det står ikke på attesten, brukes ikke til noe annet og slettes når attesten er sendt, og senest etter ${RECIPIENT_RETENTION_DAYS} dager. Lar du feltet stå tomt, får du attesten fra ${org} som vanlig.`,
         digipostLabel: 'Fødselsnummer (valgfritt)',
         digipostInvalid: 'Dette er ikke et gyldig fødselsnummer. Rett det, eller la feltet stå tomt.',
         receivedTitle: 'Innsendingen er mottatt',
@@ -687,7 +687,7 @@ const en: Strings = {
         confirmButton: 'Yes, submit',
         submitError: 'Failed to save data: ',
         digipostTitle: 'Do you want the certificate in Digipost?',
-        digipostBody: (org: string) => `${org} can send the certificate straight to your Digipost mailbox. For that we need your Norwegian national identity number to find the mailbox. It is not printed on the certificate, is used for nothing else and is deleted once the certificate is sent. Leave the field empty and you get the certificate from ${org} as usual.`,
+        digipostBody: (org: string) => `${org} can send the certificate straight to your Digipost mailbox. For that we need your Norwegian national identity number to find the mailbox. It is not printed on the certificate, is used for nothing else and is deleted once the certificate is sent, and after ${RECIPIENT_RETENTION_DAYS} days at the latest. Leave the field empty and you get the certificate from ${org} as usual.`,
         digipostLabel: 'National identity number (optional)',
         digipostInvalid: 'This is not a valid national identity number. Correct it, or leave the field empty.',
         receivedTitle: 'Submission received',
