@@ -3,11 +3,11 @@
 Deliberate future work, with the reasoning captured so it doesn't have to be
 re-derived. Items are parked, not forgotten — each says what unblocks it.
 
-## Where things stand (2026-11-13)
+## Where things stand (2026-11-14)
 
 `main` is the MVP: one Next.js app that is also the backend. `develop` holds
-the rebuild described under "The platform rebuild" below, eleven PRs (#70 to
-#80). `develop` is green in CI and has never been deployed.
+the rebuild described under "The platform rebuild" below, nineteen PRs (#70
+to #88). `develop` is green in CI and has never been deployed.
 
 On `develop`, built and tested:
 
@@ -17,10 +17,14 @@ On `develop`, built and tested:
 | API as a container with its own scheduler | Done. CI builds the image and checks it starts |
 | Server renders the PDF and registers the certificate | Done |
 | Email notices to admins through an outbox | Done |
-| Digipost delivery, granted per organisation by the owner | Done |
+| Digipost delivery, granted per organisation by the owner | Done against a fake that checks signatures. Never sent a real letter |
 | Security audit and fixes | Done. Open items listed below |
 | Own error tracking and JSON logging | Done for the API, the browser and the web app's server code |
+| Status link and reminder for the volunteer | Done |
+| Pending count in the menu, paged and lighter lists | Done |
+| Template editor in four plain steps | Done. Dragging fields in the drawing has no automated test |
 | `docs/API.md` for the mobile app | Done |
+| Local test rig, also run in CI | Done. Passes 36 checks. Not yet run on the owner's machine |
 
 **What "tested" means here.** Unit tests, e2e tests with the API mocked, and
 the local test rig (DEVELOPMENT.md "The local test rig"), which runs the real
@@ -33,6 +37,18 @@ sent a real letter.
 **Urgent, and separate from the rebuild:** `main` runs Next 15.5.2, which has
 a critical flaw that allows code to run on the server. `develop` is on
 15.5.29. Take that bump to `main` on its own if the cut-over is not close.
+
+### Before the cut-over: try it
+
+1. On your own machine, with invented data: `npm run stack:up`, then
+   `npm run dev`. DEVELOPMENT.md "The local test rig" has the addresses, the
+   logins and what the rig covers.
+2. Against Digipost's test environment: point the rig's API at
+   `api.test.digipost.no` with the test certificate (same section). This is
+   the only way to see a real Digipost letter before production.
+3. A staging copy, as the dress rehearsal: a second Nhost project, the API
+   container on its real host and a Cloudflare preview. The rig cannot stand
+   in for those three.
 
 ### Cut-over checklist, in order
 
@@ -239,6 +255,20 @@ Left open on purpose, each needing a decision or more than a small fix:
   organisation with none. The platform owner can repair it.
 - **No rate limit.** The ceilings above bound the damage. Real limiting
   belongs at the edge (Cloudflare) in front of both web and API.
+
+### Decisions waiting on the owner
+
+Asked 2026-11-13, not answered yet. None of them blocks the cut-over.
+
+- **Where the API container runs.** One small European VPS that also holds
+  an uptime monitor and future hobby backends, or a managed container host.
+- **The Android app in `arneeme/apps`.** It calls the unversioned `/api/...`
+  paths and stops working at cut-over. Updating it needs push access there.
+  It could also issue from the phone now.
+- **The look as a theme.** Whether attester's colours and type become a
+  second theme in `arneeme/design`. The Android app copies them by hand.
+- **Product or workshop project.** If attester may become a product, the
+  Android app needs its own package name before anyone else installs it.
 
 ### Next steps, in the order they pay off
 

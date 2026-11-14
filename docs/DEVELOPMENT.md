@@ -16,6 +16,8 @@ npm run lint         # eslint — 2 known warnings are acceptable, 0 errors
 npm test             # vitest unit suite (src/**/*.test.ts only)
 npm run test:e2e     # Playwright suite (apps/web/e2e/*.spec.ts), mocked APIs, no DB needed
 npm run build        # next build — needs NEXT_PUBLIC_NHOST_* set (placeholders fine)
+npm run stack:up     # the local test rig: real database, auth and API (needs Docker)
+npm run stack:smoke  # one real pass through every flow, against the rig
 ```
 
 Full verification before any commit:
@@ -26,7 +28,10 @@ rm -rf apps/web/.next && npm run typecheck && npm run lint && npm test \
   && npm run test:e2e
 ```
 
-CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
+CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR, and also
+builds the API image (`api-image`) and runs the local test rig with its smoke
+test (`stack`). A change to a database query or the schema is only really
+tested by `stack`: the unit tests stub the database.
 
 ## The local test rig
 
@@ -132,6 +137,9 @@ configuration. Those need a staging copy, see ROADMAP.
 - Unit tests: pure `.ts` modules only (vitest has no JSX transform). Put
   logic in `apps/web/src/util/`, `packages/shared/src/` or `apps/api/src/` and test it there; keep React
   components thin.
+- The rig's smoke test (`dev/smoke.ts`) is where a new flow gets one real
+  pass through database, auth and API. Add a check there when you add a
+  route or a table.
 - E2E: `apps/web/e2e/*.spec.ts`, APIs mocked with `page.route()`. The verify tests
   compute the SHA-512 independently (`apps/web/e2e/helpers.ts`) — they are the guard
   on the hash contract, so a drift in either the page or the algorithm fails

@@ -73,12 +73,17 @@ echo-databasen.
 
 ## Kjøre lokalt
 
-Web-appen trenger miljøvariabler i `apps/web/.env.local`. Kopier fra
-`apps/web/.env.example`. API-et trenger sine egne, se
-[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Den enkleste måten er testriggen. Den starter database, innlogging, API,
+e-postfanger og en liksom-Digipost på egen maskin, med oppdiktede data.
+Krever Docker.
 
 ```bash
 npm install
-npm run dev -w @attester/api   # API-et på :8787
-npm run dev                    # web-appen på :3000
+npm run stack:up     # starter alt og skriver ut adresser og innlogginger
+npm run dev          # web-appen på :3000, mot riggen
+npm run stack:smoke  # går gjennom hele løpet og sjekker at alt virker
+npm run stack:down   # stopper alt og sletter dataene
 ```
+
+Mer om riggen, og om å kjøre mot et ekte Nhost-prosjekt, står i
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
