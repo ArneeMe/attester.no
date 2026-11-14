@@ -28,6 +28,48 @@ rm -rf apps/web/.next && npm run typecheck && npm run lint && npm test \
 
 CI (`.github/workflows/ci.yml`) runs exactly this on every push/PR.
 
+## The local test rig
+
+Runs production's services on your own machine with invented data. Nothing
+in it touches the real project. Needs Docker.
+
+```bash
+npm run stack:up      # start everything, set up the database, seed test data
+npm run dev           # the web app, against the rig
+npm run stack:smoke   # one real pass through every flow
+npm run stack:logs    # what the services said
+npm run stack:down    # stop it and delete its data
+```
+
+`stack:up` prints the addresses and the test logins. What runs
+(`dev/docker-compose.yml`):
+
+| Service | Where | What it is |
+|---|---|---|
+| Postgres, Hasura | `localhost:8080/console` | The real database layer, same Hasura version as Nhost |
+| Nhost Auth | `localhost:4000` | The real auth service. Sign-up, verification and reset mails go to the mail catcher |
+| API | `localhost:8787` | Built from the same `Dockerfile` as production |
+| Mailpit | `localhost:8025` | Catches every email. Nothing leaves the machine |
+| Fake Digipost | `localhost:8090` | Checks each request's signature like Digipost does, and shows the letters it received |
+
+- The seeded data: organisation `testorg` with Digipost on and one template,
+  `annenorg` for testing that organisations cannot see each other, and three
+  users. A fødselsnummer starting with `01` has a mailbox in the fake
+  Digipost; use the synthetic `01818099912`.
+- Keys are generated on first start into `.dev/` (gitignored). They are not
+  secrets and exist only on your machine.
+- `stack:up` writes `apps/web/.env.local` if you have none. If you have one,
+  it prints the four lines the rig needs.
+- The rig sets the schema up from `0000-baseline-schema.sql`, so that file
+  is tested on every run. A column missing there fails the smoke test.
+- CI runs the same rig and smoke test on every PR (job `stack`).
+- **To test against the real Digipost test environment**, change
+  `DIGIPOST_API_URL`, `DIGIPOST_BROKER_ID` and `DIGIPOST_PRIVATE_KEY` for the
+  `api` service to your test sender's values. Keep them out of git.
+
+What the rig does not cover: Cloudflare Pages, Resend, and Nhost's hosted
+configuration. Those need a staging copy, see ROADMAP.
+
 ## Conventions
 
 ### Strings & languages

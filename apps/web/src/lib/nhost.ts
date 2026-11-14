@@ -3,7 +3,10 @@ import { createClient } from "@nhost/nhost-js";
 const subdomain = process.env.NEXT_PUBLIC_NHOST_SUBDOMAIN ?? '';
 const region = process.env.NEXT_PUBLIC_NHOST_REGION ?? '';
 
-export const nhost = createClient({ subdomain, region });
+// Set only by the local test rig, where auth runs on this machine.
+const authUrl = process.env.NEXT_PUBLIC_NHOST_AUTH_URL || undefined;
+
+export const nhost = createClient({ subdomain, region, authUrl });
 
 type SessionUser = NonNullable<NonNullable<ReturnType<typeof nhost.getUserSession>>["user"]>;
 export type { SessionUser as NhostUser };

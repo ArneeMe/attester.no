@@ -1,0 +1,124 @@
+# The local test rig: the same services production uses, on this machine,
+# with invented data. Started by `npm run stack:up`, which also writes the
+# keys this file reads from ../.dev/stack.env. Nothing here is a real secret.
+name: attester-test
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: local
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d local -q"]
+      interval: 3s
+      timeout: 30s
+      retries: 20
+
+  graphql:
+    image: nhost/graphql-engine:v2.48.10-ce
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports: ["8080:8080"]
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgres@postgres:5432/local
+      HASURA_GRAPHQL_ADMIN_SECRET: local-admin-secret
+      HASURA_GRAPHQL_JWT_SECRET: ${JWT_SECRET}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ENABLE_TELEMETRY: "false"
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public
+      HASURA_GRAPHQL_LOG_LEVEL: warn
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/healthz > /dev/null"]
+      interval: 3s
+      timeout: 60s
+      retries: 40
+
+  auth:
+    image: nhost/auth:0.44.0
+    command: serve
+    depends_on:
+      graphql: { condition: service_healthy }
+    ports: ["4000:4000"]
+    environment:
+      AUTH_API_PREFIX: /v1
+      AUTH_PORT: "4000"
+      AUTH_SERVER_URL: http://localhost:4000/v1
+      AUTH_CLIENT_URL: http://localhost:3000
+      AUTH_ACCESS_CONTROL_ALLOWED_REDIRECT_URLS: http://localhost:3000,http://localhost:3000/**
+      AUTH_ENCRYPTION_KEY: ${AUTH_ENCRYPTION_KEY}
+      AUTH_USER_DEFAULT_ROLE: user
+      AUTH_USER_DEFAULT_ALLOWED_ROLES: me,user
+      AUTH_EMAIL_SIGNIN_EMAIL_VERIFIED_REQUIRED: "true"
+      AUTH_SMTP_HOST: mailpit
+      AUTH_SMTP_PORT: "1025"
+      AUTH_SMTP_SECURE: "false"
+      AUTH_SMTP_AUTH_METHOD: PLAIN
+      AUTH_SMTP_USER: user
+      AUTH_SMTP_PASS: password
+      AUTH_SMTP_SENDER: auth@attester.test
+      AUTH_LOG_FORMAT_TEXT: "true"
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgres@postgres:5432/local?sslmode=disable
+      HASURA_GRAPHQL_GRAPHQL_URL: http://graphql:8080/v1/graphql
+      HASURA_GRAPHQL_ADMIN_SECRET: local-admin-secret
+      HASURA_GRAPHQL_JWT_SECRET: ${JWT_SECRET}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/healthz"]
+      interval: 3s
+      timeout: 60s
+      retries: 40
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports: ["8025:8025"]
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+
+  digipost:
+    image: node:22-alpine
+    command: ["node", "/rig/fake-digipost.mjs"]
+    ports: ["8090:8090"]
+    environment:
+      DIGIPOST_PUBLIC_KEY: ${DIGIPOST_PUBLIC_KEY}
+    volumes:
+      - ./fake-digipost.mjs:/rig/fake-digipost.mjs:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8090/healthz"]
+      interval: 3s
+      timeout: 30s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    depends_on:
+      auth: { condition: service_healthy }
+      digipost: { condition: service_healthy }
+    ports: ["8787:8787"]
+    environment:
+      HASURA_GRAPHQL_URL: http://graphql:8080/v1/graphql
+      AUTH_JWKS_URL: http://auth:4000/v1/.well-known/jwks.json
+      NHOST_ADMIN_SECRET: local-admin-secret
+      PUBLIC_APP_URL: http://localhost:3000
+      PLATFORM_ADMIN_EMAILS: eier@attester.test
+      NOTIFY_EMAIL_FROM: varsel@attester.test
+      MAILPIT_URL: http://mailpit:8025
+      DELIVERY_KEY: ${DELIVERY_KEY}
+      DIGIPOST_API_URL: http://digipost:8090
+      DIGIPOST_BROKER_ID: "1234"
+      DIGIPOST_PRIVATE_KEY: ${DIGIPOST_PRIVATE_KEY}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8787/healthz"]
+      interval: 3s
+      timeout: 30s
+      retries: 20
+
+volumes:
+  pgdata:

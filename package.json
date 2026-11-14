@@ -11,7 +11,11 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "test:e2e": "npm run test:e2e -w @attester/web"
+    "test:e2e": "npm run test:e2e -w @attester/web",
+    "stack:up": "tsx dev/stack.ts up",
+    "stack:down": "tsx dev/stack.ts down",
+    "stack:logs": "tsx dev/stack.ts logs",
+    "stack:smoke": "tsx dev/smoke.ts"
   },
   "overrides": {
     "@types/react": "19.2.8",
@@ -23,5 +27,8 @@
     "@pdfme/common": {
       "zod": "^4.6.6"
     }
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0"
   }
 }
