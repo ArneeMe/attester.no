@@ -1,7 +1,11 @@
 name = "attester-no"
-compatibility_date = "2025-01-01"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".vercel/output/static"
+main = ".open-next/worker.js"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
 
 [vars]
 NEXT_PUBLIC_NHOST_SUBDOMAIN = "fjolhedkolpveurwmylm"

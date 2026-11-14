@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { hasuraAdmin } from "@/lib/server/hasura";
 import { serverError } from "@/lib/server/apiError";
 
-export const runtime = "edge";
-
 export async function GET(req: NextRequest) {
     const volunteerId = req.nextUrl.searchParams.get("volunteerId");
     if (!volunteerId) {

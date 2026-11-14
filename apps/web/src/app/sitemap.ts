@@ -2,8 +2,6 @@ import type { MetadataRoute } from 'next';
 import { listPublicOrgs } from '@/lib/publicOrgs';
 import { SITE_URL } from '@/util/seo';
 
-export const runtime = 'edge';
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const statics: MetadataRoute.Sitemap = [
         { url: `${SITE_URL}/`, changeFrequency: 'weekly', priority: 1 },

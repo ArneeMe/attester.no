@@ -1,8 +1,6 @@
 import OrgVerifyClient from './OrgVerifyClient';
 import { getOrgNameBySlug } from '@/lib/publicOrgs';
 
-export const runtime = 'edge';
-
 export async function generateMetadata({
     params,
 }: {

@@ -1,8 +1,6 @@
 import { NextRequest } from "next/server";
 import { apiUrl } from "@/lib/apiUrl";
 
-export const runtime = "edge";
-
 async function forward(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
     const { path } = await params;
     // A dot segment would let the URL climb out of the API's /v1 root.

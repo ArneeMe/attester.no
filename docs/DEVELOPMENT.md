@@ -72,7 +72,7 @@ npm run stack:down    # stop it and delete its data
   `DIGIPOST_API_URL`, `DIGIPOST_BROKER_ID` and `DIGIPOST_PRIVATE_KEY` for the
   `api` service to your test sender's values. Keep them out of git.
 
-What the rig does not cover: Cloudflare Pages, Resend, and Nhost's hosted
+What the rig does not cover: Cloudflare Workers, Resend, and Nhost's hosted
 configuration. Those need a staging copy, see ROADMAP.
 
 ## Conventions
@@ -158,24 +158,26 @@ configuration. Those need a staging copy, see ROADMAP.
 - In sandboxes with a pre-provisioned Chromium, run e2e with
   `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium` instead of `playwright install`.
 - `.claude/` is gitignored (AI worktrees live there) — keep it that way.
-- `apps/web` runs on the edge runtime: no `setInterval`/cron, no Node
-  `crypto` module (use Web Crypto), per-isolate memory only. `apps/api` is
+- `apps/web` runs as a Cloudflare Worker through OpenNext: no
+  `setInterval`/cron and per-isolate memory only. Do not add
+  `export const runtime = 'edge'`; OpenNext refuses to build it. `apps/api` is
   plain Node and has none of these limits. Shared code in `packages/shared`
   must run in both, so it uses Web Crypto and no Node modules.
 - `next-env.d.ts` is generated and lint-ignored; don't edit or lint it.
 
 ## Deploy checklist (per release)
 
-1. Merge to `main`; `npm run deploy -w @attester/web` (wrangler → Cloudflare
-   Pages) or CI/CD. The Cloudflare Pages project must build from the repo
-   root with `npm run pages:build -w @attester/web` and output directory
-   `apps/web/.vercel/output/static`.
+1. Merge to `main`; `npm run deploy -w @attester/web` (OpenNext build, then
+   wrangler → Cloudflare Workers) or Workers Builds. The Worker builds from
+   the repo root with `npm run cf:build -w @attester/web` and deploys with
+   `npx wrangler deploy -c apps/web/wrangler.toml`. `npm run preview -w
+   @attester/web` runs the built Worker locally.
 2. Run any new `scripts/migrations/*.sql` in the Hasura console and (re-)track
    affected tables. The first deploy of the rebuild needs four:
    `2026-11-notices.sql`, `2026-11-digipost.sql`,
    `2026-11-platform-errors.sql` and `2026-11-submission-status.sql`.
 3. Env vars are split by who needs them.
-   - **Cloudflare Pages (web):** `NEXT_PUBLIC_NHOST_*`, `API_URL` (the API's
+   - **Cloudflare Worker (web):** `NEXT_PUBLIC_NHOST_*`, `API_URL` (the API's
      `/v1` root, e.g. `https://api.attester.no/v1`) and `NHOST_ADMIN_SECRET`,
      which only the frozen legacy verify route uses.
    - **The API container:** required: `NHOST_SUBDOMAIN`, `NHOST_REGION`,
@@ -226,7 +228,7 @@ configuration. Those need a staging copy, see ROADMAP.
 
 - Small, independently shippable slices; stacked PRs when they depend on each
   other (base each PR on its parent branch, retarget as parents merge).
-- **`main` auto-deploys to production** via the Cloudflare Pages Git
+- **`main` auto-deploys to production** via the Cloudflare Git
   integration, so anything merged is live. While the platform rebuild runs
   (docs/ROADMAP.md), work goes to `develop` in small PRs and the owner merges
   `develop` to `main` when the downtime suits. The branch is `develop` and not
