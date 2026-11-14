@@ -2,13 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
     Box,
     Button,
-    Paper,
     CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
-    Typography,
+    MenuItem,
+    TextField,
 } from '@mui/material';
 import { Designer } from '@pdfme/ui';
 import { text, image, barcodes } from '@pdfme/schemas';
@@ -27,6 +27,7 @@ import SchemaEditor from './SchemaEditor';
 import StarterTemplatePicker from './StarterTemplatePicker';
 import type { StarterTemplate } from '@/app/pdfinfo/starterTemplates';
 import { useAdminLang } from '@/util/useAdminLang';
+import { body, c, h2, mono } from '@/app/style/tokens';
 
 interface Props {
     orgSlug: string;
@@ -37,6 +38,27 @@ interface Props {
     onError: (msg: string | null) => void;
     onSuccess: (msg: string | null) => void;
     onTemplateLoad: (name: string, desc: string, isOffered: boolean) => void;
+    saveFields: React.ReactNode;
+}
+
+function Step({ number, title, help, action, children }: {
+    number: number;
+    title: string;
+    help?: string;
+    action?: React.ReactNode;
+    children: React.ReactNode;
+}) {
+    return (
+        <Box component="section" sx={{ borderTop: `1px solid ${c.rule}`, pt: 3, pb: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap', mb: help ? 0.5 : 2 }}>
+                <Box sx={mono}>{String(number).padStart(2, '0')}</Box>
+                <Box component="h2" sx={h2}>{title}</Box>
+                {action && <Box sx={{ ml: 'auto' }}>{action}</Box>}
+            </Box>
+            {help && <Box sx={{ ...body, mb: 2, maxWidth: 720 }}>{help}</Box>}
+            {children}
+        </Box>
+    );
 }
 
 export default function DesignerComponent({
@@ -48,6 +70,7 @@ export default function DesignerComponent({
                                               onError,
                                               onSuccess,
                                               onTemplateLoad,
+                                              saveFields,
                                           }: Props) {
     const { strings } = useAdminLang();
     const d = strings.admin.designer;
@@ -259,8 +282,8 @@ export default function DesignerComponent({
 
     return (
         <>
-            <Paper sx={{ p: 2, mb: 2 }}>
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+            <Step number={1} title={d.steps.look} help={d.steps.lookHelp}>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
                     <Button variant="outlined" onClick={() => setPickerOpen(true)}>
                         {d.startFromTemplate}
                     </Button>
@@ -270,55 +293,36 @@ export default function DesignerComponent({
                         <input type="file" accept="application/pdf" hidden onChange={handlePdfUpload} />
                     </Button>
 
-                    <Button variant="outlined" onClick={handlePreview} disabled={previewBusy}>
-                        {previewBusy ? <CircularProgress size={20} /> : d.previewPdf}
-                    </Button>
-
-                    <Button
-                        variant="contained"
-                        onClick={handleSave}
-                        disabled={saving || !templateName.trim()}
-                    >
-                        {saving ? <CircularProgress size={20} /> : d.saveTemplate}
-                    </Button>
-
-                    <Button variant="outlined" color="secondary" onClick={handleExport}>
-                        {d.exportJson}
-                    </Button>
+                    {existingTemplates.length > 0 && (
+                        <TextField
+                            select
+                            size="small"
+                            label={d.openExisting}
+                            value=""
+                            onChange={(e) => {
+                                const found = existingTemplates.find((t) => t.id === e.target.value);
+                                if (found) void handleLoadTemplate(found);
+                            }}
+                            sx={{ minWidth: 280 }}
+                        >
+                            {existingTemplates.map((template) => (
+                                <MenuItem key={template.id} value={template.id}>
+                                    {template.name}
+                                    {template.isOffered && d.offeredSuffix}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    )}
                 </Box>
-
-                {existingTemplates.length > 0 && (
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        {existingTemplates.map((template) => (
-                            <Button
-                                key={template.id}
-                                variant={template.isOffered ? 'contained' : 'outlined'}
-                                size="small"
-                                onClick={() => handleLoadTemplate(template)}
-                            >
-                                {template.name}
-                                {template.isOffered && d.offeredSuffix}
-                            </Button>
-                        ))}
-                    </Box>
-                )}
-            </Paper>
-
-            <Paper sx={{ p: 2 }}>
                 <Box
                     ref={containerRef}
-                    sx={{
-                        width: '100%',
-                        height: '70vh',
-                        minHeight: 600,
-                    }}
+                    // No fixed height: pdfme sizes itself to what is left of the
+                    // window below this box, and a taller box only adds a gap.
+                    sx={{ width: '100%', minHeight: 420, border: `1px solid ${c.ruleSoft}` }}
                 />
-            </Paper>
+            </Step>
 
-            <Paper sx={{ p: 2, mt: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                    {d.fieldsTitle}
-                </Typography>
+            <Step number={2} title={d.steps.fields} help={d.bindingsIntro}>
                 <BindingsEditor
                     schemas={currentSchemas}
                     bindings={bindings}
@@ -326,20 +330,39 @@ export default function DesignerComponent({
                     formSchema={formSchema}
                     onChange={setBindings}
                 />
-            </Paper>
+            </Step>
 
-            <Paper sx={{ p: 2, mt: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="h6">{d.schemaTitle}</Typography>
-                    <Button
-                        size="small"
-                        onClick={() => setFormSchema(deriveFormSchema(currentSchemas, bindings))}
-                    >
+            <Step
+                number={3}
+                title={d.steps.form}
+                help={d.steps.formHelp}
+                action={
+                    <Button size="small" onClick={() => setFormSchema(deriveFormSchema(currentSchemas, bindings))}>
                         {d.autoDerive}
                     </Button>
-                </Box>
+                }
+            >
                 <SchemaEditor orgSlug={orgSlug} schema={formSchema} assets={assets} onChange={setFormSchema} />
-            </Paper>
+            </Step>
+
+            <Step number={4} title={d.steps.save}>
+                {saveFields}
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mt: 2 }}>
+                    <Button
+                        variant="contained"
+                        onClick={handleSave}
+                        disabled={saving || !templateName.trim()}
+                    >
+                        {saving ? <CircularProgress size={20} /> : d.saveTemplate}
+                    </Button>
+                    <Button variant="outlined" onClick={handlePreview} disabled={previewBusy}>
+                        {previewBusy ? <CircularProgress size={20} /> : d.previewPdf}
+                    </Button>
+                    <Button size="small" onClick={handleExport} sx={{ ml: 'auto' }}>
+                        {d.exportJson}
+                    </Button>
+                </Box>
+            </Step>
 
             <StarterTemplatePicker
                 open={pickerOpen}
