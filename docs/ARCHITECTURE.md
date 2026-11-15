@@ -13,7 +13,7 @@ never be broken, read [CLAUDE.md](../CLAUDE.md) first — this file explains
 | Shared code | `packages/shared` | Hash, validation, types. Imported by web and API as `@attester/shared/...` |
 | Database | Postgres via Hasura GraphQL (Nhost) | Only the API talks to Hasura, with the **admin secret**; tenancy is enforced in API code, NOT in Hasura permissions |
 | Auth | Nhost Auth (email/password) | JWT verified server-side with `jose` against remote JWKS |
-| PDF | pdfme 5, rendered by the API (`apps/api/src/issuance/`) | The server already holds the submission until issuance. The PDF is returned, never stored |
+| PDF | pdfme 6, rendered by the API (`apps/api/src/issuance/`) | The server already holds the submission until issuance. The PDF is returned, never stored |
 
 ## How a request travels
 

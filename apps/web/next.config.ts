@@ -22,6 +22,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
     experimental: {},
     transpilePackages: ["@attester/shared"],
+    webpack(config, { isServer, webpack }) {
+        // pdfme 6's PDF engine imports node: modules behind Node-only branches.
+        if (!isServer) config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^node:/ }));
+        return config;
+    },
     async headers() {
         return [
             {

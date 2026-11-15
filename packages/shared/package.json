@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@pdfme/common": "^5.5.8"
+    "@pdfme/common": "^6.2.8"
   },
   "devDependencies": {
     "typescript": "^5",

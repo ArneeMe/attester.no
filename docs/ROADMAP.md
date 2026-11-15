@@ -241,14 +241,13 @@ several requests could exhaust the one shared process.
 
 Left open on purpose, each needing a decision or more than a small fix:
 
-- **`pdfjs-dist` under pdfme 5** has a known flaw where a malicious PDF runs
-  script when opened. It is only reached when an admin loads a PDF into the
-  designer in their own browser. The fix is pdfme 6, a major upgrade that
-  needs the designer and every template re-tested.
 - **A wrong fødselsnummer sends a certificate to the wrong person.** The
   check digits catch typing errors, not someone entering another person's
   number. The admin reviews the request but cannot see the number. Showing
-  the name Digipost has for the recipient before sending would close it.
+  the name Digipost has for the recipient was the planned fix, but it cannot
+  be built: identifying by fødselsnummer returns only a result code, never a
+  name (`identification-result` in Digipost's `api_v8.xsd`, checked
+  2026-11-15).
 - **No rate limit.** The ceilings above bound the damage. Real limiting
   belongs at the edge (Cloudflare) in front of both web and API.
 
@@ -284,8 +283,7 @@ Asked 2026-11-13, not answered yet. None of them blocks the cut-over.
    `arneeme/apps` still calls the unversioned `/api/...` paths and will stop
    working at cut-over until it is moved to `/api/v1/...`. It can also issue
    now, since the server renders the PDF.
-5. **pdfme 6**, with the designer and all templates re-tested.
-6. **Hash v2** when a reason to touch certificates appears: escape the
+5. **Hash v2** when a reason to touch certificates appears: escape the
    separator and tag the version, as CLAUDE.md describes.
 
 ## Explicitly frozen
