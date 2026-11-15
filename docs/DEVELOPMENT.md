@@ -214,7 +214,7 @@ configuration. Those need a staging copy, see ROADMAP.
 5. One-time Nhost setup (Settings → Auth):
    - **Allowed Redirect URLs** must contain every origin you use, with the
      `/login/reset` path — production, `http://localhost:3000`, and a
-     wildcard for Cloudflare previews (`https://*.<project>.pages.dev/...`).
+     wildcard for Worker previews (`https://*-attester-no.<account>.workers.dev/...`).
      A missing entry fails password reset with `The value of
      "options.redirectTo" is not allowed` — it's an allowlist, not a bug.
    - **Client URL** should be the production origin, not localhost.
@@ -223,6 +223,13 @@ configuration. Those need a staging copy, see ROADMAP.
    - Email verification and the minimum password length are project settings,
      not code. `PASSWORD_MIN_LENGTH` in `apps/web/src/util/auth.ts` only mirrors the
      latter for a friendly client-side message — keep the two in sync.
+6. The uptime check (`ops/uptime/`), on any machine that is not the API's
+   host: `WEB_URL`, `API_ORIGIN` (the API's address without `/v1`) and
+   `NTFY_TOPIC` in the environment, then `docker compose up -d` in that
+   folder. Gatus checks the front page, the API's `/healthz` and that the web
+   app reaches the API, every five minutes. Three failures in a row push an
+   ntfy alert, and recovery pushes another. The alert names the check, never
+   a user. The status page is on port 8080, bound to localhost only.
 
 ## Working style that has worked here
 

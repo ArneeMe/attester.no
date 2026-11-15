@@ -1,0 +1,39 @@
+alerting:
+  ntfy:
+    url: "${NTFY_SERVER}"
+    topic: "${NTFY_TOPIC}"
+    priority: 4
+    default-alert:
+      failure-threshold: 3
+      success-threshold: 2
+      send-on-resolved: true
+
+endpoints:
+  - name: forside
+    group: web
+    url: "${WEB_URL}/"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 10000"
+    alerts:
+      - type: ntfy
+
+  - name: helse
+    group: api
+    url: "${API_ORIGIN}/healthz"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY] == ok"
+    alerts:
+      - type: ntfy
+
+  - name: web-til-api
+    group: web
+    url: "${WEB_URL}/api/v1/org/oppetid/certificates"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 401"
+    alerts:
+      - type: ntfy

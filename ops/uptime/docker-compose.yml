@@ -1,0 +1,13 @@
+services:
+  gatus:
+    image: twinproduction/gatus:v5.38.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      WEB_URL: ${WEB_URL:-https://attester.no}
+      API_ORIGIN: ${API_ORIGIN:?set API_ORIGIN to the API's address, without /v1}
+      NTFY_SERVER: ${NTFY_SERVER:-https://ntfy.sh}
+      NTFY_TOPIC: ${NTFY_TOPIC:?set NTFY_TOPIC}
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
