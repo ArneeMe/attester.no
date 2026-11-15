@@ -293,9 +293,10 @@ reportError(e, source, place)          apps/api/src/errors/report.ts
     cannot crowd out the API's own errors. It never reads the request's
     headers and always answers 202.
   - A page sends at most five reports per load.
-- **Not covered:** the API being down altogether. It cannot report its own
-  death, and the web app's reports go to the API. That takes a check from
-  outside, see ROADMAP. Whether `instrumentation.ts` runs on Cloudflare Workers
+- **The API being down** is caught from outside. It cannot report its own
+  death, and the web app's reports go to the API, so Gatus (`ops/uptime/`)
+  polls the front page, `/healthz` and the web-to-API route and alerts by
+  ntfy. It needs a host of its own, see ROADMAP. Whether `instrumentation.ts` runs on Cloudflare Workers
   has not been seen in production; it builds there.
 
 ## Security model

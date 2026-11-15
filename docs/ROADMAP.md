@@ -104,9 +104,9 @@ whole lifecycle.
 
 ## Known gaps
 
-- **The API being down is still invisible.** The API records its own errors
-  and those of the browser and the web app (ARCHITECTURE "Logs and errors").
-  It cannot report its own death.
+- **The API being down is invisible until the uptime check runs.** The
+  check is built (`ops/uptime/`, DEVELOPMENT.md "Deploy checklist") but needs
+  a machine to run on, and not the API's own host.
 
 ## Design options captured (build when the need is real)
 
@@ -271,9 +271,8 @@ Asked 2026-11-13, not answered yet. None of them blocks the cut-over.
    this file.
 2. **Finish error tracking.** Built: the API's own errors, the browser's and
    the web app's. Left:
-   - An uptime check from outside against `/healthz` and the front page.
-     Self-hosted Uptime Kuma or Gatus is open source and needs one small
-     container. Needs somewhere to run.
+   - Run the uptime check (`ops/uptime/`, Gatus). Built and tested against
+     fakes; needs somewhere to run.
    - Log retention. Logs live as long as the container host keeps stdout.
      If that is too short, run Vector with Loki or plain files on a volume.
 3. **Database changes in git.** Run `nhost init --remote` once, commit the
