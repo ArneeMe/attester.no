@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const saved: Array<Record<string, unknown>> = [];
 
-async function openEditor(page: Page) {
+async function openEditor(page: Page, assets: unknown[] = []) {
     saved.length = 0;
     const exp = Math.floor(Date.now() / 1000) + 900;
     await page.addInitScript(([key, session]) => window.localStorage.setItem(key as string, JSON.stringify(session)), ['nhostSession', {
@@ -21,7 +21,7 @@ async function openEditor(page: Page) {
         }
         return route.fulfill({ json: { templates: [] } });
     });
-    await page.route('**/api/v1/org/testorg/assets', (route) => route.fulfill({ json: { assets: [] } }));
+    await page.route('**/api/v1/org/testorg/assets', (route) => route.fulfill({ json: { assets } }));
     await page.route('**/api/v1/org/testorg/settings', (route) => route.fulfill({ json: {} }));
     await page.goto('/login/adminpage/testorg/edit_pdf');
     await expect(page.getByRole('button', { name: '+ Spørsmål' })).toBeVisible({ timeout: 60000 });
@@ -49,7 +49,7 @@ test('a starter template is listed in plain words, without variable names', asyn
     await openStarter(page);
     await expect(page.getByText('Tekst: «Kursbevis»', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Spørsmål').first()).toHaveValue('Mottakers navn');
-    await expect(page.getByText('Signatur 1: bilde, navn og rolle fra Innhold')).toBeVisible();
+    await expect(page.getByText(/^Signatur 1 mangler/)).toBeVisible();
     await expect(page.getByText('QR-kode for å sjekke attesten')).toBeVisible();
     await expect(page.getByText(/\{name\}|\{course\}/)).toHaveCount(0);
 });
@@ -139,4 +139,25 @@ test('text from a starter template can be edited, with answers shown by their qu
     await expect.poll(() => saved.length).toBe(1);
     expect((saved[0].fieldBindings as Record<string, unknown>).completion_date)
         .toMatchObject({ source: 'composite', template: 'Fullført {date:date}' });
+});
+
+test('a signature shows who signs, or says it is missing in Content', async ({ page }) => {
+    await openEditor(page, [{
+        id: 's1', organization_id: 'org-1', kind: 'signature', name: 'Ola Nordmann', content: { photo: '', role: 'Leder', phone: '' },
+        is_default: true, sort_order: 0, created_at: '', updated_at: '',
+    }]);
+    await page.getByRole('button', { name: '+ Signatur' }).click();
+    await page.getByRole('button', { name: '+ Signatur' }).click();
+    await expect(page.getByText('Signatur 1: Ola Nordmann, Leder')).toBeVisible();
+    await expect(page.getByText(/^Signatur 2 mangler/)).toBeVisible();
+});
+
+test('saving waits until the QR code is there, and says so', async ({ page }) => {
+    await openEditor(page);
+    await page.getByLabel('Navn på mal').fill('Test');
+    await expect(page.getByText(/^Før du kan lagre:/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Lagre mal' })).toBeDisabled();
+    await page.getByRole('button', { name: '+ QR-kode' }).click();
+    await expect(page.getByText(/^Før du kan lagre:/)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Lagre mal' })).toBeEnabled();
 });

@@ -7,7 +7,7 @@ import { customTemplate } from '@/app/pdfinfo/customTemplate';
 import { echoFieldBindings } from '@/app/pdfinfo/echoFieldBindings';
 import {
     addQr, addQuestion, addSignature, addText, addToday, items, keyFromLabel, moveBox, normalize, remove, resizeBox,
-    updateField, updateQuestion, setText, removeQuestion, type Draft,
+    updateField, updateQuestion, setText, removeQuestion, missingForSave, type Draft,
 } from './templateDraft';
 
 const empty: Draft = { schemas: [[]], bindings: {}, form: [] };
@@ -150,6 +150,16 @@ describe('text with answers', () => {
         const sig = addSignature(d);
         const names = items(sig).find((i) => i.kind === 'signature')!.names;
         expect(remove(sig, names).form).toEqual(d.form);
+    });
+});
+
+describe('what is missing before saving', () => {
+    it('matches the save check', () => {
+        expect(missingForSave(empty)).toEqual(['qr', 'brand']);
+        expect(missingForSave(addQr(empty))).toEqual([]);
+        for (const d of [empty, addText(empty, 'attester.no'), addQr(empty)]) {
+            expect(missingForSave(d).length).toBe(validateTemplateForSave({ basePdf: BLANK_PDF, schemas: d.schemas }).length);
+        }
     });
 });
 

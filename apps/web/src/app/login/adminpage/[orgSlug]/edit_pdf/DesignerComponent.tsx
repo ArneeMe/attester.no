@@ -11,12 +11,14 @@ import {
     DialogTitle,
     FormControlLabel,
     MenuItem,
+    Link,
     TextField,
 } from '@mui/material';
 import { Template, BLANK_PDF, type Schema } from '@pdfme/common';
 import { saveTemplate, getFullTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseInteractions/templateService';
 import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
 import { validateTemplateForSave } from '@attester/shared/validateTemplate';
+import { pickDefaultAsset } from '@attester/shared/resolveBinding';
 import { buildPreviewPdfUrl } from '@/util/previewPdf';
 import type { TemplateSummary } from '@attester/shared/types/templateTypes';
 import type { OrgAsset } from '@attester/shared/types/orgAssets';
@@ -28,7 +30,7 @@ import { useAdminLang } from '@/util/useAdminLang';
 import { body, c, h2, mono } from '@/app/style/tokens';
 import {
     addQr, addQuestion, addSignature, addText, addToday, displayText, hasQr, items, normalize, remove, removeQuestion,
-    setText, updateField, updateQuestion,
+    missingForSave, setText, updateField, updateQuestion,
     type Draft, type DraftItem,
 } from '@/util/templateDraft';
 
@@ -218,6 +220,7 @@ export default function DesignerComponent({
         list.flatMap((i) => (i.kind === 'signature' ? i.names.map((n) => [n, d.item.signatureShort(i.number)]) : [])),
     );
     const selectedField = (draft.schemas ?? []).flat().find((f) => f.name === selected) ?? null;
+    const missing = missingForSave(draft);
 
     return (
         <>
@@ -291,6 +294,7 @@ export default function DesignerComponent({
                                 sx={{ bgcolor: selected && item.names.includes(selected) ? c.rowHover : 'transparent', px: 1 }}
                             >
                                 <ItemRow
+                                    orgSlug={orgSlug}
                                     item={item}
                                     assets={assets}
                                     onRemove={() => apply(item.kind === 'question' ? removeQuestion(draft, item.field.key) : remove(draft, item.names))}
@@ -303,10 +307,15 @@ export default function DesignerComponent({
                 </Box>
             </Step>
 
-            <Step number={3} title={d.steps.save}>
+            <Step number={3} title={d.steps.save} help={d.saveHelp}>
+                {missing.length > 0 && (
+                    <Box sx={{ ...body, color: 'warning.dark', mb: 2 }}>
+                        {d.missingBefore} {missing.map((m) => d.missingItem[m]).join(' ')}
+                    </Box>
+                )}
                 {saveFields}
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mt: 2 }}>
-                    <Button variant="contained" onClick={handleSave} disabled={saving || !templateName.trim()}>
+                    <Button variant="contained" onClick={handleSave} disabled={saving || !templateName.trim() || missing.length > 0}>
                         {saving ? <CircularProgress size={20} /> : d.saveTemplate}
                     </Button>
                     <Button variant="outlined" onClick={handlePreview} disabled={previewBusy}>
@@ -345,7 +354,8 @@ export default function DesignerComponent({
     );
 }
 
-function ItemRow({ item, assets, onRemove, onChange, onDone }: {
+function ItemRow({ orgSlug, item, assets, onRemove, onChange, onDone }: {
+    orgSlug: string;
     item: DraftItem;
     assets: OrgAsset[];
     onRemove: () => void;
@@ -356,14 +366,28 @@ function ItemRow({ item, assets, onRemove, onChange, onDone }: {
     const d = strings.admin.designer;
     const row = { display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', py: 1.5, borderBottom: `1px solid ${c.ruleSoft}` };
 
-    const describe = (): string => {
+    const fromContent = (kind: 'signature' | 'logo' | 'body_text', position: number, found: (a: OrgAsset) => string) => {
+        const asset = pickDefaultAsset(assets, kind, position);
+        if (asset) return found(asset);
+        return (
+            <Box component="span" sx={{ color: 'warning.dark' }}>
+                {d.item.missing[kind](position + 1)}{' '}
+                <Link href={`/login/adminpage/${orgSlug}/rediger`} target="_blank">{d.item.goToContent}</Link>
+            </Box>
+        );
+    };
+
+    const describe = (): React.ReactNode => {
         switch (item.kind) {
             case 'text': return d.item.text(item.text);
             case 'image': return d.item.image;
-            case 'signature': return d.item.signature(item.number);
+            case 'signature':
+                return fromContent('signature', item.number - 1, (a) =>
+                    d.item.signatureFound(item.number, a.name, (a.content as { role?: string }).role ?? ''));
             case 'qr': return d.item.qr;
             case 'today': return d.item.today;
-            case 'library': return item.assetKind === 'logo' ? d.item.logo : d.item.bodyText;
+            case 'library':
+                return fromContent(item.assetKind, item.position, (a) => `${item.assetKind === 'logo' ? d.item.logo : d.item.bodyText}: ${a.name}`);
             case 'other':
                 if (item.summary?.kind === 'mixed') return d.item.mixed(item.summary.template);
                 return item.summary?.kind === 'automatic' ? d.item.automatic : d.item.other;
