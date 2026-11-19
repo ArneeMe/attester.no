@@ -3,6 +3,8 @@ import { buildPdfInput } from '@attester/shared/resolveBinding';
 import { validateTemplateForSave } from '@attester/shared/validateTemplate';
 import { BLANK_PDF } from '@pdfme/common';
 import { STARTER_TEMPLATES } from '@/app/pdfinfo/starterTemplates';
+import { customTemplate } from '@/app/pdfinfo/customTemplate';
+import { echoFieldBindings } from '@/app/pdfinfo/echoFieldBindings';
 import {
     addQr, addQuestion, addSignature, addText, addToday, items, keyFromLabel, moveBox, normalize, remove, resizeBox,
     updateField, updateQuestion, type Draft,
@@ -79,6 +81,18 @@ describe('templateDraft', () => {
     it('changing a question to a date prints it as a date', () => {
         const d = updateQuestion(addQuestion(empty, { label: 'Når', type: 'text' }), 'nar', { type: 'date' });
         expect(d.bindings.nar).toEqual({ source: 'composite', template: '{nar:date}' });
+    });
+
+    it("echo's template loads without losing what it prints", () => {
+        const before = { schemas: customTemplate.schemas, bindings: echoFieldBindings, form: [] };
+        const after = normalize(before);
+        const printed = (d: Draft) => ({
+            ...Object.fromEntries(d.schemas.flat().filter((f) => f.readOnly).map((f) => [f.name, f.content])),
+            ...render(d, {}),
+        });
+        expect(printed(after)).toEqual(printed(before));
+        expect(items(after).find((i) => i.names.includes('qr_code'))?.kind).toBe('qr');
+        expect(items(after).find((i) => i.names.includes('group_info'))?.kind).toBe('unused');
     });
 
     it('starter templates load without losing what they print', () => {

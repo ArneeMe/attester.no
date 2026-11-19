@@ -359,7 +359,10 @@ function ItemRow({ item, assets, onRemove, onChange, onDone }: {
             case 'qr': return d.item.qr;
             case 'today': return d.item.today;
             case 'library': return item.assetKind === 'logo' ? d.item.logo : d.item.bodyText;
-            case 'other': return item.summary?.kind === 'mixed' ? d.item.mixed(item.summary.template) : d.item.other;
+            case 'other':
+                if (item.summary?.kind === 'mixed') return d.item.mixed(item.summary.template);
+                return item.summary?.kind === 'automatic' ? d.item.automatic : d.item.other;
+            case 'unused': return d.item.unused;
             case 'question': return '';
         }
     };

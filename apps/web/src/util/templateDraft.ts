@@ -24,9 +24,11 @@ export type DraftItem =
     | { kind: 'qr'; names: string[] }
     | { kind: 'today'; names: string[] }
     | { kind: 'library'; names: string[]; assetKind: 'logo' | 'body_text' }
+    | { kind: 'unused'; names: string[] }
     | { kind: 'other'; names: string[]; summary?: BindingSummary };
 
 const QR_LABEL = 'Verifiser på attester.no';
+const SYSTEM_NAMES = new Set(['qr_code', 'qr_info', 'qr_page', 'today']);
 
 const allFields = (schemas: Template['schemas']): Schema[] => (schemas ?? []).flatMap((page) => page ?? []);
 
@@ -113,7 +115,7 @@ export function normalize(draft: Draft): Draft {
         (page ?? []).map((field) => {
             const b = bindings[field.name];
             if (field.type !== 'text') return field;
-            if (!b) return questionAt(draft.form, field.name) ? field : { ...field, readOnly: true };
+            if (!b) return field;
             const summary = summarizeBinding(field.name, b);
             if (summary.kind === 'fixed') {
                 delete bindings[field.name];
@@ -241,11 +243,12 @@ export function items(draft: Draft): DraftItem[] {
             }
             continue;
         }
-        if (!b) {
+        if (!b && !SYSTEM_NAMES.has(f.name)) {
             if (f.type === 'qrcode') out.push({ kind: 'other', names: [f.name] });
             else if (f.type === 'image') out.push({ kind: 'image', names: [f.name] });
             else if (formKeys.has(f.name)) out.push({ kind: 'question', names: [f.name], field: questionAt(draft.form, f.name)! });
-            else out.push({ kind: 'text', names: [f.name], text: String(f.content ?? '') });
+            else if (f.readOnly) out.push({ kind: 'text', names: [f.name], text: String(f.content ?? '') });
+            else out.push({ kind: 'unused', names: [f.name] });
             continue;
         }
         const summary = summarizeBinding(f.name, b);
