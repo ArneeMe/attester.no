@@ -2,11 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
     Box,
     Button,
+    Checkbox,
     CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
+    FormControlLabel,
     MenuItem,
     TextField,
 } from '@mui/material';
@@ -15,19 +17,20 @@ import { text, image, barcodes } from '@pdfme/schemas';
 import { Template, BLANK_PDF } from '@pdfme/common';
 import { saveTemplate, getFullTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseInteractions/templateService';
 import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
-import { deriveFormSchema } from '@attester/shared/templateFields';
 import { validateTemplateForSave } from '@attester/shared/validateTemplate';
 import { buildPreviewPdfUrl } from '@/util/previewPdf';
 import type { TemplateSummary } from '@attester/shared/types/templateTypes';
 import type { FieldBindings } from '@attester/shared/types/fieldBindings';
 import type { OrgAsset } from '@attester/shared/types/orgAssets';
-import type { FormSchema } from '@attester/shared/types/formSchema';
-import BindingsEditor from './BindingsEditor';
-import SchemaEditor from './SchemaEditor';
+import type { FormFieldType, FormSchema } from '@attester/shared/types/formSchema';
 import StarterTemplatePicker from './StarterTemplatePicker';
 import type { StarterTemplate } from '@/app/pdfinfo/starterTemplates';
 import { useAdminLang } from '@/util/useAdminLang';
 import { body, c, h2, mono } from '@/app/style/tokens';
+import {
+    addQr, addQuestion, addSignature, addText, addToday, hasQr, items, normalize, prune, remove, updateQuestion,
+    type Draft, type DraftItem,
+} from '@/util/templateDraft';
 
 interface Props {
     orgSlug: string;
@@ -41,19 +44,19 @@ interface Props {
     saveFields: React.ReactNode;
 }
 
-function Step({ number, title, help, action, children }: {
+type Adding = null | 'text' | 'question' | 'list';
+
+function Step({ number, title, help, children }: {
     number: number;
     title: string;
     help?: string;
-    action?: React.ReactNode;
     children: React.ReactNode;
 }) {
     return (
         <Box component="section" sx={{ borderTop: `1px solid ${c.rule}`, pt: 3, pb: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap', mb: help ? 0.5 : 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, mb: help ? 0.5 : 2 }}>
                 <Box sx={mono}>{String(number).padStart(2, '0')}</Box>
                 <Box component="h2" sx={h2}>{title}</Box>
-                {action && <Box sx={{ ml: 'auto' }}>{action}</Box>}
             </Box>
             {help && <Box sx={{ ...body, mb: 2, maxWidth: 720 }}>{help}</Box>}
             {children}
@@ -62,33 +65,47 @@ function Step({ number, title, help, action, children }: {
 }
 
 export default function DesignerComponent({
-                                              orgSlug,
-                                              templateName,
-                                              templateDescription,
-                                              isOffered,
-                                              initialTemplateId,
-                                              onError,
-                                              onSuccess,
-                                              onTemplateLoad,
-                                              saveFields,
-                                          }: Props) {
+    orgSlug,
+    templateName,
+    templateDescription,
+    isOffered,
+    initialTemplateId,
+    onError,
+    onSuccess,
+    onTemplateLoad,
+    saveFields,
+}: Props) {
     const { strings } = useAdminLang();
     const d = strings.admin.designer;
     const containerRef = useRef<HTMLDivElement>(null);
     const designerRef = useRef<Designer | null>(null);
+    const metaRef = useRef<{ bindings: FieldBindings; form: FormSchema }>({ bindings: {}, form: [] });
+    const [draft, setDraft] = useState<Draft>({ schemas: [[]], bindings: {}, form: [] });
     const [saving, setSaving] = useState(false);
     const [existingTemplates, setExistingTemplates] = useState<TemplateSummary[]>([]);
     const [assets, setAssets] = useState<OrgAsset[]>([]);
-    const [bindings, setBindings] = useState<FieldBindings>({});
-    const [formSchema, setFormSchema] = useState<FormSchema>([]);
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [adding, setAdding] = useState<Adding>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewBusy, setPreviewBusy] = useState(false);
-    // Bump this counter to force BindingsEditor to re-read the designer's schema.
-    const [schemaRev, setSchemaRev] = useState(0);
 
-    // Revoke the previous preview URL when it's replaced or the page unmounts
-    // — otherwise the blob hangs around in memory.
+    const remember = (next: Draft) => {
+        metaRef.current = { bindings: next.bindings, form: next.form };
+        setDraft(next);
+    };
+
+    const current = (): Draft => ({
+        schemas: designerRef.current?.getTemplate().schemas ?? [[]],
+        ...metaRef.current,
+    });
+
+    const apply = (next: Draft, basePdf?: Template['basePdf']) => {
+        const designer = designerRef.current;
+        if (!designer) return;
+        designer.updateTemplate({ basePdf: basePdf ?? designer.getTemplate().basePdf, schemas: next.schemas });
+        remember(next);
+    };
+
     useEffect(() => {
         return () => {
             if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -98,22 +115,13 @@ export default function DesignerComponent({
     useEffect(() => {
         if (!containerRef.current || designerRef.current) return;
 
-        const template: Template = {
-            basePdf: BLANK_PDF,
-            schemas: [[]],
-        };
-
         designerRef.current = new Designer({
             domContainer: containerRef.current,
-            template,
-            plugins: {
-                Text: text,
-                Image: image,
-                QR: barcodes.qrcode,
-            },
+            template: { basePdf: BLANK_PDF, schemas: [[]] },
+            options: { sidebarOpen: false },
+            plugins: { Text: text, Image: image, QR: barcodes.qrcode },
         });
-
-        designerRef.current.onChangeTemplate(() => setSchemaRev((r) => r + 1));
+        designerRef.current.onChangeTemplate((t) => remember(prune({ schemas: t.schemas, ...metaRef.current })));
 
         getTemplates(orgSlug).then(setExistingTemplates).catch((e) => {
             onError(`${d.loadTemplatesError}: ${(e as Error).message}`);
@@ -123,22 +131,15 @@ export default function DesignerComponent({
         });
 
         return () => {
-            if (designerRef.current) {
-                designerRef.current.destroy();
-                designerRef.current = null;
-            }
+            designerRef.current?.destroy();
+            designerRef.current = null;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orgSlug]);
 
-    // Deep-link: if the URL contains ?id=<template-id>, auto-load it once
-    // when both the designer and the templates list are ready. The ref
-    // guards against re-loading the same template if the templates list
-    // refreshes (e.g. after a Save).
     const loadedDeepLinkRef = useRef<string | null>(null);
     useEffect(() => {
-        if (!initialTemplateId) return;
-        if (loadedDeepLinkRef.current === initialTemplateId) return;
+        if (!initialTemplateId || loadedDeepLinkRef.current === initialTemplateId) return;
         if (!designerRef.current || existingTemplates.length === 0) return;
         const found = existingTemplates.find((t) => t.id === initialTemplateId);
         if (!found) return;
@@ -149,56 +150,14 @@ export default function DesignerComponent({
 
     const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file || !designerRef.current) return;
-
+        if (!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => {
-            const base64 = ev.target?.result as string;
-            designerRef.current?.updateTemplate({
-                basePdf: base64,
-                schemas: [[]],
-            });
-            setSchemaRev((r) => r + 1);
-        };
+        reader.onload = (ev) => apply(current(), ev.target?.result as string);
         reader.readAsDataURL(file);
     };
 
-    const handleSave = async () => {
-        if (!designerRef.current || !templateName.trim()) {
-            onError(d.nameFirst);
-            return;
-        }
-
-        setSaving(true);
-        try {
-            const pdfmeTemplate = designerRef.current.getTemplate();
-            const validationErrors = validateTemplateForSave(pdfmeTemplate);
-            if (validationErrors.length > 0) {
-                onError(validationErrors.join(' '));
-                setSaving(false);
-                return;
-            }
-            const data = fromPdfmeTemplate(pdfmeTemplate, templateName.trim(), {
-                description: templateDescription || undefined,
-                isOffered,
-                fieldBindings: bindings,
-                formSchema: formSchema.length > 0 ? formSchema : undefined,
-            });
-
-            await saveTemplate(orgSlug, data);
-            onSuccess(d.saved(templateName));
-
-            const templates = await getTemplates(orgSlug);
-            setExistingTemplates(templates);
-        } catch {
-            onError(d.saveError);
-        } finally {
-            setSaving(false);
-        }
-    };
-
     const handleLoadTemplate = async (summary: TemplateSummary) => {
-        if (!designerRef.current || !summary.id) return;
+        if (!summary.id) return;
         let template;
         try {
             template = await getFullTemplate(orgSlug, summary.id);
@@ -206,37 +165,47 @@ export default function DesignerComponent({
             onError(`${d.loadTemplatesError}: ${(e as Error).message}`);
             return;
         }
-        if (!designerRef.current) return;
-
-        designerRef.current.updateTemplate({
-            basePdf: template.basePdf,
-            schemas: template.schemas,
-        });
-        setBindings(template.fieldBindings ?? {});
-        setFormSchema(template.formSchema ?? []);
-        setSchemaRev((r) => r + 1);
-
+        apply(
+            normalize({ schemas: template.schemas, bindings: template.fieldBindings ?? {}, form: template.formSchema ?? [] }),
+            template.basePdf,
+        );
         onTemplateLoad(template.name, template.description || '', template.isOffered);
     };
 
     const handlePickStarter = (starter: StarterTemplate) => {
-        if (!designerRef.current) return;
-        designerRef.current.updateTemplate(starter.template);
-        setBindings(starter.fieldBindings);
-        setFormSchema(starter.formSchema);
-        setSchemaRev((r) => r + 1);
+        apply(
+            normalize({ schemas: starter.template.schemas, bindings: starter.fieldBindings, form: starter.formSchema }),
+            starter.template.basePdf,
+        );
         onTemplateLoad(starter.name, starter.description, false);
     };
 
-    const handleExport = () => {
-        if (!designerRef.current) return;
-
-        const template = designerRef.current.getTemplate();
-        const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `template-${templateName || 'export'}.json`;
-        a.click();
+    const handleSave = async () => {
+        if (!designerRef.current || !templateName.trim()) {
+            onError(d.nameFirst);
+            return;
+        }
+        const pdfmeTemplate = designerRef.current.getTemplate();
+        const problems = validateTemplateForSave(pdfmeTemplate);
+        if (problems.length > 0) {
+            onError(problems.join(' '));
+            return;
+        }
+        setSaving(true);
+        try {
+            await saveTemplate(orgSlug, fromPdfmeTemplate(pdfmeTemplate, templateName.trim(), {
+                description: templateDescription || undefined,
+                isOffered,
+                fieldBindings: metaRef.current.bindings,
+                formSchema: metaRef.current.form,
+            }));
+            onSuccess(d.saved(templateName));
+            setExistingTemplates(await getTemplates(orgSlug));
+        } catch {
+            onError(d.saveError);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handlePreview = async () => {
@@ -246,14 +215,13 @@ export default function DesignerComponent({
         }
         setPreviewBusy(true);
         try {
-            const url = await buildPreviewPdfUrl(
+            setPreviewUrl(await buildPreviewPdfUrl(
                 orgSlug,
                 designerRef.current.getTemplate(),
-                bindings,
-                formSchema,
+                metaRef.current.bindings,
+                metaRef.current.form,
                 assets,
-            );
-            setPreviewUrl(url);
+            ));
         } catch (e) {
             onError(`${d.previewError}: ${(e as Error).message}`);
         } finally {
@@ -261,38 +229,31 @@ export default function DesignerComponent({
         }
     };
 
+    const handleExport = () => {
+        if (!designerRef.current) return;
+        const blob = new Blob([JSON.stringify(designerRef.current.getTemplate(), null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `template-${templateName || 'export'}.json`;
+        a.click();
+    };
+
     const closePreview = () => {
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         setPreviewUrl(null);
     };
 
-    // Read schemas from the live designer for the bindings editor. The
-    // schemaRev counter forces re-renders when the designer mutates its state.
-    const currentSchemas: Template['schemas'] = (() => {
-        if (!designerRef.current) return [[]];
-        try {
-            return designerRef.current.getTemplate().schemas;
-        } catch {
-            return [[]];
-        }
-    })();
-    // schemaRev is read here so React re-renders when it changes; the value
-    // itself isn't used.
-    void schemaRev;
+    const list = items(draft);
 
     return (
         <>
-            <Step number={1} title={d.steps.look} help={d.steps.lookHelp}>
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
-                    <Button variant="outlined" onClick={() => setPickerOpen(true)}>
-                        {d.startFromTemplate}
-                    </Button>
-
+            <Step number={1} title={d.steps.background} help={d.steps.backgroundHelp}>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <Button variant="outlined" onClick={() => setPickerOpen(true)}>{d.startFromTemplate}</Button>
                     <Button variant="outlined" component="label">
                         {d.uploadPdf}
                         <input type="file" accept="application/pdf" hidden onChange={handlePdfUpload} />
                     </Button>
-
                     {existingTemplates.length > 0 && (
                         <TextField
                             select
@@ -305,97 +266,237 @@ export default function DesignerComponent({
                             }}
                             sx={{ minWidth: 280 }}
                         >
-                            {existingTemplates.map((template) => (
-                                <MenuItem key={template.id} value={template.id}>
-                                    {template.name}
-                                    {template.isOffered && d.offeredSuffix}
+                            {existingTemplates.map((t) => (
+                                <MenuItem key={t.id} value={t.id}>
+                                    {t.name}
+                                    {t.isOffered && d.offeredSuffix}
                                 </MenuItem>
                             ))}
                         </TextField>
                     )}
                 </Box>
+            </Step>
+
+            <Step number={2} title={d.steps.content} help={d.steps.contentHelp}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                    <Button variant="outlined" onClick={() => setAdding('text')}>{d.add.text}</Button>
+                    <Button variant="outlined" onClick={() => setAdding('question')}>{d.add.question}</Button>
+                    <Button variant="outlined" onClick={() => setAdding('list')}>{d.add.list}</Button>
+                    <Button variant="outlined" onClick={() => apply(addSignature(current()))}>{d.add.signature}</Button>
+                    <Button variant="outlined" onClick={() => apply(addToday(current()))}>{d.add.today}</Button>
+                    <Button variant="outlined" disabled={hasQr(draft)} onClick={() => apply(addQr(current()))}>{d.add.qr}</Button>
+                </Box>
                 <Box
                     ref={containerRef}
-                    // No fixed height: pdfme sizes itself to what is left of the
-                    // window below this box, and a taller box only adds a gap.
                     sx={{ width: '100%', minHeight: 420, border: `1px solid ${c.ruleSoft}` }}
                 />
+                <Box sx={{ mt: 3 }}>
+                    <Box component="h3" sx={{ ...body, fontWeight: 600, mb: 1 }}>{d.listTitle}</Box>
+                    {list.length === 0 && <Box sx={{ ...body, color: c.inkFaint }}>{d.empty}</Box>}
+                    {list.map((item) => (
+                        <ItemRow
+                            key={item.names.join('|')}
+                            item={item}
+                            assets={assets}
+                            onRemove={() => apply(remove(current(), item.names))}
+                            onChange={(patch) => remember(updateQuestion(current(), (item as DraftItem & { kind: 'question' }).field.key, patch))}
+                            onDone={() => apply(normalize(current()))}
+                        />
+                    ))}
+                </Box>
             </Step>
 
-            <Step number={2} title={d.steps.fields} help={d.bindingsIntro}>
-                <BindingsEditor
-                    schemas={currentSchemas}
-                    bindings={bindings}
-                    assets={assets}
-                    formSchema={formSchema}
-                    onChange={setBindings}
-                />
-            </Step>
-
-            <Step
-                number={3}
-                title={d.steps.form}
-                help={d.steps.formHelp}
-                action={
-                    <Button size="small" onClick={() => setFormSchema(deriveFormSchema(currentSchemas, bindings))}>
-                        {d.autoDerive}
-                    </Button>
-                }
-            >
-                <SchemaEditor orgSlug={orgSlug} schema={formSchema} assets={assets} onChange={setFormSchema} />
-            </Step>
-
-            <Step number={4} title={d.steps.save}>
+            <Step number={3} title={d.steps.save}>
                 {saveFields}
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mt: 2 }}>
-                    <Button
-                        variant="contained"
-                        onClick={handleSave}
-                        disabled={saving || !templateName.trim()}
-                    >
+                    <Button variant="contained" onClick={handleSave} disabled={saving || !templateName.trim()}>
                         {saving ? <CircularProgress size={20} /> : d.saveTemplate}
                     </Button>
                     <Button variant="outlined" onClick={handlePreview} disabled={previewBusy}>
                         {previewBusy ? <CircularProgress size={20} /> : d.previewPdf}
                     </Button>
-                    <Button size="small" onClick={handleExport} sx={{ ml: 'auto' }}>
-                        {d.exportJson}
-                    </Button>
+                    <Button size="small" onClick={handleExport} sx={{ ml: 'auto' }}>{d.exportJson}</Button>
                 </Box>
             </Step>
 
-            <StarterTemplatePicker
-                open={pickerOpen}
-                onClose={() => setPickerOpen(false)}
-                onPick={handlePickStarter}
+            <AddDialog
+                adding={adding}
+                onClose={() => setAdding(null)}
+                onText={(t) => apply(addText(current(), t))}
+                onQuestion={(q) => apply(addQuestion(current(), q))}
             />
+
+            <StarterTemplatePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={handlePickStarter} />
 
             <Dialog open={!!previewUrl} onClose={closePreview} maxWidth="lg" fullWidth>
                 <DialogTitle>{d.previewDialogTitle}</DialogTitle>
                 <DialogContent dividers sx={{ p: 0, height: '80vh' }}>
                     {previewUrl && (
-                        <iframe
-                            src={previewUrl}
-                            title="PDF-forhåndsvisning"
-                            style={{ width: '100%', height: '100%', border: 0 }}
-                        />
+                        <iframe src={previewUrl} title="PDF-forhåndsvisning" style={{ width: '100%', height: '100%', border: 0 }} />
                     )}
                 </DialogContent>
                 <DialogActions>
                     {previewUrl && (
-                        <Button
-                            component="a"
-                            href={previewUrl}
-                            download={`forhandsvisning-${templateName || 'mal'}.pdf`}
-                        >
+                        <Button component="a" href={previewUrl} download={`forhandsvisning-${templateName || 'mal'}.pdf`}>
                             {d.download}
                         </Button>
                     )}
-                    <Button onClick={closePreview} variant="contained">
-                        {d.close}
-                    </Button>
+                    <Button onClick={closePreview} variant="contained">{d.close}</Button>
                 </DialogActions>
             </Dialog>
         </>
+    );
+}
+
+function ItemRow({ item, assets, onRemove, onChange, onDone }: {
+    item: DraftItem;
+    assets: OrgAsset[];
+    onRemove: () => void;
+    onChange: (patch: { label?: string; type?: FormFieldType; optional?: boolean; options?: string[] }) => void;
+    onDone: () => void;
+}) {
+    const { strings } = useAdminLang();
+    const d = strings.admin.designer;
+    const row = { display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', py: 1.5, borderBottom: `1px solid ${c.ruleSoft}` };
+
+    const describe = (): string => {
+        switch (item.kind) {
+            case 'text': return d.item.text(item.text);
+            case 'image': return d.item.image;
+            case 'signature': return d.item.signature(item.number);
+            case 'qr': return d.item.qr;
+            case 'today': return d.item.today;
+            case 'library': return item.assetKind === 'logo' ? d.item.logo : d.item.bodyText;
+            case 'other': return item.summary?.kind === 'mixed' ? d.item.mixed(item.summary.template) : d.item.other;
+            case 'question': return '';
+        }
+    };
+
+    if (item.kind !== 'question') {
+        return (
+            <Box sx={row}>
+                <Box sx={{ ...body, flex: 1 }}>{describe()}</Box>
+                <Button size="small" color="error" onClick={onRemove}>{d.remove}</Button>
+            </Box>
+        );
+    }
+
+    const f = item.field;
+    const list = f.optionsFromAsset ? assets.find((a) => a.id === f.optionsFromAsset) : null;
+    return (
+        <Box sx={row}>
+            <Box sx={{ ...mono, minWidth: 70 }}>{d.item.question}</Box>
+            <TextField
+                size="small"
+                label={d.questionLabel}
+                value={f.label}
+                onChange={(e) => onChange({ label: e.target.value })}
+                onBlur={onDone}
+                sx={{ minWidth: 240, flex: 1 }}
+            />
+            {f.type === 'dropdown' ? (
+                f.optionsFromAsset ? (
+                    <Box sx={{ ...body, color: c.inkFaint }}>{d.fromList(list?.name ?? '?')}</Box>
+                ) : (
+                    <TextField
+                        size="small"
+                        label={d.optionsLabel}
+                        multiline
+                        value={(f.options ?? []).join('\n')}
+                        onChange={(e) => onChange({ options: e.target.value.split('\n') })}
+                        onBlur={() => onChange({ options: (f.options ?? []).map((o) => o.trim()).filter(Boolean) })}
+                        sx={{ minWidth: 200 }}
+                    />
+                )
+            ) : (
+                <TextField
+                    select
+                    size="small"
+                    label={d.typeLabel}
+                    value={f.type}
+                    onChange={(e) => onChange({ type: e.target.value as FormFieldType })}
+                    sx={{ minWidth: 140 }}
+                >
+                    {(['text', 'long_text', 'date', 'number'] as const).map((t) => (
+                        <MenuItem key={t} value={t}>{d.typeLabels[t]}</MenuItem>
+                    ))}
+                </TextField>
+            )}
+            <FormControlLabel
+                control={<Checkbox checked={!!f.optional} onChange={(e) => onChange({ optional: e.target.checked })} />}
+                label={d.optionalLabel}
+            />
+            <Button size="small" color="error" onClick={onRemove}>{d.remove}</Button>
+        </Box>
+    );
+}
+
+function AddDialog({ adding, onClose, onText, onQuestion }: {
+    adding: Adding;
+    onClose: () => void;
+    onText: (text: string) => void;
+    onQuestion: (q: { label: string; type: FormFieldType; optional?: boolean; options?: string[] }) => void;
+}) {
+    const { strings } = useAdminLang();
+    const d = strings.admin.designer;
+    const [value, setValue] = useState('');
+    const [type, setType] = useState<FormFieldType>('text');
+    const [optional, setOptional] = useState(false);
+    const [options, setOptions] = useState('');
+
+    useEffect(() => {
+        if (!adding) return;
+        setValue('');
+        setType('text');
+        setOptional(false);
+        setOptions('');
+    }, [adding]);
+
+    const choices = options.split('\n').map((o) => o.trim()).filter(Boolean);
+    const ready = value.trim() !== '' && (adding !== 'list' || choices.length > 0);
+
+    const submit = () => {
+        if (!ready) return;
+        if (adding === 'text') onText(value.trim());
+        else if (adding === 'list') onQuestion({ label: value.trim(), type: 'dropdown', optional, options: choices });
+        else onQuestion({ label: value.trim(), type, optional });
+        onClose();
+    };
+
+    const title = adding === 'text' ? d.add.text : adding === 'list' ? d.add.list : d.add.question;
+    return (
+        <Dialog open={!!adding} onClose={onClose} maxWidth="sm" fullWidth>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
+                <Box sx={body}>{adding === 'text' ? d.addHelp.text : adding === 'list' ? d.addHelp.list : d.addHelp.question}</Box>
+                <TextField
+                    autoFocus
+                    label={adding === 'text' ? d.textLabel : d.questionLabel}
+                    value={value}
+                    multiline={adding === 'text'}
+                    onChange={(e) => setValue(e.target.value)}
+                />
+                {adding === 'question' && (
+                    <TextField select label={d.typeLabel} value={type} onChange={(e) => setType(e.target.value as FormFieldType)}>
+                        {(['text', 'long_text', 'date', 'number'] as const).map((t) => (
+                            <MenuItem key={t} value={t}>{d.typeLabels[t]}</MenuItem>
+                        ))}
+                    </TextField>
+                )}
+                {adding === 'list' && (
+                    <TextField label={d.optionsLabel} multiline minRows={4} value={options} onChange={(e) => setOptions(e.target.value)} />
+                )}
+                {adding !== 'text' && (
+                    <FormControlLabel
+                        control={<Checkbox checked={optional} onChange={(e) => setOptional(e.target.checked)} />}
+                        label={d.optionalLabel}
+                    />
+                )}
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose}>{strings.common.cancel}</Button>
+                <Button variant="contained" disabled={!ready} onClick={submit}>{d.addButton}</Button>
+            </DialogActions>
+        </Dialog>
     );
 }

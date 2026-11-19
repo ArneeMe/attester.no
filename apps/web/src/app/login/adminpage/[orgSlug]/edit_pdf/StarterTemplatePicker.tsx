@@ -50,7 +50,7 @@ export default function StarterTemplatePicker({ open, onClose, onPick }: Props) 
                                             {s.description}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                                            {d.starterMeta(s.formSchema.length, Object.keys(s.fieldBindings).length)}
+                                            {d.starterMeta(s.formSchema.length, s.template.schemas.flat().length)}
                                         </Typography>
                                     </CardContent>
                                 </CardActionArea>
