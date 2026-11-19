@@ -23,7 +23,7 @@ export type DraftItem =
     | { kind: 'signature'; names: string[]; number: number }
     | { kind: 'qr'; names: string[] }
     | { kind: 'today'; names: string[] }
-    | { kind: 'library'; names: string[]; assetKind: 'logo' | 'body_text' }
+    | { kind: 'library'; names: string[]; assetKind: 'logo' | 'body_text'; position: number }
     | { kind: 'unused'; names: string[] }
     | { kind: 'other'; names: string[]; summary?: BindingSummary };
 
@@ -308,7 +308,7 @@ export function items(draft: Draft): DraftItem[] {
         if (summary.kind === 'automatic' && summary.system === 'qr_code') out.push({ kind: 'qr', names: [f.name] });
         else if (summary.kind === 'automatic' && summary.system === 'today') out.push({ kind: 'today', names: [f.name] });
         else if (summary.kind === 'library' && (summary.assetKind === 'logo' || summary.assetKind === 'body_text')) {
-            out.push({ kind: 'library', names: [f.name], assetKind: summary.assetKind });
+            out.push({ kind: 'library', names: [f.name], assetKind: summary.assetKind, position: (summary.number ?? 1) - 1 });
         }
         else if (summary.kind === 'form' && questionAt(draft.form, summary.key)) {
             out.push({ kind: 'question', names: [f.name], field: questionAt(draft.form, summary.key)! });
@@ -347,4 +347,12 @@ export function resizeBox(box: Box, dx: number, dy: number, page: { width: numbe
         width: snap(Math.min(Math.max(MIN, box.width + dx), page.width - box.x)),
         height: snap(Math.min(Math.max(MIN, box.height + dy), page.height - box.y)),
     };
+}
+
+export function missingForSave(draft: Draft): Array<'qr' | 'brand'> {
+    const fields = allFields(draft.schemas);
+    const missing: Array<'qr' | 'brand'> = [];
+    if (!fields.some((f) => f.type === 'qrcode' || f.name === 'qr_code')) missing.push('qr');
+    if (!fields.some((f) => f.type === 'text' && typeof f.content === 'string' && /attester\.no/i.test(f.content))) missing.push('brand');
+    return missing;
 }

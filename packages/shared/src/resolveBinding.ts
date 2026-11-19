@@ -34,7 +34,7 @@ function readAssetField(asset: OrgAsset, subField: string | undefined): string {
  * Picks the Nth default asset of a given kind, ordered by sort_order then
  * created_at. `position` is 0-indexed.
  */
-function pickDefaultAsset(
+export function pickDefaultAsset(
     assets: OrgAsset[],
     kind: OrgAsset['kind'],
     position: number,

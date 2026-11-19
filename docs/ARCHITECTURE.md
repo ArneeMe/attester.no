@@ -168,7 +168,9 @@ field. Keys and bindings are made by `apps/web/src/util/templateDraft.ts` and
 never shown. The drawing is our own (`edit_pdf/TemplateCanvas.tsx`): fields
 are boxes on the page that are dragged and resized, over the base PDF drawn as
 an image by `@pdfme/converter`. pdfme's own designer is not used; pdfme only
-generates the PDF. The stored shape (`schemas`, `field_bindings`, `form_schema`)
+generates the PDF. A signature, logo or text block names the default asset in
+Content it will print, or says it is missing, and saving is blocked with a
+plain reason until the QR code and "attester.no" are on the page. The stored shape (`schemas`, `field_bindings`, `form_schema`)
 is the same as before, so old templates open and old certificates render.
 
 Use `PageShell` for a new public page. Inside admin, MUI is correct until
