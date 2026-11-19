@@ -397,7 +397,10 @@ The template editor never shows a key or a binding. Each button
 (`apps/web/src/util/templateDraft.ts`) writes the PDF field, its binding and,
 for a question, its form entry together, with the key made from the label.
 Removing a field removes all three. Fixed text is a `readOnly` field with no
-binding: pdfme prints a field's own content only when it is `readOnly`.
+binding: pdfme prints a field's own content only when it is `readOnly`. Text
+with answers in it is shown as `[Question label]` and stored as a `composite`
+binding with `{key}`; a question only used inside such a text stays in the
+form and in the editor's list until it is removed there.
 
 ## Mandatory PDF elements
 

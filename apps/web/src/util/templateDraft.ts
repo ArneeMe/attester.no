@@ -125,6 +125,7 @@ export function normalize(draft: Draft): Draft {
                 const q = questionAt(draft.form, summary.key);
                 return { ...field, content: `[${q?.label ?? summary.key}]` };
             }
+            if (summary.kind === 'mixed') return { ...field, content: toDisplay(summary.template, draft.form) };
             return field;
         }),
     );
@@ -209,8 +210,60 @@ export function addToday(draft: Draft): Draft {
 
 export function remove(draft: Draft, names: string[]): Draft {
     const gone = new Set(names);
+    const before = usedKeys(draft);
     const schemas = (draft.schemas ?? []).map((page) => (page ?? []).filter((f) => !gone.has(f.name)));
-    return prune({ ...draft, schemas });
+    const bindings = Object.fromEntries(Object.entries(draft.bindings).filter(([n]) => !gone.has(n)));
+    const after = usedKeys({ ...draft, schemas, bindings });
+    return { schemas, bindings, form: draft.form.filter((f) => !before.has(f.key) || after.has(f.key)) };
+}
+
+const PLACEHOLDER = /\{([^{}:]+)(?::([^{}]+))?\}/g;
+
+export function toDisplay(template: string, form: FormSchema): string {
+    return template.replace(PLACEHOLDER, (whole, key: string) => {
+        const q = questionAt(form, key.trim());
+        return q ? `[${q.label}]` : whole;
+    });
+}
+
+export function fromDisplay(text: string, form: FormSchema): string {
+    return [...form]
+        .sort((a, b) => b.label.length - a.label.length)
+        .reduce((out, q) => out.split(`[${q.label}]`).join(q.type === 'date' ? `{${q.key}:date}` : `{${q.key}}`), text);
+}
+
+export function displayText(draft: Draft, field: Schema): string | null {
+    if (field.type !== 'text') return null;
+    const b = draft.bindings[field.name];
+    if (!b) return field.readOnly || !draft.form.some((q) => q.key === field.name) ? String(field.content ?? '') : `[${questionAt(draft.form, field.name)!.label}]`;
+    return b.source === 'composite' ? toDisplay(b.template, draft.form) : null;
+}
+
+export function setText(draft: Draft, name: string, display: string): Draft {
+    const template = fromDisplay(display, draft.form);
+    const keys = placeholderKeys(template);
+    const bindings = { ...draft.bindings };
+    const old = bindings[name];
+    if (keys.length === 0) {
+        delete bindings[name];
+        return { ...draft, bindings, schemas: updateField(draft, name, { content: display, readOnly: true }).schemas };
+    }
+    const requireAll = old?.source === 'composite' ? old.requireAll?.filter((k) => keys.includes(k)) : undefined;
+    bindings[name] = { source: 'composite', template, ...(requireAll?.length ? { requireAll } : {}) };
+    return { ...draft, bindings, schemas: updateField(draft, name, { content: display, readOnly: false }).schemas };
+}
+
+export function removeQuestion(draft: Draft, key: string): Draft {
+    const own = items(draft).filter((i) => i.kind === 'question' && i.field.key === key).flatMap((i) => i.names);
+    let next = remove(draft, own);
+    const strip = new RegExp(`\\{${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?::[^{}]+)?\\}`, 'g');
+    for (const f of allFields(next.schemas)) {
+        const b = next.bindings[f.name];
+        if (b?.source !== 'composite' || !placeholderKeys(b.template).includes(key)) continue;
+        const without = { ...next, form: next.form.filter((q) => q.key !== key) };
+        next = { ...setText(without, f.name, toDisplay(b.template.replace(strip, ''), without.form)), form: next.form };
+    }
+    return { ...next, form: next.form.filter((q) => q.key !== key) };
 }
 
 export function updateQuestion(draft: Draft, key: string, patch: Partial<FormFieldSchema>): Draft {
@@ -259,8 +312,12 @@ export function items(draft: Draft): DraftItem[] {
         }
         else if (summary.kind === 'form' && questionAt(draft.form, summary.key)) {
             out.push({ kind: 'question', names: [f.name], field: questionAt(draft.form, summary.key)! });
+        } else if (summary.kind === 'mixed' || summary.kind === 'fixed') {
+            out.push({ kind: 'text', names: [f.name], text: displayText(draft, f) ?? '' });
         } else out.push({ kind: 'other', names: [f.name], summary });
     }
+    const shown = new Set(out.flatMap((i) => (i.kind === 'question' ? [i.field.key] : [])));
+    for (const q of draft.form) if (!shown.has(q.key)) out.push({ kind: 'question', names: [], field: q });
     return out;
 }
 

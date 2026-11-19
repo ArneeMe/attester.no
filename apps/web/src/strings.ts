@@ -436,7 +436,7 @@ const no = {
                 qr: '+ QR-kode',
             },
             addHelp: {
-                text: 'Tekst som står likt på alle attester, for eksempel en tittel.',
+                text: 'Tekst på attesten, for eksempel en tittel. Etterpå kan du sette inn svar fra skjemaet i teksten.',
                 question: 'Den frivillige svarer på spørsmålet, og svaret står på attesten.',
                 list: 'Den frivillige velger ett av valgene, og valget står på attesten.',
             },
@@ -450,6 +450,7 @@ const no = {
             typeLabels: { text: 'Kort tekst', long_text: 'Lang tekst', date: 'Dato', number: 'Tall' } as Record<string, string>,
             listTitle: 'Dette står på attesten',
             selectedTitle: 'Valgt felt',
+            insertAnswer: 'Sett inn svar:',
             fontSize: 'Skriftstørrelse',
             align: 'Plassering',
             alignLabels: { left: 'Venstre', center: 'Midten', right: 'Høyre' } as Record<string, string>,
@@ -956,7 +957,7 @@ const en: Strings = {
                 qr: '+ QR code',
             },
             addHelp: {
-                text: 'Text that is the same on every certificate, for example a title.',
+                text: 'Text on the certificate, for example a title. Afterwards you can put answers from the form into the text.',
                 question: 'The volunteer answers the question, and the answer is printed on the certificate.',
                 list: 'The volunteer picks one of the choices, and the choice is printed on the certificate.',
             },
@@ -970,6 +971,7 @@ const en: Strings = {
             typeLabels: { text: 'Short text', long_text: 'Long text', date: 'Date', number: 'Number' } as Record<string, string>,
             listTitle: 'What the certificate says',
             selectedTitle: 'Selected field',
+            insertAnswer: 'Insert answer:',
             fontSize: 'Font size',
             align: 'Alignment',
             alignLabels: { left: 'Left', center: 'Centre', right: 'Right' } as Record<string, string>,

@@ -7,7 +7,7 @@ import { customTemplate } from '@/app/pdfinfo/customTemplate';
 import { echoFieldBindings } from '@/app/pdfinfo/echoFieldBindings';
 import {
     addQr, addQuestion, addSignature, addText, addToday, items, keyFromLabel, moveBox, normalize, remove, resizeBox,
-    updateField, updateQuestion, type Draft,
+    updateField, updateQuestion, setText, removeQuestion, type Draft,
 } from './templateDraft';
 
 const empty: Draft = { schemas: [[]], bindings: {}, form: [] };
@@ -107,6 +107,49 @@ describe('templateDraft', () => {
             const others = items(after).flatMap((i) => (i.kind === 'other' ? [i.summary?.kind] : []));
             expect(others.filter((k) => k !== 'mixed')).toEqual([]);
         }
+    });
+});
+
+describe('text with answers', () => {
+    const withDate = addQuestion(addQuestion(empty, { label: 'Navn', type: 'text' }), { label: 'Fullført', type: 'date' });
+
+    it('shows answers by their question and stores them by key', () => {
+        const d = setText(addText(withDate, 'x'), 'tekst', '[Navn] fullførte den [Fullført]');
+        expect(d.bindings.tekst).toEqual({ source: 'composite', template: '{navn} fullførte den {fullfort:date}' });
+        expect(items(d).find((i) => i.names.includes('tekst'))).toMatchObject({ kind: 'text', text: '[Navn] fullførte den [Fullført]' });
+        expect(render(d, { navn: 'Kari', fullfort: '2025-06-01' }).tekst).toMatch(/^Kari fullførte den /);
+    });
+
+    it('text without answers becomes fixed text again', () => {
+        const d = setText(setText(addText(withDate, 'x'), 'tekst', 'Hei [Navn]'), 'tekst', 'Hei');
+        expect(d.bindings.tekst).toBeUndefined();
+        expect(d.schemas[0].find((f) => f.name === 'tekst')).toMatchObject({ content: 'Hei', readOnly: true });
+    });
+
+    it('a starter text like «den {date:date}» can be edited', () => {
+        const s = STARTER_TEMPLATES[0];
+        const d = normalize({ schemas: s.template.schemas, bindings: s.fieldBindings, form: s.formSchema });
+        const item = items(d).find((i) => i.names.includes('completion_date'))!;
+        expect(item).toMatchObject({ kind: 'text', text: 'den [Fullført dato]' });
+        const edited = setText(d, 'completion_date', 'Fullført [Fullført dato]');
+        expect(edited.bindings.completion_date).toEqual({ source: 'composite', template: 'Fullført {date:date}', requireAll: ['date'] });
+    });
+
+    it('a question used only inside a text is still listed, and removing it takes it out of the text', () => {
+        let d = setText(addText(withDate, 'x'), 'tekst', 'Hei [Navn] og [Fullført]');
+        d = remove(d, ['navn', 'fullfort']);
+        expect(d.form.map((q) => q.key)).toEqual(['navn', 'fullfort']);
+        expect(items(d).filter((i) => i.kind === 'question').map((i) => i.names)).toEqual([[], []]);
+        d = removeQuestion(d, 'navn');
+        expect(d.form.map((q) => q.key)).toEqual(['fullfort']);
+        expect(d.bindings.tekst).toEqual({ source: 'composite', template: 'Hei  og {fullfort:date}' });
+    });
+
+    it('removing a field keeps questions other fields still use', () => {
+        const d = setText(addText(withDate, 'x'), 'tekst', '[Navn]');
+        const sig = addSignature(d);
+        const names = items(sig).find((i) => i.kind === 'signature')!.names;
+        expect(remove(sig, names).form).toEqual(d.form);
     });
 });
 
