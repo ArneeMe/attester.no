@@ -125,3 +125,18 @@ test('a field is moved by dragging it and resized by its corner', async ({ page 
     expect(field.position.y).toBeGreaterThan(30);
     expect(field.width).toBeGreaterThan(120);
 });
+
+test('text from a starter template can be edited, with answers shown by their question', async ({ page }) => {
+    await openStarter(page);
+    await page.getByText('Tekst: «den [Fullført dato]»').click();
+    const text = page.getByLabel('Tekst', { exact: true });
+    await expect(text).toHaveValue('den [Fullført dato]');
+    await text.fill('Fullført');
+    await page.getByRole('button', { name: 'Fullført dato' }).click();
+    await expect(text).toHaveValue('Fullført [Fullført dato]');
+    await page.getByLabel('Navn på mal').fill('Test');
+    await page.getByRole('button', { name: 'Lagre mal' }).click();
+    await expect.poll(() => saved.length).toBe(1);
+    expect((saved[0].fieldBindings as Record<string, unknown>).completion_date)
+        .toMatchObject({ source: 'composite', template: 'Fullført {date:date}' });
+});

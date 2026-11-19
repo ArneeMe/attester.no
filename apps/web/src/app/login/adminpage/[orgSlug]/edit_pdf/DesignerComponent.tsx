@@ -20,14 +20,15 @@ import { validateTemplateForSave } from '@attester/shared/validateTemplate';
 import { buildPreviewPdfUrl } from '@/util/previewPdf';
 import type { TemplateSummary } from '@attester/shared/types/templateTypes';
 import type { OrgAsset } from '@attester/shared/types/orgAssets';
-import type { FormFieldType } from '@attester/shared/types/formSchema';
+import type { FormFieldType, FormSchema } from '@attester/shared/types/formSchema';
 import StarterTemplatePicker from './StarterTemplatePicker';
 import TemplateCanvas from './TemplateCanvas';
 import type { StarterTemplate } from '@/app/pdfinfo/starterTemplates';
 import { useAdminLang } from '@/util/useAdminLang';
 import { body, c, h2, mono } from '@/app/style/tokens';
 import {
-    addQr, addQuestion, addSignature, addText, addToday, hasQr, items, normalize, remove, updateField, updateQuestion,
+    addQr, addQuestion, addSignature, addText, addToday, displayText, hasQr, items, normalize, remove, removeQuestion,
+    setText, updateField, updateQuestion,
     type Draft, type DraftItem,
 } from '@/util/templateDraft';
 
@@ -275,6 +276,9 @@ export default function DesignerComponent({
                         {selectedField && (
                             <FieldSettings
                                 field={selectedField}
+                                text={displayText(draft, selectedField)}
+                                questions={draft.form}
+                                onText={(t) => setDraft((prev) => setText(prev, selectedField.name, t))}
                                 onChange={(patch) => setDraft((prev) => updateField(prev, selectedField.name, patch))}
                             />
                         )}
@@ -283,13 +287,13 @@ export default function DesignerComponent({
                         {list.map((item) => (
                             <Box
                                 key={item.names.join('|')}
-                                onClick={() => setSelected(item.names[0])}
+                                onClick={() => item.names[0] && setSelected(item.names[0])}
                                 sx={{ bgcolor: selected && item.names.includes(selected) ? c.rowHover : 'transparent', px: 1 }}
                             >
                                 <ItemRow
                                     item={item}
                                     assets={assets}
-                                    onRemove={() => apply(remove(draft, item.names))}
+                                    onRemove={() => apply(item.kind === 'question' ? removeQuestion(draft, item.field.key) : remove(draft, item.names))}
                                     onChange={(patch) => setDraft(updateQuestion(draft, (item as DraftItem & { kind: 'question' }).field.key, patch))}
                                     onDone={() => apply(normalize(draft))}
                                 />
@@ -419,21 +423,36 @@ function ItemRow({ item, assets, onRemove, onChange, onDone }: {
     );
 }
 
-function FieldSettings({ field, onChange }: { field: Schema; onChange: (patch: Partial<Schema>) => void }) {
+function FieldSettings({ field, text, questions, onText, onChange }: {
+    field: Schema;
+    text: string | null;
+    questions: FormSchema;
+    onText: (text: string) => void;
+    onChange: (patch: Partial<Schema>) => void;
+}) {
     const { strings } = useAdminLang();
     const d = strings.admin.designer;
     if (field.type !== 'text') return null;
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3, p: 2, border: `1px solid ${c.rule}` }}>
             <Box component="h3" sx={{ ...body, fontWeight: 600, m: 0 }}>{d.selectedTitle}</Box>
-            {field.readOnly && (
-                <TextField
-                    size="small"
-                    multiline
-                    label={d.textLabel}
-                    value={typeof field.content === 'string' ? field.content : ''}
-                    onChange={(e) => onChange({ content: e.target.value })}
-                />
+            {text !== null && (
+                <>
+                    <TextField size="small" multiline label={d.textLabel} value={text} onChange={(e) => onText(e.target.value)} />
+                    {questions.length > 0 && (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                            <Box sx={{ ...body, fontSize: 13 }}>{d.insertAnswer}</Box>
+                            {questions.map((q) => (
+                                <Chip
+                                    key={q.key}
+                                    size="small"
+                                    label={q.label}
+                                    onClick={() => onText(`${text}${text && !text.endsWith(' ') ? ' ' : ''}[${q.label}]`)}
+                                />
+                            ))}
+                        </Box>
+                    )}
+                </>
             )}
             <Box sx={{ display: 'flex', gap: 2 }}>
                 <TextField
