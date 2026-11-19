@@ -3,6 +3,7 @@ import {
     Box,
     Button,
     Checkbox,
+    Chip,
     CircularProgress,
     Dialog,
     DialogActions,
@@ -393,15 +394,7 @@ function ItemRow({ item, assets, onRemove, onChange, onDone }: {
                 f.optionsFromAsset ? (
                     <Box sx={{ ...body, color: c.inkFaint }}>{d.fromList(list?.name ?? '?')}</Box>
                 ) : (
-                    <TextField
-                        size="small"
-                        label={d.optionsLabel}
-                        multiline
-                        value={(f.options ?? []).join('\n')}
-                        onChange={(e) => onChange({ options: e.target.value.split('\n') })}
-                        onBlur={() => onChange({ options: (f.options ?? []).map((o) => o.trim()).filter(Boolean) })}
-                        sx={{ minWidth: 200 }}
-                    />
+                    <OptionsEditor options={f.options ?? []} onChange={(options) => onChange({ options })} />
                 )
             ) : (
                 <TextField
@@ -468,6 +461,45 @@ function FieldSettings({ field, onChange }: { field: Schema; onChange: (patch: P
     );
 }
 
+function OptionsEditor({ options, onChange }: { options: string[]; onChange: (options: string[]) => void }) {
+    const { strings } = useAdminLang();
+    const d = strings.admin.designer;
+    const [next, setNext] = useState('');
+    const add = () => {
+        const option = next.trim();
+        if (!option || options.includes(option)) return;
+        onChange([...options, option]);
+        setNext('');
+    };
+    return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 220 }}>
+            {options.length > 0 && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {options.map((o) => (
+                        <Chip key={o} label={o} onDelete={() => onChange(options.filter((x) => x !== o))} />
+                    ))}
+                </Box>
+            )}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField
+                    size="small"
+                    label={d.optionLabel}
+                    value={next}
+                    onChange={(e) => setNext(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            add();
+                        }
+                    }}
+                    sx={{ flex: 1 }}
+                />
+                <Button variant="outlined" disabled={!next.trim()} onClick={add}>{d.addOption}</Button>
+            </Box>
+        </Box>
+    );
+}
+
 function AddDialog({ adding, onClose, onText, onQuestion }: {
     adding: Adding;
     onClose: () => void;
@@ -479,23 +511,22 @@ function AddDialog({ adding, onClose, onText, onQuestion }: {
     const [value, setValue] = useState('');
     const [type, setType] = useState<FormFieldType>('text');
     const [optional, setOptional] = useState(false);
-    const [options, setOptions] = useState('');
+    const [options, setOptions] = useState<string[]>([]);
 
     useEffect(() => {
         if (!adding) return;
         setValue('');
         setType('text');
         setOptional(false);
-        setOptions('');
+        setOptions([]);
     }, [adding]);
 
-    const choices = options.split('\n').map((o) => o.trim()).filter(Boolean);
-    const ready = value.trim() !== '' && (adding !== 'list' || choices.length > 0);
+    const ready = value.trim() !== '' && (adding !== 'list' || options.length > 0);
 
     const submit = () => {
         if (!ready) return;
         if (adding === 'text') onText(value.trim());
-        else if (adding === 'list') onQuestion({ label: value.trim(), type: 'dropdown', optional, options: choices });
+        else if (adding === 'list') onQuestion({ label: value.trim(), type: 'dropdown', optional, options });
         else onQuestion({ label: value.trim(), type, optional });
         onClose();
     };
@@ -521,7 +552,7 @@ function AddDialog({ adding, onClose, onText, onQuestion }: {
                     </TextField>
                 )}
                 {adding === 'list' && (
-                    <TextField label={d.optionsLabel} multiline minRows={4} value={options} onChange={(e) => setOptions(e.target.value)} />
+                    <OptionsEditor options={options} onChange={setOptions} />
                 )}
                 {adding !== 'text' && (
                     <FormControlLabel
