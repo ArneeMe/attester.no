@@ -14,6 +14,8 @@ export type QuestionInput = {
     type: FormFieldType;
     optional?: boolean;
     options?: string[];
+    before?: string;
+    after?: string;
 };
 
 export type DraftItem =
@@ -140,13 +142,17 @@ export function addText(draft: Draft, text: string): Draft {
 export function addQuestion(draft: Draft, q: QuestionInput): Draft {
     const taken = new Set([...fieldNames(draft.schemas), ...draft.form.map((f) => f.key)]);
     const key = keyFromLabel(q.label, taken);
-    const binding: FieldBinding = { source: 'composite', template: q.type === 'date' ? `{${key}:date}` : `{${key}}` };
+    const before = q.before ?? '';
+    const after = q.after ?? '';
+    const answer = q.type === 'date' ? `{${key}:date}` : `{${key}}`;
+    const binding: FieldBinding = { source: 'composite', template: `${before}${answer}${after}` };
+    if (q.optional && (before || after)) binding.requireAll = [key];
     const field: FormFieldSchema = { key, label: q.label.trim(), type: q.type };
     if (q.optional) field.optional = true;
     if (q.type === 'dropdown') field.options = q.options ?? [];
     const height = q.type === 'long_text' ? 30 : 8;
     return {
-        schemas: append(draft, [textField(key, `[${field.label}]`, nextY(draft.schemas), { height })]),
+        schemas: append(draft, [textField(key, `${before}[${field.label}]${after}`, nextY(draft.schemas), { height })]),
         bindings: { ...draft.bindings, [key]: binding },
         form: [...draft.form, field],
     };
@@ -237,6 +243,11 @@ export function displayText(draft: Draft, field: Schema): string | null {
     const b = draft.bindings[field.name];
     if (!b) return field.readOnly || !draft.form.some((q) => q.key === field.name) ? String(field.content ?? '') : `[${questionAt(draft.form, field.name)!.label}]`;
     return b.source === 'composite' ? toDisplay(b.template, draft.form) : null;
+}
+
+export function unknownAnswers(text: string, form: FormSchema): string[] {
+    const labels = new Set(form.map((q) => q.label));
+    return [...text.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]).filter((l) => !labels.has(l));
 }
 
 export function setText(draft: Draft, name: string, display: string): Draft {

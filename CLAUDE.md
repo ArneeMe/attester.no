@@ -400,7 +400,10 @@ Removing a field removes all three. Fixed text is a `readOnly` field with no
 binding: pdfme prints a field's own content only when it is `readOnly`. Text
 with answers in it is shown as `[Question label]` and stored as a `composite`
 binding with `{key}`; a question only used inside such a text stays in the
-form and in the editor's list until it is removed there.
+form and in the editor's list until it is removed there. The question dialog
+takes the text before and after the answer, so admins never type brackets; an
+optional answer with text around it gets `requireAll`, so the text disappears
+with the answer.
 
 ## Mandatory PDF elements
 

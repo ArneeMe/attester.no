@@ -7,7 +7,7 @@ import { customTemplate } from '@/app/pdfinfo/customTemplate';
 import { echoFieldBindings } from '@/app/pdfinfo/echoFieldBindings';
 import {
     addQr, addQuestion, addSignature, addText, addToday, items, keyFromLabel, moveBox, normalize, remove, resizeBox,
-    updateField, updateQuestion, setText, removeQuestion, missingForSave, type Draft,
+    updateField, updateQuestion, setText, removeQuestion, missingForSave, unknownAnswers, type Draft,
 } from './templateDraft';
 
 const empty: Draft = { schemas: [[]], bindings: {}, form: [] };
@@ -150,6 +150,27 @@ describe('text with answers', () => {
         const sig = addSignature(d);
         const names = items(sig).find((i) => i.kind === 'signature')!.names;
         expect(remove(sig, names).form).toEqual(d.form);
+    });
+});
+
+describe('text around an answer', () => {
+    it('is written when the question is added', () => {
+        const d = addQuestion(empty, { label: 'Fullført', type: 'date', before: 'den ', after: '.' });
+        expect(d.bindings.fullfort).toEqual({ source: 'composite', template: 'den {fullfort:date}.' });
+        expect(d.schemas[0][0].content).toBe('den [Fullført].');
+        expect(items(d)).toMatchObject([{ kind: 'text', text: 'den [Fullført].' }, { kind: 'question', names: [] }]);
+    });
+
+    it('an optional answer hides its text when it is empty', () => {
+        const d = addQuestion(empty, { label: 'Rolle', type: 'text', optional: true, before: 'som ' });
+        expect(d.bindings.rolle).toMatchObject({ requireAll: ['rolle'] });
+        expect(render(d, {}).rolle).toBe('');
+        expect(render(d, { rolle: 'leder' }).rolle).toBe('som leder');
+    });
+
+    it('brackets that name no question are pointed out', () => {
+        const d = addQuestion(empty, { label: 'Fullført dato', type: 'date' });
+        expect(unknownAnswers('den [Fullført Dato] og [Fullført dato]', d.form)).toEqual(['Fullført Dato']);
     });
 });
 
