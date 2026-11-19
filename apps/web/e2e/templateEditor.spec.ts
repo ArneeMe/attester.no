@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
+const saved: Array<Record<string, unknown>> = [];
+
 async function openEditor(page: Page) {
+    saved.length = 0;
     const exp = Math.floor(Date.now() / 1000) + 900;
     await page.addInitScript(([key, session]) => window.localStorage.setItem(key as string, JSON.stringify(session)), ['nhostSession', {
         accessToken: 'e2e-access-token', accessTokenExpiresIn: 900,
@@ -11,53 +14,80 @@ async function openEditor(page: Page) {
     await page.route('**/*.nhost.run/**', (route) => route.abort());
     await page.route('**/api/v1/me/organizations', (route) =>
         route.fulfill({ json: { organizations: [{ id: 'org-1', slug: 'testorg', name: 'Testorg', role: 'admin', pending: 0 }] } }));
-    await page.route('**/api/v1/org/testorg/templates', (route) => route.fulfill({ json: { templates: [] } }));
+    await page.route('**/api/v1/org/testorg/templates', (route) => {
+        if (route.request().method() === 'POST') {
+            saved.push(route.request().postDataJSON());
+            return route.fulfill({ json: { template: { id: 't1', created_at: '', updated_at: '' } } });
+        }
+        return route.fulfill({ json: { templates: [] } });
+    });
     await page.route('**/api/v1/org/testorg/assets', (route) => route.fulfill({ json: { assets: [] } }));
     await page.route('**/api/v1/org/testorg/settings', (route) => route.fulfill({ json: {} }));
     await page.goto('/login/adminpage/testorg/edit_pdf');
-    await page.getByRole('button', { name: 'Start fra en ferdig mal' }).click({ timeout: 60000 });
+    await expect(page.getByRole('button', { name: '+ Spørsmål' })).toBeVisible({ timeout: 60000 });
+}
+
+async function openStarter(page: Page) {
+    await openEditor(page);
+    await page.getByRole('button', { name: 'Start fra en ferdig mal' }).click();
     await page.locator('.MuiDialog-root .MuiCardActionArea-root').first().click();
 }
 
-test('the editor walks through look, content, form and save, in that order', async ({ page }) => {
+async function addQuestion(page: Page, label: string) {
+    await page.getByRole('button', { name: '+ Spørsmål' }).click();
+    await page.getByRole('dialog').getByLabel('Spørsmål').fill(label);
+    await page.getByRole('dialog').getByRole('button', { name: 'Legg til' }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+}
+
+test('the editor has three steps: background, content and save', async ({ page }) => {
     await openEditor(page);
-    const headings = page.getByRole('heading', { level: 2 });
-    await expect(headings).toHaveText(['Utseende', 'Innhold', 'Skjema', 'Lagre'], { timeout: 30000 });
+    await expect(page.getByRole('heading', { level: 2 })).toHaveText(['Bakgrunn', 'Innhold', 'Lagre']);
 });
 
-test('each field is one plain line, with its settings closed until asked for', async ({ page }) => {
-    await openEditor(page);
-    await expect(page.getByText('Fast tekst: «Kursbevis»')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('Fra skjemaet: Mottakers navn')).toBeVisible();
-    await expect(page.getByText('Fra Innhold: signatur nr. 1 (bilde)')).toBeVisible();
-    await expect(page.getByText('Fylles inn automatisk: QR-koden')).toBeVisible();
-    await expect(page.getByText(/^Skriv teksten\. Sett/)).toHaveCount(0);
-
-    await page.getByRole('button', { name: 'Endre: recipient' }).click();
-    await expect(page.getByText(/^Skriv teksten\. Sett/)).toHaveCount(1);
-    await page.getByRole('button', { name: 'Ferdig: recipient' }).click();
-    await expect(page.getByText(/^Skriv teksten\. Sett/)).toHaveCount(0);
+test('a starter template is listed in plain words, without variable names', async ({ page }) => {
+    await openStarter(page);
+    await expect(page.getByText('Tekst: «Kursbevis». Endre den i tegningen.')).toBeVisible();
+    await expect(page.getByLabel('Spørsmål').first()).toHaveValue('Mottakers navn');
+    await expect(page.getByText('Signatur 1: bilde, navn og rolle fra Innhold')).toBeVisible();
+    await expect(page.getByText('QR-kode for å sjekke attesten')).toBeVisible();
+    await expect(page.getByText(/\{name\}|\{course\}/)).toHaveCount(0);
 });
 
-test('text typed in the drawing is shown as fixed text, not as a missing form field', async ({ page }) => {
+test('a question is added with one button and removed with another', async ({ page }) => {
     await openEditor(page);
-    await expect(page.getByText('Fast tekst, skrevet i tegningen: «attester.no»')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('Skjemaet har ikke dette feltet')).toHaveCount(0);
+    await addQuestion(page, 'Kursnavn');
+    await expect(page.getByLabel('Spørsmål')).toHaveValue('Kursnavn');
+    await page.getByRole('button', { name: 'Fjern' }).click();
+    await expect(page.getByText('Ingenting ennå. Bruk knappene over.')).toBeVisible();
 });
 
-test('a field that points at a form field the form lacks is flagged', async ({ page }) => {
+test('there can be only one QR code', async ({ page }) => {
     await openEditor(page);
-    await expect(page.getByText('Fra skjemaet: Kursnavn')).toBeVisible({ timeout: 30000 });
-    const course = page.getByLabel('Navn i malen').nth(1);
-    await expect(course).toHaveValue('course');
-    await course.fill('kurs');
-    await expect(page.getByText('Skjemaet har ikke dette feltet, så det blir tomt på attesten.')).toBeVisible();
+    await page.getByRole('button', { name: '+ QR-kode' }).click();
+    await expect(page.getByText('QR-kode for å sjekke attesten')).toBeVisible();
+    await expect(page.getByRole('button', { name: '+ QR-kode' })).toBeDisabled();
 });
 
-test('a signature is numbered from one', async ({ page }) => {
+test('saving sends the questions as the form and the fields as bindings', async ({ page }) => {
     await openEditor(page);
-    await page.getByRole('button', { name: 'Endre: signature_photo' }).click({ timeout: 30000 });
-    await expect(page.getByLabel('Nummer')).toHaveValue('1');
-    await page.getByLabel('Nummer').fill('2');
-    await expect(page.getByText('Fra Innhold: signatur nr. 2 (bilde)')).toBeVisible();
+    await addQuestion(page, 'Kursnavn');
+    await page.getByRole('button', { name: '+ Valgliste' }).click();
+    await page.getByRole('dialog').getByLabel('Spørsmål').fill('Gruppe');
+    await page.getByRole('dialog').getByLabel('Valg (ett per linje)').fill('Webkom\nBedkom');
+    await page.getByRole('dialog').getByRole('button', { name: 'Legg til' }).click();
+    await page.getByRole('button', { name: '+ Signatur' }).click();
+    await page.getByRole('button', { name: '+ QR-kode' }).click();
+    await page.getByLabel('Navn på mal').fill('Test');
+    await page.getByRole('button', { name: 'Lagre mal' }).click();
+    await expect.poll(() => saved.length).toBe(1);
+    expect(saved[0].formSchema).toEqual([
+        { key: 'kursnavn', label: 'Kursnavn', type: 'text' },
+        { key: 'gruppe', label: 'Gruppe', type: 'dropdown', options: ['Webkom', 'Bedkom'] },
+    ]);
+    expect(saved[0].fieldBindings).toMatchObject({
+        kursnavn: { source: 'composite', template: '{kursnavn}' },
+        signatur_1_bilde: { source: 'asset_default', kind: 'signature', position: 0, subField: 'photo' },
+        qr_code: { source: 'system', system: 'qr_code' },
+    });
 });

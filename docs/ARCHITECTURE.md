@@ -162,11 +162,11 @@ four auth pages are still entirely MUI.
 
 The template editor (`edit_pdf`) is the first admin page with landing-layer
 structure: numbered sections with serif headings from the tokens, MUI only
-for the inputs. It shows one plain line per PDF field
-(`packages/shared/src/describeBinding.ts` turns a binding into "fixed text",
-"from the form", "filled in automatically" and so on) and keeps the detailed
-settings closed until asked for. The stored `field_bindings` are unchanged;
-only how they are shown is.
+for the inputs. The admin adds fields with six buttons (text, question,
+choice list, signature, today's date, QR code) and sees one plain line per
+field. Keys and bindings are made by `apps/web/src/util/templateDraft.ts` and
+never shown. The stored shape (`schemas`, `field_bindings`, `form_schema`)
+is the same as before, so old templates open and old certificates render.
 
 Use `PageShell` for a new public page. Inside admin, MUI is correct until
 someone decides otherwise — converting a page is a deliberate act.

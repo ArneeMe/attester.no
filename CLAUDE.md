@@ -393,9 +393,11 @@ Dropdowns can specify static `options` or `optionsFromAsset` (a
 `optionsFromAsset` → `options` so the volunteer sees a static dropdown
 without ever seeing the asset id.
 
-The Designer page's `SchemaEditor` lets admins edit the form_schema; the
-`fromPdfmeTemplate` helper auto-derives a starter schema from the
-pdfme placeholder names when the admin hasn't set one.
+The template editor never shows a key or a binding. Each button
+(`apps/web/src/util/templateDraft.ts`) writes the PDF field, its binding and,
+for a question, its form entry together, with the key made from the label.
+Removing a field removes all three. Fixed text is a `readOnly` field with no
+binding: pdfme prints a field's own content only when it is `readOnly`.
 
 ## Mandatory PDF elements
 
