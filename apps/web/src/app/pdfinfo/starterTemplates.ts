@@ -81,7 +81,7 @@ const COURSE_COMPLETION: StarterTemplate = {
                 rotate: 0,
             } as Schema,
             txt('qr_label', 'Verifiser på attester.no', { x: 151, y: 253 }, 40, 6, { fontSize: 7, alignment: 'center' }),
-            txt('brand', 'attester.no', { x: 20, y: 275 }, 170, 6, { fontSize: 9, alignment: 'center' }),
+            txt('brand', 'attester.no', { x: 20, y: 275 }, 170, 6, { readOnly: true, fontSize: 9, alignment: 'center' }),
         ]],
     },
     fieldBindings: {
@@ -137,7 +137,7 @@ const EVENT_ATTENDANCE: StarterTemplate = {
                 rotate: 0,
             } as Schema,
             txt('qr_label', 'Verifiser på attester.no', { x: 151, y: 253 }, 40, 6, { fontSize: 7, alignment: 'center' }),
-            txt('brand', 'attester.no', { x: 20, y: 275 }, 170, 6, { fontSize: 9, alignment: 'center' }),
+            txt('brand', 'attester.no', { x: 20, y: 275 }, 170, 6, { readOnly: true, fontSize: 9, alignment: 'center' }),
         ]],
     },
     fieldBindings: {
@@ -204,7 +204,7 @@ const ROLE_ATTESTATION: StarterTemplate = {
                 rotate: 0,
             } as Schema,
             txt('qr_label', 'Verifiser på attester.no', { x: 156, y: 249 }, 36, 6, { fontSize: 7, alignment: 'center' }),
-            txt('brand', 'attester.no', { x: 20, y: 275 }, 170, 6, { fontSize: 9, alignment: 'center' }),
+            txt('brand', 'attester.no', { x: 20, y: 275 }, 170, 6, { readOnly: true, fontSize: 9, alignment: 'center' }),
         ]],
     },
     fieldBindings: {
