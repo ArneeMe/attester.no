@@ -12,23 +12,21 @@ import {
     MenuItem,
     TextField,
 } from '@mui/material';
-import { Designer } from '@pdfme/ui';
-import { text, image, barcodes } from '@pdfme/schemas';
-import { Template, BLANK_PDF } from '@pdfme/common';
+import { Template, BLANK_PDF, type Schema } from '@pdfme/common';
 import { saveTemplate, getFullTemplate, getTemplates, fromPdfmeTemplate } from '@/util/databaseInteractions/templateService';
 import { listOrgAssets } from '@/util/databaseInteractions/orgAssets';
 import { validateTemplateForSave } from '@attester/shared/validateTemplate';
 import { buildPreviewPdfUrl } from '@/util/previewPdf';
 import type { TemplateSummary } from '@attester/shared/types/templateTypes';
-import type { FieldBindings } from '@attester/shared/types/fieldBindings';
 import type { OrgAsset } from '@attester/shared/types/orgAssets';
-import type { FormFieldType, FormSchema } from '@attester/shared/types/formSchema';
+import type { FormFieldType } from '@attester/shared/types/formSchema';
 import StarterTemplatePicker from './StarterTemplatePicker';
+import TemplateCanvas from './TemplateCanvas';
 import type { StarterTemplate } from '@/app/pdfinfo/starterTemplates';
 import { useAdminLang } from '@/util/useAdminLang';
 import { body, c, h2, mono } from '@/app/style/tokens';
 import {
-    addQr, addQuestion, addSignature, addText, addToday, hasQr, items, normalize, prune, remove, updateQuestion,
+    addQr, addQuestion, addSignature, addText, addToday, hasQr, items, normalize, remove, updateField, updateQuestion,
     type Draft, type DraftItem,
 } from '@/util/templateDraft';
 
@@ -77,10 +75,9 @@ export default function DesignerComponent({
 }: Props) {
     const { strings } = useAdminLang();
     const d = strings.admin.designer;
-    const containerRef = useRef<HTMLDivElement>(null);
-    const designerRef = useRef<Designer | null>(null);
-    const metaRef = useRef<{ bindings: FieldBindings; form: FormSchema }>({ bindings: {}, form: [] });
     const [draft, setDraft] = useState<Draft>({ schemas: [[]], bindings: {}, form: [] });
+    const [basePdf, setBasePdf] = useState<Template['basePdf']>(BLANK_PDF);
+    const [selected, setSelected] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [existingTemplates, setExistingTemplates] = useState<TemplateSummary[]>([]);
     const [assets, setAssets] = useState<OrgAsset[]>([]);
@@ -89,22 +86,12 @@ export default function DesignerComponent({
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewBusy, setPreviewBusy] = useState(false);
 
-    const remember = (next: Draft) => {
-        metaRef.current = { bindings: next.bindings, form: next.form };
+    const apply = (next: Draft, nextBase?: Template['basePdf']) => {
         setDraft(next);
+        if (nextBase) setBasePdf(nextBase);
     };
 
-    const current = (): Draft => ({
-        schemas: designerRef.current?.getTemplate().schemas ?? [[]],
-        ...metaRef.current,
-    });
-
-    const apply = (next: Draft, basePdf?: Template['basePdf']) => {
-        const designer = designerRef.current;
-        if (!designer) return;
-        designer.updateTemplate({ basePdf: basePdf ?? designer.getTemplate().basePdf, schemas: next.schemas });
-        remember(next);
-    };
+    const template = (): Template => ({ basePdf, schemas: draft.schemas });
 
     useEffect(() => {
         return () => {
@@ -113,16 +100,6 @@ export default function DesignerComponent({
     }, [previewUrl]);
 
     useEffect(() => {
-        if (!containerRef.current || designerRef.current) return;
-
-        designerRef.current = new Designer({
-            domContainer: containerRef.current,
-            template: { basePdf: BLANK_PDF, schemas: [[]] },
-            options: { sidebarOpen: false },
-            plugins: { Text: text, Image: image, QR: barcodes.qrcode },
-        });
-        designerRef.current.onChangeTemplate((t) => remember(prune({ schemas: t.schemas, ...metaRef.current })));
-
         getTemplates(orgSlug).then(setExistingTemplates).catch((e) => {
             onError(`${d.loadTemplatesError}: ${(e as Error).message}`);
         });
@@ -130,17 +107,13 @@ export default function DesignerComponent({
             onError(`${d.loadAssetsError}: ${(e as Error).message}`);
         });
 
-        return () => {
-            designerRef.current?.destroy();
-            designerRef.current = null;
-        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orgSlug]);
 
     const loadedDeepLinkRef = useRef<string | null>(null);
     useEffect(() => {
         if (!initialTemplateId || loadedDeepLinkRef.current === initialTemplateId) return;
-        if (!designerRef.current || existingTemplates.length === 0) return;
+        if (existingTemplates.length === 0) return;
         const found = existingTemplates.find((t) => t.id === initialTemplateId);
         if (!found) return;
         loadedDeepLinkRef.current = initialTemplateId;
@@ -152,7 +125,7 @@ export default function DesignerComponent({
         const file = e.target.files?.[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => apply(current(), ev.target?.result as string);
+        reader.onload = (ev) => setBasePdf(ev.target?.result as string);
         reader.readAsDataURL(file);
     };
 
@@ -181,11 +154,11 @@ export default function DesignerComponent({
     };
 
     const handleSave = async () => {
-        if (!designerRef.current || !templateName.trim()) {
+        if (!templateName.trim()) {
             onError(d.nameFirst);
             return;
         }
-        const pdfmeTemplate = designerRef.current.getTemplate();
+        const pdfmeTemplate = template();
         const problems = validateTemplateForSave(pdfmeTemplate);
         if (problems.length > 0) {
             onError(problems.join(' '));
@@ -196,8 +169,8 @@ export default function DesignerComponent({
             await saveTemplate(orgSlug, fromPdfmeTemplate(pdfmeTemplate, templateName.trim(), {
                 description: templateDescription || undefined,
                 isOffered,
-                fieldBindings: metaRef.current.bindings,
-                formSchema: metaRef.current.form,
+                fieldBindings: draft.bindings,
+                formSchema: draft.form,
             }));
             onSuccess(d.saved(templateName));
             setExistingTemplates(await getTemplates(orgSlug));
@@ -209,17 +182,13 @@ export default function DesignerComponent({
     };
 
     const handlePreview = async () => {
-        if (!designerRef.current) {
-            onError(d.notReady);
-            return;
-        }
         setPreviewBusy(true);
         try {
             setPreviewUrl(await buildPreviewPdfUrl(
                 orgSlug,
-                designerRef.current.getTemplate(),
-                metaRef.current.bindings,
-                metaRef.current.form,
+                template(),
+                draft.bindings,
+                draft.form,
                 assets,
             ));
         } catch (e) {
@@ -230,8 +199,7 @@ export default function DesignerComponent({
     };
 
     const handleExport = () => {
-        if (!designerRef.current) return;
-        const blob = new Blob([JSON.stringify(designerRef.current.getTemplate(), null, 2)], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(template(), null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = `template-${templateName || 'export'}.json`;
@@ -244,6 +212,10 @@ export default function DesignerComponent({
     };
 
     const list = items(draft);
+    const labels = Object.fromEntries(
+        list.flatMap((i) => (i.kind === 'signature' ? i.names.map((n) => [n, d.item.signatureShort(i.number)]) : [])),
+    );
+    const selectedField = (draft.schemas ?? []).flat().find((f) => f.name === selected) ?? null;
 
     return (
         <>
@@ -282,27 +254,47 @@ export default function DesignerComponent({
                     <Button variant="outlined" onClick={() => setAdding('text')}>{d.add.text}</Button>
                     <Button variant="outlined" onClick={() => setAdding('question')}>{d.add.question}</Button>
                     <Button variant="outlined" onClick={() => setAdding('list')}>{d.add.list}</Button>
-                    <Button variant="outlined" onClick={() => apply(addSignature(current()))}>{d.add.signature}</Button>
-                    <Button variant="outlined" onClick={() => apply(addToday(current()))}>{d.add.today}</Button>
-                    <Button variant="outlined" disabled={hasQr(draft)} onClick={() => apply(addQr(current()))}>{d.add.qr}</Button>
+                    <Button variant="outlined" onClick={() => apply(addSignature(draft))}>{d.add.signature}</Button>
+                    <Button variant="outlined" onClick={() => apply(addToday(draft))}>{d.add.today}</Button>
+                    <Button variant="outlined" disabled={hasQr(draft)} onClick={() => apply(addQr(draft))}>{d.add.qr}</Button>
                 </Box>
-                <Box
-                    ref={containerRef}
-                    sx={{ width: '100%', minHeight: 420, border: `1px solid ${c.ruleSoft}` }}
-                />
-                <Box sx={{ mt: 3 }}>
-                    <Box component="h3" sx={{ ...body, fontWeight: 600, mb: 1 }}>{d.listTitle}</Box>
-                    {list.length === 0 && <Box sx={{ ...body, color: c.inkFaint }}>{d.empty}</Box>}
-                    {list.map((item) => (
-                        <ItemRow
-                            key={item.names.join('|')}
-                            item={item}
-                            assets={assets}
-                            onRemove={() => apply(remove(current(), item.names))}
-                            onChange={(patch) => remember(updateQuestion(current(), (item as DraftItem & { kind: 'question' }).field.key, patch))}
-                            onDone={() => apply(normalize(current()))}
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 700px) minmax(0, 1fr)' }, gap: 4, alignItems: 'start' }}>
+                    <Box sx={{ bgcolor: c.rowHover, p: 2 }}>
+                        <TemplateCanvas
+                            basePdf={basePdf}
+                            schemas={draft.schemas}
+                            selected={selected}
+                            labels={labels}
+                            onSelect={setSelected}
+                            onChange={(name, box) =>
+                                setDraft((prev) => updateField(prev, name, { position: { x: box.x, y: box.y }, width: box.width, height: box.height }))}
                         />
-                    ))}
+                    </Box>
+                    <Box>
+                        {selectedField && (
+                            <FieldSettings
+                                field={selectedField}
+                                onChange={(patch) => setDraft((prev) => updateField(prev, selectedField.name, patch))}
+                            />
+                        )}
+                        <Box component="h3" sx={{ ...body, fontWeight: 600, mb: 1 }}>{d.listTitle}</Box>
+                        {list.length === 0 && <Box sx={{ ...body, color: c.inkFaint }}>{d.empty}</Box>}
+                        {list.map((item) => (
+                            <Box
+                                key={item.names.join('|')}
+                                onClick={() => setSelected(item.names[0])}
+                                sx={{ bgcolor: selected && item.names.includes(selected) ? c.rowHover : 'transparent', px: 1 }}
+                            >
+                                <ItemRow
+                                    item={item}
+                                    assets={assets}
+                                    onRemove={() => apply(remove(draft, item.names))}
+                                    onChange={(patch) => setDraft(updateQuestion(draft, (item as DraftItem & { kind: 'question' }).field.key, patch))}
+                                    onDone={() => apply(normalize(draft))}
+                                />
+                            </Box>
+                        ))}
+                    </Box>
                 </Box>
             </Step>
 
@@ -322,8 +314,8 @@ export default function DesignerComponent({
             <AddDialog
                 adding={adding}
                 onClose={() => setAdding(null)}
-                onText={(t) => apply(addText(current(), t))}
-                onQuestion={(q) => apply(addQuestion(current(), q))}
+                onText={(t) => apply(addText(draft, t))}
+                onQuestion={(q) => apply(addQuestion(draft, q))}
             />
 
             <StarterTemplatePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={handlePickStarter} />
@@ -427,6 +419,48 @@ function ItemRow({ item, assets, onRemove, onChange, onDone }: {
                 label={d.optionalLabel}
             />
             <Button size="small" color="error" onClick={onRemove}>{d.remove}</Button>
+        </Box>
+    );
+}
+
+function FieldSettings({ field, onChange }: { field: Schema; onChange: (patch: Partial<Schema>) => void }) {
+    const { strings } = useAdminLang();
+    const d = strings.admin.designer;
+    if (field.type !== 'text') return null;
+    return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3, p: 2, border: `1px solid ${c.rule}` }}>
+            <Box component="h3" sx={{ ...body, fontWeight: 600, m: 0 }}>{d.selectedTitle}</Box>
+            {field.readOnly && (
+                <TextField
+                    size="small"
+                    multiline
+                    label={d.textLabel}
+                    value={typeof field.content === 'string' ? field.content : ''}
+                    onChange={(e) => onChange({ content: e.target.value })}
+                />
+            )}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                    size="small"
+                    type="number"
+                    label={d.fontSize}
+                    value={Number(field.fontSize ?? 12)}
+                    onChange={(e) => onChange({ fontSize: Math.min(96, Math.max(5, Number(e.target.value) || 12)) })}
+                    sx={{ width: 120 }}
+                />
+                <TextField
+                    select
+                    size="small"
+                    label={d.align}
+                    value={(field.alignment as string) ?? 'left'}
+                    onChange={(e) => onChange({ alignment: e.target.value })}
+                    sx={{ width: 160 }}
+                >
+                    {(['left', 'center', 'right'] as const).map((a) => (
+                        <MenuItem key={a} value={a}>{d.alignLabels[a]}</MenuItem>
+                    ))}
+                </TextField>
+            </Box>
         </Box>
     );
 }

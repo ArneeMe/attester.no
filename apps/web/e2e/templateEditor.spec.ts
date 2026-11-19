@@ -47,7 +47,7 @@ test('the editor has three steps: background, content and save', async ({ page }
 
 test('a starter template is listed in plain words, without variable names', async ({ page }) => {
     await openStarter(page);
-    await expect(page.getByText('Tekst: «Kursbevis». Endre den i tegningen.')).toBeVisible();
+    await expect(page.getByText('Tekst: «Kursbevis»', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Spørsmål').first()).toHaveValue('Mottakers navn');
     await expect(page.getByText('Signatur 1: bilde, navn og rolle fra Innhold')).toBeVisible();
     await expect(page.getByText('QR-kode for å sjekke attesten')).toBeVisible();
@@ -90,4 +90,35 @@ test('saving sends the questions as the form and the fields as bindings', async 
         signatur_1_bilde: { source: 'asset_default', kind: 'signature', position: 0, subField: 'photo' },
         qr_code: { source: 'system', system: 'qr_code' },
     });
+});
+
+test('a field is moved by dragging it and resized by its corner', async ({ page }) => {
+    await openEditor(page);
+    await page.getByRole('button', { name: '+ Tekst' }).click();
+    await page.getByRole('dialog').getByLabel('Tekst').fill('attester.no');
+    await page.getByRole('dialog').getByRole('button', { name: 'Legg til' }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await page.getByRole('button', { name: '+ QR-kode' }).click();
+
+    await page.getByTestId('field-tekst').scrollIntoViewIfNeeded();
+    const box = (await page.getByTestId('field-tekst').boundingBox())!;
+    await page.mouse.move(box.x + 5, box.y + 5);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 105, box.y + 105, { steps: 5 });
+    await page.mouse.up();
+    await page.getByTestId('resize-handle').scrollIntoViewIfNeeded();
+    const handle = (await page.getByTestId('resize-handle').boundingBox())!;
+    await page.mouse.move(handle.x + 5, handle.y + 5);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + 55, handle.y + 25, { steps: 5 });
+    await page.mouse.up();
+
+    await page.getByLabel('Navn på mal').fill('Test');
+    await page.getByRole('button', { name: 'Lagre mal' }).click();
+    await expect.poll(() => saved.length).toBe(1);
+    const field = (saved[0].schemas as Array<Array<{ name: string; position: { x: number; y: number }; width: number }>>)[0]
+        .find((f) => f.name === 'tekst')!;
+    expect(field.position.x).toBeGreaterThan(30);
+    expect(field.position.y).toBeGreaterThan(30);
+    expect(field.width).toBeGreaterThan(120);
 });
