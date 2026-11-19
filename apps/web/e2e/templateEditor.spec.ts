@@ -36,7 +36,7 @@ async function openStarter(page: Page) {
 async function addQuestion(page: Page, label: string) {
     await page.getByRole('button', { name: '+ Spørsmål' }).click();
     await page.getByRole('dialog').getByLabel('Spørsmål').fill(label);
-    await page.getByRole('dialog').getByRole('button', { name: 'Legg til' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Legg til', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
 }
 
@@ -74,8 +74,11 @@ test('saving sends the questions as the form and the fields as bindings', async 
     await addQuestion(page, 'Kursnavn');
     await page.getByRole('button', { name: '+ Valgliste' }).click();
     await page.getByRole('dialog').getByLabel('Spørsmål').fill('Gruppe');
-    await page.getByRole('dialog').getByLabel('Valg (ett per linje)').fill('Webkom\nBedkom');
-    await page.getByRole('dialog').getByRole('button', { name: 'Legg til' }).click();
+    await page.getByRole('dialog').getByLabel('Nytt valg').fill('Webkom');
+    await page.getByRole('dialog').getByRole('button', { name: 'Legg til valg' }).click();
+    await page.getByRole('dialog').getByLabel('Nytt valg').fill('Bedkom');
+    await page.getByRole('dialog').getByLabel('Nytt valg').press('Enter');
+    await page.getByRole('dialog').getByRole('button', { name: 'Legg til', exact: true }).click();
     await page.getByRole('button', { name: '+ Signatur' }).click();
     await page.getByRole('button', { name: '+ QR-kode' }).click();
     await page.getByLabel('Navn på mal').fill('Test');
@@ -96,7 +99,7 @@ test('a field is moved by dragging it and resized by its corner', async ({ page 
     await openEditor(page);
     await page.getByRole('button', { name: '+ Tekst' }).click();
     await page.getByRole('dialog').getByLabel('Tekst').fill('attester.no');
-    await page.getByRole('dialog').getByRole('button', { name: 'Legg til' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Legg til', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await page.getByRole('button', { name: '+ QR-kode' }).click();
 
