@@ -173,7 +173,13 @@ function Field({ field, label, scale, selected, onMove, onResize }: {
                         color: field.readOnly ? '#000' : c.accent,
                     }}
                 >
-                    {content}
+                    {field.readOnly ? content : content.split(/(\[[^\]]+\])/).map((part, i) =>
+                        /^\[[^\]]+\]$/.test(part) ? (
+                            <Box key={i} component="span" sx={{ bgcolor: 'rgba(31,92,68,0.12)', borderRadius: '0.3em', px: '0.25em' }}>
+                                {part.slice(1, -1)}
+                            </Box>
+                        ) : part,
+                    )}
                 </Box>
             )}
             {field.type === 'image' && (content.startsWith('data:image/') ? (

@@ -30,7 +30,7 @@ import { useAdminLang } from '@/util/useAdminLang';
 import { body, c, h2, mono } from '@/app/style/tokens';
 import {
     addQr, addQuestion, addSignature, addText, addToday, displayText, hasQr, items, normalize, remove, removeQuestion,
-    missingForSave, setText, updateField, updateQuestion,
+    missingForSave, setText, unknownAnswers, updateField, updateQuestion, type QuestionInput,
     type Draft, type DraftItem,
 } from '@/util/templateDraft';
 
@@ -463,6 +463,9 @@ function FieldSettings({ field, text, questions, onText, onChange }: {
             {text !== null && (
                 <>
                     <TextField size="small" multiline label={d.textLabel} value={text} onChange={(e) => onText(e.target.value)} />
+                    {unknownAnswers(text, questions).map((l) => (
+                        <Box key={l} sx={{ ...body, fontSize: 13, color: 'warning.dark' }}>{d.unknownAnswer(l)}</Box>
+                    ))}
                     {questions.length > 0 && (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
                             <Box sx={{ ...body, fontSize: 13 }}>{d.insertAnswer}</Box>
@@ -547,11 +550,13 @@ function AddDialog({ adding, onClose, onText, onQuestion }: {
     adding: Adding;
     onClose: () => void;
     onText: (text: string) => void;
-    onQuestion: (q: { label: string; type: FormFieldType; optional?: boolean; options?: string[] }) => void;
+    onQuestion: (q: QuestionInput) => void;
 }) {
     const { strings } = useAdminLang();
     const d = strings.admin.designer;
     const [value, setValue] = useState('');
+    const [before, setBefore] = useState('');
+    const [after, setAfter] = useState('');
     const [type, setType] = useState<FormFieldType>('text');
     const [optional, setOptional] = useState(false);
     const [options, setOptions] = useState<string[]>([]);
@@ -562,6 +567,8 @@ function AddDialog({ adding, onClose, onText, onQuestion }: {
         setType('text');
         setOptional(false);
         setOptions([]);
+        setBefore('');
+        setAfter('');
     }, [adding]);
 
     const ready = value.trim() !== '' && (adding !== 'list' || options.length > 0);
@@ -569,8 +576,8 @@ function AddDialog({ adding, onClose, onText, onQuestion }: {
     const submit = () => {
         if (!ready) return;
         if (adding === 'text') onText(value.trim());
-        else if (adding === 'list') onQuestion({ label: value.trim(), type: 'dropdown', optional, options });
-        else onQuestion({ label: value.trim(), type, optional });
+        else if (adding === 'list') onQuestion({ label: value.trim(), type: 'dropdown', optional, options, before, after });
+        else onQuestion({ label: value.trim(), type, optional, before, after });
         onClose();
     };
 
@@ -598,10 +605,22 @@ function AddDialog({ adding, onClose, onText, onQuestion }: {
                     <OptionsEditor options={options} onChange={setOptions} />
                 )}
                 {adding !== 'text' && (
-                    <FormControlLabel
-                        control={<Checkbox checked={optional} onChange={(e) => setOptional(e.target.checked)} />}
-                        label={d.optionalLabel}
-                    />
+                    <>
+                        <FormControlLabel
+                            control={<Checkbox checked={optional} onChange={(e) => setOptional(e.target.checked)} />}
+                            label={d.optionalLabel}
+                        />
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            <TextField size="small" label={d.beforeLabel} value={before} onChange={(e) => setBefore(e.target.value)} sx={{ flex: 1, minWidth: 160 }} />
+                            <TextField size="small" label={d.afterLabel} value={after} onChange={(e) => setAfter(e.target.value)} sx={{ flex: 1, minWidth: 160 }} />
+                        </Box>
+                        <Box sx={{ ...body, p: 1.5, bgcolor: c.rowHover }}>
+                            <Box component="span" sx={{ color: c.inkFaint, mr: 1 }}>{d.onCertificate}</Box>
+                            <Box component="span" sx={{ whiteSpace: 'pre-wrap', color: c.ink }}>{before}</Box>
+                            <Chip size="small" label={value.trim() || d.answer} sx={{ mx: 0.25 }} />
+                            <Box component="span" sx={{ whiteSpace: 'pre-wrap', color: c.ink }}>{after}</Box>
+                        </Box>
+                    </>
                 )}
             </DialogContent>
             <DialogActions>

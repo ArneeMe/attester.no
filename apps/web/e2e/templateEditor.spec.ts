@@ -161,3 +161,22 @@ test('saving waits until the QR code is there, and says so', async ({ page }) =>
     await expect(page.getByText(/^Før du kan lagre:/)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Lagre mal' })).toBeEnabled();
 });
+
+test('the text around an answer is written when the question is added', async ({ page }) => {
+    await openEditor(page);
+    await page.getByRole('button', { name: '+ Spørsmål' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Spørsmål').fill('Fullført dato');
+    await dialog.getByRole('combobox', { name: 'Svar' }).click();
+    await page.getByRole('option', { name: 'Dato' }).click();
+    await dialog.getByLabel('Tekst før svaret (valgfritt)').fill('Fullført den ');
+    await expect(dialog.getByText('På attesten:')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Legg til', exact: true }).click();
+    await expect(page.getByText('Tekst: «Fullført den [Fullført dato]»')).toBeVisible();
+    await page.getByRole('button', { name: '+ QR-kode' }).click();
+    await page.getByLabel('Navn på mal').fill('Test');
+    await page.getByRole('button', { name: 'Lagre mal' }).click();
+    await expect.poll(() => saved.length).toBe(1);
+    expect((saved[0].fieldBindings as Record<string, unknown>).fullfort_dato)
+        .toEqual({ source: 'composite', template: 'Fullført den {fullfort_dato:date}' });
+});
