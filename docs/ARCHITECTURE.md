@@ -165,7 +165,10 @@ structure: numbered sections with serif headings from the tokens, MUI only
 for the inputs. The admin adds fields with six buttons (text, question,
 choice list, signature, today's date, QR code) and sees one plain line per
 field. Keys and bindings are made by `apps/web/src/util/templateDraft.ts` and
-never shown. The stored shape (`schemas`, `field_bindings`, `form_schema`)
+never shown. The drawing is our own (`edit_pdf/TemplateCanvas.tsx`): fields
+are boxes on the page that are dragged and resized, over the base PDF drawn as
+an image by `@pdfme/converter`. pdfme's own designer is not used; pdfme only
+generates the PDF. The stored shape (`schemas`, `field_bindings`, `form_schema`)
 is the same as before, so old templates open and old certificates render.
 
 Use `PageShell` for a new public page. Inside admin, MUI is correct until

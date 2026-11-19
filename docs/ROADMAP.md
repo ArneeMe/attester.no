@@ -22,7 +22,7 @@ On `develop`, built and tested:
 | Own error tracking and JSON logging | Done for the API, the browser and the web app's server code |
 | Status link and reminder for the volunteer | Done |
 | Pending count in the menu, paged and lighter lists | Done |
-| Template editor with one button per kind of field | Done. Dragging fields in the drawing has no automated test |
+| Template editor with one button per kind of field and its own drawing | Done |
 | `docs/API.md` for the mobile app | Done |
 | Local test rig, also run in CI | Done. Passes 36 checks. Not yet run on the owner's machine |
 

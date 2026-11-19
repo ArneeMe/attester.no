@@ -4,7 +4,8 @@ import { validateTemplateForSave } from '@attester/shared/validateTemplate';
 import { BLANK_PDF } from '@pdfme/common';
 import { STARTER_TEMPLATES } from '@/app/pdfinfo/starterTemplates';
 import {
-    addQr, addQuestion, addSignature, addText, addToday, items, keyFromLabel, normalize, remove, updateQuestion, type Draft,
+    addQr, addQuestion, addSignature, addText, addToday, items, keyFromLabel, moveBox, normalize, remove, resizeBox,
+    updateField, updateQuestion, type Draft,
 } from './templateDraft';
 
 const empty: Draft = { schemas: [[]], bindings: {}, form: [] };
@@ -92,5 +93,24 @@ describe('templateDraft', () => {
             const others = items(after).flatMap((i) => (i.kind === 'other' ? [i.summary?.kind] : []));
             expect(others.filter((k) => k !== 'mixed')).toEqual([]);
         }
+    });
+});
+
+describe('boxes on the page', () => {
+    const page = { width: 210, height: 297 };
+
+    it('moving keeps the box on the page and snaps to half millimetres', () => {
+        expect(moveBox({ x: 10, y: 10, width: 50, height: 10 }, 3.3, -20, page)).toEqual({ x: 13.5, y: 0, width: 50, height: 10 });
+        expect(moveBox({ x: 150, y: 280, width: 50, height: 10 }, 100, 100, page)).toEqual({ x: 160, y: 287, width: 50, height: 10 });
+    });
+
+    it('resizing keeps a minimum size and stays inside the page', () => {
+        expect(resizeBox({ x: 10, y: 10, width: 50, height: 10 }, -100, -100, page)).toEqual({ x: 10, y: 10, width: 4, height: 4 });
+        expect(resizeBox({ x: 200, y: 10, width: 5, height: 10 }, 50, 0, page)).toEqual({ x: 200, y: 10, width: 10, height: 10 });
+    });
+
+    it('updating a field changes only that field', () => {
+        const d = updateField(addText(addText(empty, 'A'), 'B'), 'tekst', { content: 'C' });
+        expect(d.schemas[0].map((f) => f.content)).toEqual(['C', 'B']);
     });
 });

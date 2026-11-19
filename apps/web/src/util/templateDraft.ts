@@ -260,3 +260,31 @@ export function items(draft: Draft): DraftItem[] {
     }
     return out;
 }
+
+export function updateField(draft: Draft, name: string, patch: Partial<Schema>): Draft {
+    const schemas = (draft.schemas ?? []).map((page) =>
+        (page ?? []).map((f) => (f.name === name ? ({ ...f, ...patch } as Schema) : f)),
+    );
+    return { ...draft, schemas };
+}
+
+export type Box = { x: number; y: number; width: number; height: number };
+
+const MIN = 4;
+const snap = (v: number) => Math.round(v * 2) / 2;
+
+export function moveBox(box: Box, dx: number, dy: number, page: { width: number; height: number }): Box {
+    return {
+        ...box,
+        x: snap(Math.min(Math.max(0, box.x + dx), page.width - box.width)),
+        y: snap(Math.min(Math.max(0, box.y + dy), page.height - box.height)),
+    };
+}
+
+export function resizeBox(box: Box, dx: number, dy: number, page: { width: number; height: number }): Box {
+    return {
+        ...box,
+        width: snap(Math.min(Math.max(MIN, box.width + dx), page.width - box.x)),
+        height: snap(Math.min(Math.max(MIN, box.height + dy), page.height - box.y)),
+    };
+}
