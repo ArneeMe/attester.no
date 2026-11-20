@@ -45,6 +45,14 @@ describe('resolveBinding', () => {
         expect(resolveBinding(b, ctx)).toBe('Ola');
     });
 
+    it('choice → returns the text written for the chosen option', () => {
+        const b: FieldBinding = { source: 'choice', key: 'group', texts: { Surdeig: 'Baker brød på mandager.', Bolle: 'Topp stemning.' } };
+        expect(resolveBinding(b, makeCtx({ submission: { group: 'Surdeig' } }))).toBe('Baker brød på mandager.');
+        expect(resolveBinding(b, makeCtx({ submission: { group: 'Annet' } }))).toBe('');
+        expect(resolveBinding(b, makeCtx())).toBe('');
+        expect(resolveBinding(b, makeCtx({ submission: { group: 'constructor' } }))).toBe('');
+    });
+
     it('submission → returns empty for a missing key (no throw)', () => {
         const b: FieldBinding = { source: 'submission', key: 'missing' };
         expect(resolveBinding(b, makeCtx())).toBe('');
