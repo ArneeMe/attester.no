@@ -369,6 +369,10 @@ schema field names to a data source:
   swap of "current Leder" propagates automatically)
 - `lookup` — find an item in a lookup_list by matching its `name`
   against a submission key, return the named sub-field
+- `choice` — `{ key, texts }`: the text written in the template for the
+  option the volunteer chose in a dropdown. The editor's way to give each
+  choice its own text; `lookup` does the same from Content and is kept only
+  for templates that already use it
 
 The resolver is `packages/shared/src/resolveBinding.ts`. The single PDF-input
 builder is `buildPdfInput` in the same file.
@@ -403,7 +407,9 @@ binding with `{key}`; a question only used inside such a text stays in the
 form and in the editor's list until it is removed there. The question dialog
 takes the text before and after the answer, so admins never type brackets; an
 optional answer with text around it gets `requireAll`, so the text disappears
-with the answer.
+with the answer. The Content page shows text blocks and lookup lists only to
+organisations that already have some; new templates keep that content in the
+template instead.
 
 ## Mandatory PDF elements
 

@@ -30,7 +30,7 @@ import { useAdminLang } from '@/util/useAdminLang';
 import { body, c, h2, mono } from '@/app/style/tokens';
 import {
     addQr, addQuestion, addSignature, addText, addToday, displayText, hasQr, items, normalize, remove, removeQuestion,
-    missingForSave, setText, unknownAnswers, updateField, updateQuestion, type QuestionInput,
+    missingForSave, setChoiceText, setText, unknownAnswers, updateField, updateQuestion, type QuestionInput,
     type Draft, type DraftItem,
 } from '@/util/templateDraft';
 
@@ -222,6 +222,11 @@ export default function DesignerComponent({
     );
     const selectedField = (draft.schemas ?? []).flat().find((f) => f.name === selected) ?? null;
     const missing = missingForSave(draft);
+    const selectedChoice = (() => {
+        const b = selected ? draft.bindings[selected] : undefined;
+        if (b?.source !== 'choice') return null;
+        return { options: draft.form.find((q) => q.key === b.key)?.options ?? [], texts: b.texts };
+    })();
     const replacing = existingTemplates.some((t) => t.name.trim() === templateName.trim());
 
     return (
@@ -282,6 +287,8 @@ export default function DesignerComponent({
                             <FieldSettings
                                 field={selectedField}
                                 text={displayText(draft, selectedField)}
+                                choice={selectedChoice}
+                                onChoiceText={(o, t) => setDraft((prev) => setChoiceText(prev, selectedField.name, o, t))}
                                 questions={draft.form}
                                 onText={(t) => setDraft((prev) => setText(prev, selectedField.name, t))}
                                 onChange={(patch) => setDraft((prev) => updateField(prev, selectedField.name, patch))}
@@ -415,6 +422,7 @@ function ItemRow({ orgSlug, item, assets, onRemove, onChange, onDone }: {
                 if (item.summary?.kind === 'mixed') return d.item.mixed(item.summary.template);
                 return item.summary?.kind === 'automatic' ? d.item.automatic : d.item.other;
             case 'unused': return d.item.unused;
+            case 'choiceText': return d.item.choiceText(item.field.label);
             case 'question': return '';
         }
     };
@@ -470,9 +478,11 @@ function ItemRow({ orgSlug, item, assets, onRemove, onChange, onDone }: {
     );
 }
 
-function FieldSettings({ field, text, questions, onText, onChange }: {
+function FieldSettings({ field, text, choice, questions, onText, onChoiceText, onChange }: {
     field: Schema;
     text: string | null;
+    choice: { options: string[]; texts: Record<string, string> } | null;
+    onChoiceText: (option: string, text: string) => void;
     questions: FormSchema;
     onText: (text: string) => void;
     onChange: (patch: Partial<Schema>) => void;
@@ -483,6 +493,7 @@ function FieldSettings({ field, text, questions, onText, onChange }: {
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3, p: 2, border: `1px solid ${c.rule}` }}>
             <Box component="h3" sx={{ ...body, fontWeight: 600, m: 0 }}>{d.selectedTitle}</Box>
+            {choice && <ChoiceTexts options={choice.options} texts={choice.texts} onChange={onChoiceText} />}
             {text !== null && (
                 <>
                     <TextField size="small" multiline label={d.textLabel} value={text} onChange={(e) => onText(e.target.value)} />
@@ -526,6 +537,23 @@ function FieldSettings({ field, text, questions, onText, onChange }: {
                     ))}
                 </TextField>
             </Box>
+        </Box>
+    );
+}
+
+function ChoiceTexts({ options, texts, onChange }: {
+    options: string[];
+    texts: Record<string, string>;
+    onChange: (option: string, text: string) => void;
+}) {
+    const { strings } = useAdminLang();
+    const d = strings.admin.designer;
+    if (options.length === 0) return <Box sx={{ ...body, color: c.inkFaint }}>{d.choiceTextsEmpty}</Box>;
+    return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {options.map((o) => (
+                <TextField key={o} size="small" multiline label={d.choiceTextLabel(o)} value={texts[o] ?? ''} onChange={(e) => onChange(o, e.target.value)} />
+            ))}
         </Box>
     );
 }
@@ -583,6 +611,7 @@ function AddDialog({ adding, onClose, onText, onQuestion }: {
     const [type, setType] = useState<FormFieldType>('text');
     const [optional, setOptional] = useState(false);
     const [options, setOptions] = useState<string[]>([]);
+    const [texts, setTexts] = useState<Record<string, string> | null>(null);
 
     useEffect(() => {
         if (!adding) return;
@@ -590,6 +619,7 @@ function AddDialog({ adding, onClose, onText, onQuestion }: {
         setType('text');
         setOptional(false);
         setOptions([]);
+        setTexts(null);
         setBefore('');
         setAfter('');
     }, [adding]);
@@ -599,7 +629,7 @@ function AddDialog({ adding, onClose, onText, onQuestion }: {
     const submit = () => {
         if (!ready) return;
         if (adding === 'text') onText(value.trim());
-        else if (adding === 'list') onQuestion({ label: value.trim(), type: 'dropdown', optional, options, before, after });
+        else if (adding === 'list') onQuestion({ label: value.trim(), type: 'dropdown', optional, options, before, after, texts: texts ?? undefined });
         else onQuestion({ label: value.trim(), type, optional, before, after });
         onClose();
     };
@@ -625,7 +655,16 @@ function AddDialog({ adding, onClose, onText, onQuestion }: {
                     </TextField>
                 )}
                 {adding === 'list' && (
-                    <OptionsEditor options={options} onChange={setOptions} />
+                    <>
+                        <OptionsEditor options={options} onChange={setOptions} />
+                        <FormControlLabel
+                            control={<Checkbox checked={texts !== null} onChange={(e) => setTexts(e.target.checked ? {} : null)} />}
+                            label={d.choiceTextsToggle}
+                        />
+                        {texts !== null && (
+                            <ChoiceTexts options={options} texts={texts} onChange={(o, t) => setTexts({ ...texts, [o]: t })} />
+                        )}
+                    </>
                 )}
                 {adding !== 'text' && (
                     <>

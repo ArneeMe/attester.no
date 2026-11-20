@@ -9,7 +9,8 @@ export type BindingSummary =
     | { kind: 'mixed'; template: string; keys: string[] }
     | { kind: 'automatic'; system: 'qr_code' | 'qr_info' | 'qr_page' | 'today' }
     | { kind: 'library'; assetKind: 'signature' | 'logo' | 'body_text' | null; number: number | null; part: string | null }
-    | { kind: 'lookup'; byKey: string; part: string };
+    | { kind: 'lookup'; byKey: string; part: string }
+    | { kind: 'choice'; key: string };
 
 const SYSTEM_NAMES = new Set(['qr_code', 'qr_info', 'qr_page', 'today']);
 const PLACEHOLDER = /\{([^{}:]+)(?::([^{}]+))?\}/g;
@@ -47,5 +48,7 @@ export function summarizeBinding(fieldName: string, binding: FieldBinding | unde
             };
         case 'lookup':
             return { kind: 'lookup', byKey: binding.byKey, part: binding.subField };
+        case 'choice':
+            return { kind: 'choice', key: binding.key };
     }
 }

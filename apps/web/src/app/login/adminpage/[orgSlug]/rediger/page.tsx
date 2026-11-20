@@ -142,8 +142,8 @@ const RedigerPage: React.FC = () => {
             <Tabs value={tab} onChange={(_, v) => setTab(v)}>
                 <Tab label={c.tabSignatures(signatures.length)} />
                 <Tab label={c.tabLogos(logos.length)} />
-                <Tab label={c.tabBodyTexts(bodyTexts.length)} />
-                <Tab label={c.tabLookupLists(lookupLists.length)} />
+                <Tab label={c.tabBodyTexts(bodyTexts.length)} sx={{ display: bodyTexts.length ? undefined : 'none' }} />
+                <Tab label={c.tabLookupLists(lookupLists.length)} sx={{ display: lookupLists.length ? undefined : 'none' }} />
             </Tabs>
 
             <TabPanel value={tab} index={0}>

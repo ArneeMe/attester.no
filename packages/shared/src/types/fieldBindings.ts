@@ -23,6 +23,7 @@ export type FieldBinding =
           position?: number;
           subField?: string;
       }
-    | { source: 'lookup'; assetId: string; byKey: string; subField: string };
+    | { source: 'lookup'; assetId: string; byKey: string; subField: string }
+    | { source: 'choice'; key: string; texts: Record<string, string> };
 
 export type FieldBindings = Record<string, FieldBinding>;

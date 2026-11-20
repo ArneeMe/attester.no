@@ -204,3 +204,27 @@ test('an uploaded PDF stays as background when a ready-made template is picked',
     await expect.poll(() => saved.length).toBe(1);
     expect(saved[0].basePdf).toMatch(/^data:application\/pdf;base64,/);
 });
+
+test('each choice in a choice list can have its own text on the certificate', async ({ page }) => {
+    await openEditor(page);
+    await page.getByRole('button', { name: '+ Valgliste' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Spørsmål').fill('Gruppe');
+    for (const o of ['Surdeig', 'Bolle']) {
+        await dialog.getByLabel('Nytt valg').fill(o);
+        await dialog.getByLabel('Nytt valg').press('Enter');
+    }
+    await dialog.getByLabel('Hvert valg har sin egen tekst på attesten').check();
+    await dialog.getByLabel('Tekst når «Surdeig» er valgt').fill('Surdeigsgruppen lager brød på mandager.');
+    await dialog.getByLabel('Tekst når «Bolle» er valgt').fill('Bolleklubben gir topp stemning.');
+    await dialog.getByRole('button', { name: 'Legg til', exact: true }).click();
+    await expect(page.getByText('Egen tekst for hvert valg i «Gruppe»')).toBeVisible();
+    await page.getByRole('button', { name: '+ QR-kode' }).click();
+    await page.getByLabel('Navn på mal').fill('Test');
+    await page.getByRole('button', { name: 'Lagre mal' }).click();
+    await expect.poll(() => saved.length).toBe(1);
+    expect((saved[0].fieldBindings as Record<string, unknown>).gruppe_tekst).toEqual({
+        source: 'choice', key: 'gruppe',
+        texts: { Surdeig: 'Surdeigsgruppen lager brød på mandager.', Bolle: 'Bolleklubben gir topp stemning.' },
+    });
+});

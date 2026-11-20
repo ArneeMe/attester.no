@@ -97,6 +97,12 @@ export function resolveBinding(binding: FieldBinding, ctx: ResolveContext): stri
             return typeof v === 'string' ? v : '';
         }
 
+        case 'choice': {
+            const chosen = ctx.submission[binding.key];
+            const text = chosen === undefined ? undefined : binding.texts?.[chosen];
+            return typeof text === 'string' ? text : '';
+        }
+
         default:
             return '';
     }

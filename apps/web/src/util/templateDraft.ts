@@ -16,6 +16,7 @@ export type QuestionInput = {
     options?: string[];
     before?: string;
     after?: string;
+    texts?: Record<string, string>;
 };
 
 export type DraftItem =
@@ -27,6 +28,7 @@ export type DraftItem =
     | { kind: 'today'; names: string[] }
     | { kind: 'library'; names: string[]; assetKind: 'logo' | 'body_text'; position: number }
     | { kind: 'unused'; names: string[] }
+    | { kind: 'choiceText'; names: string[]; field: FormFieldSchema; texts: Record<string, string> }
     | { kind: 'other'; names: string[]; summary?: BindingSummary };
 
 const QR_LABEL = 'Verifiser på attester.no';
@@ -95,6 +97,7 @@ function usedKeys(draft: Draft): Set<string> {
         else if (b.source === 'submission') keys.add(b.key);
         else if (b.source === 'composite') placeholderKeys(b.template).forEach((k) => keys.add(k));
         else if (b.source === 'lookup') keys.add(b.byKey);
+        else if (b.source === 'choice') keys.add(b.key);
     }
     return keys;
 }
@@ -151,10 +154,18 @@ export function addQuestion(draft: Draft, q: QuestionInput): Draft {
     if (q.optional) field.optional = true;
     if (q.type === 'dropdown') field.options = q.options ?? [];
     const height = q.type === 'long_text' ? 30 : 8;
-    return {
+    const next: Draft = {
         schemas: append(draft, [textField(key, `${before}[${field.label}]${after}`, nextY(draft.schemas), { height })]),
         bindings: { ...draft.bindings, [key]: binding },
         form: [...draft.form, field],
+    };
+    const texts = Object.fromEntries(Object.entries(q.texts ?? {}).filter(([o, t]) => (q.options ?? []).includes(o) && t.trim()));
+    if (q.type !== 'dropdown' || Object.keys(texts).length === 0) return next;
+    const name = uniqueName(`${key}_tekst`, fieldNames(next.schemas));
+    return {
+        ...next,
+        schemas: append(next, [textField(name, `[Tekst for ${field.label}]`, nextY(next.schemas), { width: 170, height: 20 })]),
+        bindings: { ...next.bindings, [name]: { source: 'choice', key, texts } },
     };
 }
 
@@ -245,6 +256,14 @@ export function displayText(draft: Draft, field: Schema): string | null {
     return b.source === 'composite' ? toDisplay(b.template, draft.form) : null;
 }
 
+export function setChoiceText(draft: Draft, name: string, option: string, text: string): Draft {
+    const b = draft.bindings[name];
+    if (b?.source !== 'choice') return draft;
+    const texts = { ...b.texts, [option]: text };
+    if (!text) delete texts[option];
+    return { ...draft, bindings: { ...draft.bindings, [name]: { ...b, texts } } };
+}
+
 export function unknownAnswers(text: string, form: FormSchema): string[] {
     const labels = new Set(form.map((q) => q.label));
     return [...text.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]).filter((l) => !labels.has(l));
@@ -265,7 +284,9 @@ export function setText(draft: Draft, name: string, display: string): Draft {
 }
 
 export function removeQuestion(draft: Draft, key: string): Draft {
-    const own = items(draft).filter((i) => i.kind === 'question' && i.field.key === key).flatMap((i) => i.names);
+    const own = items(draft)
+        .filter((i) => (i.kind === 'question' || i.kind === 'choiceText') && i.field.key === key)
+        .flatMap((i) => i.names);
     let next = remove(draft, own);
     const strip = new RegExp(`\\{${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?::[^{}]+)?\\}`, 'g');
     for (const f of allFields(next.schemas)) {
@@ -279,6 +300,17 @@ export function removeQuestion(draft: Draft, key: string): Draft {
 
 export function updateQuestion(draft: Draft, key: string, patch: Partial<FormFieldSchema>): Draft {
     const form = draft.form.map((f) => (f.key === key ? { ...f, ...patch, key } : f));
+    if (patch.options) {
+        const keep = new Set(patch.options);
+        const bindings = Object.fromEntries(
+            Object.entries(draft.bindings).map(([n, b]) =>
+                b.source === 'choice' && b.key === key
+                    ? [n, { ...b, texts: Object.fromEntries(Object.entries(b.texts).filter(([o]) => keep.has(o))) }]
+                    : [n, b],
+            ),
+        );
+        return { ...draft, form, bindings };
+    }
     if (!patch.type) return { ...draft, form };
     const whole = new Set([`{${key}}`, `{${key}:date}`]);
     const template = patch.type === 'date' ? `{${key}:date}` : `{${key}}`;
@@ -318,6 +350,9 @@ export function items(draft: Draft): DraftItem[] {
         const summary = summarizeBinding(f.name, b);
         if (summary.kind === 'automatic' && summary.system === 'qr_code') out.push({ kind: 'qr', names: [f.name] });
         else if (summary.kind === 'automatic' && summary.system === 'today') out.push({ kind: 'today', names: [f.name] });
+        else if (b?.source === 'choice' && questionAt(draft.form, b.key)) {
+            out.push({ kind: 'choiceText', names: [f.name], field: questionAt(draft.form, b.key)!, texts: b.texts });
+        }
         else if (summary.kind === 'library' && (summary.assetKind === 'logo' || summary.assetKind === 'body_text')) {
             out.push({ kind: 'library', names: [f.name], assetKind: summary.assetKind, position: (summary.number ?? 1) - 1 });
         }

@@ -7,7 +7,7 @@ import { customTemplate } from '@/app/pdfinfo/customTemplate';
 import { echoFieldBindings } from '@/app/pdfinfo/echoFieldBindings';
 import {
     addQr, addQuestion, addSignature, addText, addToday, items, keyFromLabel, moveBox, normalize, remove, resizeBox,
-    updateField, updateQuestion, setText, removeQuestion, missingForSave, unknownAnswers, type Draft,
+    updateField, updateQuestion, setText, removeQuestion, missingForSave, unknownAnswers, setChoiceText, type Draft,
 } from './templateDraft';
 
 const empty: Draft = { schemas: [[]], bindings: {}, form: [] };
@@ -171,6 +171,37 @@ describe('text around an answer', () => {
     it('brackets that name no question are pointed out', () => {
         const d = addQuestion(empty, { label: 'Fullført dato', type: 'date' });
         expect(unknownAnswers('den [Fullført Dato] og [Fullført dato]', d.form)).toEqual(['Fullført Dato']);
+    });
+});
+
+describe('a text for each choice', () => {
+    const groups = addQuestion(empty, {
+        label: 'Gruppe', type: 'dropdown', options: ['Surdeig', 'Bolle'],
+        texts: { Surdeig: 'Surdeigsgruppen lager brød på mandager.', Bolle: '' },
+    });
+
+    it('adds a field that prints the text for the chosen option', () => {
+        expect(groups.bindings.gruppe_tekst).toEqual({ source: 'choice', key: 'gruppe', texts: { Surdeig: 'Surdeigsgruppen lager brød på mandager.' } });
+        expect(render(groups, { gruppe: 'Surdeig' }).gruppe_tekst).toBe('Surdeigsgruppen lager brød på mandager.');
+        expect(render(groups, { gruppe: 'Bolle' }).gruppe_tekst).toBe('');
+        expect(items(groups).map((i) => i.kind)).toEqual(['question', 'choiceText']);
+    });
+
+    it('texts are edited per option, and go with options that are removed', () => {
+        let d = setChoiceText(groups, 'gruppe_tekst', 'Bolle', 'Topp stemning på lørdager.');
+        expect(render(d, { gruppe: 'Bolle' }).gruppe_tekst).toBe('Topp stemning på lørdager.');
+        d = updateQuestion(d, 'gruppe', { options: ['Bolle'] });
+        expect(d.bindings.gruppe_tekst).toEqual({ source: 'choice', key: 'gruppe', texts: { Bolle: 'Topp stemning på lørdager.' } });
+    });
+
+    it('removing the printed answer keeps the question while its text still uses it', () => {
+        const d = remove(groups, ['gruppe']);
+        expect(d.form.map((q) => q.key)).toEqual(['gruppe']);
+        expect(removeQuestion(d, 'gruppe')).toEqual({ schemas: [[]], bindings: {}, form: [] });
+    });
+
+    it('without any texts it is a plain choice list', () => {
+        expect(Object.keys(addQuestion(empty, { label: 'Gruppe', type: 'dropdown', options: ['A'], texts: { A: ' ' } }).bindings)).toEqual(['gruppe']);
     });
 });
 
