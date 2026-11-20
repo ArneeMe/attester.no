@@ -12,7 +12,9 @@ import {
     Snackbar,
     FormControlLabel,
     Switch,
+    Tooltip,
 } from '@mui/material';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import dynamic from 'next/dynamic';
 import { useAdminLang } from '@/util/useAdminLang';
 
@@ -85,7 +87,14 @@ export default function TemplateEditorPage() {
                                 onChange={(e) => setIsOffered(e.target.checked)}
                             />
                         }
-                        label={d.offeredLabel}
+                        label={
+                            <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                                {d.offeredLabel}
+                                <Tooltip title={d.offeredHelp}>
+                                    <HelpOutlineIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                                </Tooltip>
+                            </Box>
+                        }
                     />
                 </Box>
                 }

@@ -82,6 +82,7 @@ export default function DesignerComponent({
     const [draft, setDraft] = useState<Draft>({ schemas: [[]], bindings: {}, form: [] });
     const [basePdf, setBasePdf] = useState<Template['basePdf']>(BLANK_PDF);
     const [selected, setSelected] = useState<string | null>(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [existingTemplates, setExistingTemplates] = useState<TemplateSummary[]>([]);
     const [assets, setAssets] = useState<OrgAsset[]>([]);
@@ -152,7 +153,7 @@ export default function DesignerComponent({
     const handlePickStarter = (starter: StarterTemplate) => {
         apply(
             normalize({ schemas: starter.template.schemas, bindings: starter.fieldBindings, form: starter.formSchema }),
-            starter.template.basePdf,
+            basePdf === BLANK_PDF ? starter.template.basePdf : undefined,
         );
         onTemplateLoad(starter.name, starter.description, false);
     };
@@ -221,10 +222,11 @@ export default function DesignerComponent({
     );
     const selectedField = (draft.schemas ?? []).flat().find((f) => f.name === selected) ?? null;
     const missing = missingForSave(draft);
+    const replacing = existingTemplates.some((t) => t.name.trim() === templateName.trim());
 
     return (
         <>
-            <Step number={1} title={d.steps.background} help={d.steps.backgroundHelp}>
+            <Step number={1} title={d.steps.background}>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
                     <Button variant="outlined" onClick={() => setPickerOpen(true)}>{d.startFromTemplate}</Button>
                     <Button variant="outlined" component="label">
@@ -307,7 +309,7 @@ export default function DesignerComponent({
                 </Box>
             </Step>
 
-            <Step number={3} title={d.steps.save} help={d.saveHelp}>
+            <Step number={3} title={d.steps.save}>
                 {missing.length > 0 && (
                     <Box sx={{ ...body, color: 'warning.dark', mb: 2 }}>
                         {d.missingBefore} {missing.map((m) => d.missingItem[m]).join(' ')}
@@ -315,8 +317,12 @@ export default function DesignerComponent({
                 )}
                 {saveFields}
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mt: 2 }}>
-                    <Button variant="contained" onClick={handleSave} disabled={saving || !templateName.trim() || missing.length > 0}>
-                        {saving ? <CircularProgress size={20} /> : d.saveTemplate}
+                    <Button
+                        variant="contained"
+                        onClick={() => (replacing ? setConfirmOpen(true) : handleSave())}
+                        disabled={saving || !templateName.trim() || missing.length > 0}
+                    >
+                        {saving ? <CircularProgress size={20} /> : replacing ? d.updateTemplate : d.saveTemplate}
                     </Button>
                     <Button variant="outlined" onClick={handlePreview} disabled={previewBusy}>
                         {previewBusy ? <CircularProgress size={20} /> : d.previewPdf}
@@ -331,6 +337,23 @@ export default function DesignerComponent({
                 onText={(t) => apply(addText(draft, t))}
                 onQuestion={(q) => apply(addQuestion(draft, q))}
             />
+
+            <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>{d.confirmUpdateTitle(templateName.trim())}</DialogTitle>
+                <DialogContent><Box sx={body}>{d.confirmUpdateBody}</Box></DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setConfirmOpen(false)}>{strings.common.cancel}</Button>
+                    <Button
+                        variant="contained"
+                        onClick={() => {
+                            setConfirmOpen(false);
+                            void handleSave();
+                        }}
+                    >
+                        {d.confirmUpdate}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <StarterTemplatePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={handlePickStarter} />
 

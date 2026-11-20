@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
+import { BLANK_PDF } from '@pdfme/common';
 
 const saved: Array<Record<string, unknown>> = [];
 
-async function openEditor(page: Page, assets: unknown[] = []) {
+async function openEditor(page: Page, assets: unknown[] = [], templates: unknown[] = []) {
     saved.length = 0;
     const exp = Math.floor(Date.now() / 1000) + 900;
     await page.addInitScript(([key, session]) => window.localStorage.setItem(key as string, JSON.stringify(session)), ['nhostSession', {
@@ -19,7 +20,7 @@ async function openEditor(page: Page, assets: unknown[] = []) {
             saved.push(route.request().postDataJSON());
             return route.fulfill({ json: { template: { id: 't1', created_at: '', updated_at: '' } } });
         }
-        return route.fulfill({ json: { templates: [] } });
+        return route.fulfill({ json: { templates } });
     });
     await page.route('**/api/v1/org/testorg/assets', (route) => route.fulfill({ json: { assets } }));
     await page.route('**/api/v1/org/testorg/settings', (route) => route.fulfill({ json: {} }));
@@ -179,4 +180,27 @@ test('the text around an answer is written when the question is added', async ({
     await expect.poll(() => saved.length).toBe(1);
     expect((saved[0].fieldBindings as Record<string, unknown>).fullfort_dato)
         .toEqual({ source: 'composite', template: 'Fullført den {fullfort_dato:date}' });
+});
+
+test('saving under the name of an existing template asks before it replaces it', async ({ page }) => {
+    await openEditor(page, [], [{ id: 't0', name: 'Kursbevis', is_offered: true, created_at: '', updated_at: '' }]);
+    await page.getByRole('button', { name: '+ QR-kode' }).click();
+    await page.getByLabel('Navn på mal').fill('Kursbevis');
+    await page.getByRole('button', { name: 'Oppdater mal' }).click();
+    await expect(page.getByText('Overskrive «Kursbevis»?')).toBeVisible();
+    expect(saved).toHaveLength(0);
+    await page.getByRole('button', { name: 'Oppdater', exact: true }).click();
+    await expect.poll(() => saved.length).toBe(1);
+});
+
+test('an uploaded PDF stays as background when a ready-made template is picked', async ({ page }) => {
+    await openEditor(page);
+    const pdf = Buffer.from(BLANK_PDF.split(',')[1], 'base64');
+    await page.locator('input[type=file][accept="application/pdf"]').setInputFiles({ name: 'bakgrunn.pdf', mimeType: 'application/pdf', buffer: pdf });
+    await page.getByRole('button', { name: 'Start fra en ferdig mal' }).click();
+    await page.locator('.MuiDialog-root .MuiCardActionArea-root').first().click();
+    await page.getByLabel('Navn på mal').fill('Test');
+    await page.getByRole('button', { name: 'Lagre mal' }).click();
+    await expect.poll(() => saved.length).toBe(1);
+    expect(saved[0].basePdf).toMatch(/^data:application\/pdf;base64,/);
 });
