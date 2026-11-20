@@ -203,6 +203,7 @@ const no = {
         required: 'Må fylles ut',
         invalidDate: 'Ugyldig dato',
         invalidNumber: 'Må være et tall',
+        tooLong: 'For langt til å få plass på attesten',
         dropdownFallback: 'Skriv inn fritekst. Det er ingen forhåndsdefinerte valg satt opp.',
     },
     admin: {
@@ -451,6 +452,7 @@ const no = {
             optionLabel: 'Nytt valg',
             addOption: 'Legg til valg',
             optionalLabel: 'Valgfritt',
+            maxChars: (n: number) => `Maks ${n} tegn`,
             typeLabels: { text: 'Kort tekst', long_text: 'Lang tekst', date: 'Dato', number: 'Tall' } as Record<string, string>,
             listTitle: 'Dette står på attesten',
             missingBefore: 'Før du kan lagre:',
@@ -745,6 +747,7 @@ const en: Strings = {
         required: 'Required',
         invalidDate: 'Invalid date',
         invalidNumber: 'Must be a number',
+        tooLong: 'Too long to fit on the certificate',
         dropdownFallback: 'Free text. No predefined options are set up.',
     },
     admin: {
@@ -993,6 +996,7 @@ const en: Strings = {
             optionLabel: 'New choice',
             addOption: 'Add choice',
             optionalLabel: 'Optional',
+            maxChars: (n: number) => `Max ${n} characters`,
             typeLabels: { text: 'Short text', long_text: 'Long text', date: 'Date', number: 'Number' } as Record<string, string>,
             listTitle: 'What the certificate says',
             missingBefore: 'Before you can save:',

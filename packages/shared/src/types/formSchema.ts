@@ -5,6 +5,7 @@ export type FormFieldSchema = {
     label: string;
     type: FormFieldType;
     optional?: boolean;
+    maxLength?: number;
     /**
      * For type='dropdown'. Either provide a static `options` array, or set
      * `optionsFromAsset` to a lookup_list asset id — the public form API

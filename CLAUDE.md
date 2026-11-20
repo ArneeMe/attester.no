@@ -397,6 +397,12 @@ Dropdowns can specify static `options` or `optionsFromAsset` (a
 `optionsFromAsset` → `options` so the volunteer sees a static dropdown
 without ever seeing the asset id.
 
+`maxLength` on a text question is how much fits in the PDF box. The editor
+works it out from the box size, the font size and any text around the answer
+(`answerLimits` in `templateDraft.ts`) and writes it on save; the admin never
+types it. The form stops at it and the submissions POST refuses anything
+longer, so a long answer cannot spill over the rest of the certificate.
+
 The template editor never shows a key or a binding. Each button
 (`apps/web/src/util/templateDraft.ts`) writes the PDF field, its binding and,
 for a question, its form entry together, with the key made from the label.

@@ -101,6 +101,14 @@ describe("anonymous submission", () => {
         expect(mutations()).toHaveLength(0);
     });
 
+    it("refuses an answer longer than the form allows, since it would not fit on the certificate", async () => {
+        answers.SubmissionPreflight = preflight([{ key: "name", label: "Navn", type: "text", maxLength: 5 }]);
+        expect((await submit({ name: "Ola" })).status).toBe(200);
+        const res = await submit({ name: "Olaf Nordmann" });
+        expect(res.status).toBe(400);
+        expect(((await res.json()) as { field: string }).field).toBe("name");
+    });
+
     it("bounds the number and size of keys when the template has no form schema", async () => {
         answers.SubmissionPreflight = preflight(null);
         expect((await submit({ a: "1", b: "2" })).status).toBe(200);

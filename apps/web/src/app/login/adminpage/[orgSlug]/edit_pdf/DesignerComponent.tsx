@@ -30,7 +30,7 @@ import { useAdminLang } from '@/util/useAdminLang';
 import { body, c, h2, mono } from '@/app/style/tokens';
 import {
     addQr, addQuestion, addSignature, addText, addToday, displayText, hasQr, items, normalize, remove, removeQuestion,
-    missingForSave, setChoiceText, setText, unknownAnswers, updateField, updateQuestion, type QuestionInput,
+    answerLimits, missingForSave, setChoiceText, withLimits, setText, unknownAnswers, updateField, updateQuestion, type QuestionInput,
     type Draft, type DraftItem,
 } from '@/util/templateDraft';
 
@@ -175,7 +175,7 @@ export default function DesignerComponent({
                 description: templateDescription || undefined,
                 isOffered,
                 fieldBindings: draft.bindings,
-                formSchema: draft.form,
+                formSchema: withLimits(draft),
             }));
             onSuccess(d.saved(templateName));
             setExistingTemplates(await getTemplates(orgSlug));
@@ -222,6 +222,7 @@ export default function DesignerComponent({
     );
     const selectedField = (draft.schemas ?? []).flat().find((f) => f.name === selected) ?? null;
     const missing = missingForSave(draft);
+    const limits = answerLimits(draft);
     const selectedChoice = (() => {
         const b = selected ? draft.bindings[selected] : undefined;
         if (b?.source !== 'choice') return null;
@@ -304,6 +305,7 @@ export default function DesignerComponent({
                             >
                                 <ItemRow
                                     orgSlug={orgSlug}
+                                    limit={item.kind === 'question' ? limits[item.field.key] : undefined}
                                     item={item}
                                     assets={assets}
                                     onRemove={() => apply(item.kind === 'question' ? removeQuestion(draft, item.field.key) : remove(draft, item.names))}
@@ -384,8 +386,9 @@ export default function DesignerComponent({
     );
 }
 
-function ItemRow({ orgSlug, item, assets, onRemove, onChange, onDone }: {
+function ItemRow({ orgSlug, limit, item, assets, onRemove, onChange, onDone }: {
     orgSlug: string;
+    limit?: number;
     item: DraftItem;
     assets: OrgAsset[];
     onRemove: () => void;
@@ -473,6 +476,7 @@ function ItemRow({ orgSlug, item, assets, onRemove, onChange, onDone }: {
                 control={<Checkbox checked={!!f.optional} onChange={(e) => onChange({ optional: e.target.checked })} />}
                 label={d.optionalLabel}
             />
+            {limit && <Box sx={{ ...body, fontSize: 13, color: c.inkFaint }}>{d.maxChars(limit)}</Box>}
             <Button size="small" color="error" onClick={onRemove}>{d.remove}</Button>
         </Box>
     );

@@ -91,6 +91,7 @@ function FieldInput({
     dropdownFallback?: string;
     onChange: (v: string) => void;
 }) {
+    const counter = field.maxLength ? `${value.length} / ${field.maxLength}` : undefined;
     switch (field.type) {
         case 'dropdown': {
             const options = field.options ?? [];
@@ -145,7 +146,8 @@ function FieldInput({
                     multiline
                     rows={4}
                     error={!!error}
-                    helperText={error}
+                    helperText={error ?? counter}
+                    slotProps={{ htmlInput: { maxLength: field.maxLength } }}
                 />
             );
 
@@ -194,7 +196,8 @@ function FieldInput({
                     onChange={(e) => onChange(e.target.value)}
                     margin="normal"
                     error={!!error}
-                    helperText={error}
+                    helperText={error ?? counter}
+                    slotProps={{ htmlInput: { maxLength: field.maxLength } }}
                 />
             );
     }

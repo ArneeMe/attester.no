@@ -7,7 +7,8 @@ import { customTemplate } from '@/app/pdfinfo/customTemplate';
 import { echoFieldBindings } from '@/app/pdfinfo/echoFieldBindings';
 import {
     addQr, addQuestion, addSignature, addText, addToday, items, keyFromLabel, moveBox, normalize, remove, resizeBox,
-    updateField, updateQuestion, setText, removeQuestion, missingForSave, unknownAnswers, setChoiceText, type Draft,
+    updateField, updateQuestion, setText, removeQuestion, missingForSave, unknownAnswers, setChoiceText, answerLimits, withLimits,
+    type Draft,
 } from './templateDraft';
 
 const empty: Draft = { schemas: [[]], bindings: {}, form: [] };
@@ -202,6 +203,33 @@ describe('a text for each choice', () => {
 
     it('without any texts it is a plain choice list', () => {
         expect(Object.keys(addQuestion(empty, { label: 'Gruppe', type: 'dropdown', options: ['A'], texts: { A: ' ' } }).bindings)).toEqual(['gruppe']);
+    });
+});
+
+describe('how long an answer may be', () => {
+    it('follows the size of the box and the font', () => {
+        const d = addQuestion(empty, { label: 'Navn', type: 'text' });
+        const small = answerLimits(d).navn;
+        const wide = answerLimits(updateField(d, 'navn', { width: 240 })).navn;
+        const big = answerLimits(updateField(d, 'navn', { fontSize: 24 })).navn;
+        expect(small).toBeGreaterThan(20);
+        expect(wide).toBeGreaterThan(small);
+        expect(big).toBeLessThan(small);
+    });
+
+    it('leaves room for the text around the answer', () => {
+        const plain = answerLimits(addQuestion(empty, { label: 'Navn', type: 'text' })).navn;
+        const around = answerLimits(addQuestion(empty, { label: 'Navn', type: 'text', before: 'Dette bekrefter at ' })).navn;
+        expect(around).toBe(plain - 'Dette bekrefter at '.length);
+    });
+
+    it('is not set for dates, numbers and choices, and is saved on text questions', () => {
+        let d = addQuestion(empty, { label: 'Navn', type: 'text' });
+        d = addQuestion(d, { label: 'Dato', type: 'date' });
+        d = addQuestion(d, { label: 'Gruppe', type: 'dropdown', options: ['A'] });
+        const form = withLimits(d);
+        expect(form.find((q) => q.key === 'navn')?.maxLength).toBeGreaterThan(0);
+        expect(form.filter((q) => q.maxLength).map((q) => q.key)).toEqual(['navn']);
     });
 });
 

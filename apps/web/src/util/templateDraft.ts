@@ -402,3 +402,47 @@ export function missingForSave(draft: Draft): Array<'qr' | 'brand'> {
     if (!fields.some((f) => f.type === 'text' && typeof f.content === 'string' && /attester\.no/i.test(f.content))) missing.push('brand');
     return missing;
 }
+
+const PT_TO_MM = 25.4 / 72;
+const DATE_WIDTH = 10;
+
+function capacity(field: Schema): number {
+    const em = Number(field.fontSize ?? 12) * PT_TO_MM;
+    const perLine = Math.floor(field.width / (em * 0.5));
+    const lines = Math.max(1, Math.floor(field.height / (em * Number(field.lineHeight ?? 1.2))));
+    return perLine * lines;
+}
+
+export function answerLimits(draft: Draft): Record<string, number> {
+    const isText = (key: string) => {
+        const q = questionAt(draft.form, key);
+        return q?.type === 'text' || q?.type === 'long_text';
+    };
+    const limits: Record<string, number> = {};
+    const limit = (key: string, n: number) => {
+        limits[key] = Math.max(5, Math.min(limits[key] ?? Infinity, n));
+    };
+    for (const f of allFields(draft.schemas)) {
+        if (f.type !== 'text') continue;
+        const b = draft.bindings[f.name];
+        if (!b && isText(f.name) && !f.readOnly) limit(f.name, capacity(f));
+        if (b?.source === 'submission' && isText(b.key)) limit(b.key, capacity(f));
+        if (b?.source !== 'composite') continue;
+        const keys = placeholderKeys(b.template);
+        const texts = keys.filter(isText);
+        if (texts.length === 0) continue;
+        const fixed = b.template.replace(PLACEHOLDER, '').length + (keys.length - texts.length) * DATE_WIDTH;
+        const each = Math.floor((capacity(f) - fixed) / texts.length);
+        texts.forEach((k) => limit(k, each));
+    }
+    return limits;
+}
+
+export function withLimits(draft: Draft): FormSchema {
+    const limits = answerLimits(draft);
+    return draft.form.map((q) => {
+        const next = { ...q };
+        delete next.maxLength;
+        return limits[q.key] ? { ...next, maxLength: limits[q.key] } : next;
+    });
+}
