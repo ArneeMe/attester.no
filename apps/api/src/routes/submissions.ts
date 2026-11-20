@@ -39,6 +39,12 @@ function unknownField(schema: FormSchema | null, data: Record<string, string>): 
     return keys.find((k) => !declared.has(k)) ?? null;
 }
 
+function tooLong(schema: FormSchema | null, data: Record<string, string>): string | null {
+    if (!Array.isArray(schema)) return null;
+    const field = schema.find((f) => f.maxLength && (data[f.key] ?? '').trim().length > f.maxLength);
+    return field?.key ?? null;
+}
+
 type SubmissionRow = {
     id: string;
     organization_id: string;
@@ -193,6 +199,10 @@ export async function POST(
         const unknown = unknownField(template.form_schema, data as Record<string, string>);
         if (unknown !== null) {
             return json({ error: `Unknown field "${unknown.slice(0, 60)}"` }, { status: 400 });
+        }
+        const long = tooLong(template.form_schema, data as Record<string, string>);
+        if (long !== null) {
+            return json({ error: `Field "${long.slice(0, 60)}" is too long`, field: long }, { status: 400 });
         }
 
         const status = newStatusToken();

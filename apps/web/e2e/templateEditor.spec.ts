@@ -86,7 +86,7 @@ test('saving sends the questions as the form and the fields as bindings', async 
     await page.getByRole('button', { name: 'Lagre mal' }).click();
     await expect.poll(() => saved.length).toBe(1);
     expect(saved[0].formSchema).toEqual([
-        { key: 'kursnavn', label: 'Kursnavn', type: 'text' },
+        { key: 'kursnavn', label: 'Kursnavn', type: 'text', maxLength: expect.any(Number) },
         { key: 'gruppe', label: 'Gruppe', type: 'dropdown', options: ['Webkom', 'Bedkom'] },
     ]);
     expect(saved[0].fieldBindings).toMatchObject({

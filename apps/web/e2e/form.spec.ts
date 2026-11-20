@@ -130,3 +130,14 @@ test('the back link returns to the chooser and clears ?t=', async ({ page }) => 
     await expect(page.getByText('Hva søker du om?')).toBeVisible();
     await page.waitForURL((u) => !u.searchParams.has('t'));
 });
+
+test('an answer cannot be longer than there is room for on the certificate', async ({ page }) => {
+    const short = { ...TEMPLATE, form_schema: [{ key: 'name', label: 'Navn', type: 'text', maxLength: 10 }] };
+    await page.route(`**/api/v1/org/${ORG}/templates/${TEMPLATE.id}*`, (route) => route.fulfill({ json: { template: short } }));
+    await page.goto(`/org/${ORG}`);
+    await page.getByLabel('Navn').fill('Ola');
+    await expect(page.getByText('3 / 10')).toBeVisible({ timeout: 30000 });
+    await page.getByLabel('Navn').fill('Ola Nordmann Hansen');
+    await expect(page.getByLabel('Navn')).toHaveValue('Ola Nordma');
+    await expect(page.getByText('10 / 10')).toBeVisible();
+});

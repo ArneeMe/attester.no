@@ -4,6 +4,7 @@ export type ValidationMessages = {
     required: string;
     invalidDate: string;
     invalidNumber: string;
+    tooLong: string;
 };
 
 // Norwegian defaults keep every existing call site working; localized
@@ -12,6 +13,7 @@ const DEFAULT_MESSAGES: ValidationMessages = {
     required: 'Må fylles ut',
     invalidDate: 'Ugyldig dato',
     invalidNumber: 'Må være et tall',
+    tooLong: 'For langt til å få plass på attesten',
 };
 
 /**
@@ -28,6 +30,7 @@ export function validateField(
     if (!v) {
         return field.optional ? null : messages.required;
     }
+    if (field.maxLength && v.length > field.maxLength) return messages.tooLong;
     switch (field.type) {
         case 'date':
             // <input type=date> gives yyyy-mm-dd, but pasted/prefilled data
