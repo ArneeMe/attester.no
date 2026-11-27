@@ -67,7 +67,8 @@ Details for each step are in DEVELOPMENT.md "Deploy checklist".
 4. Move the web app from Cloudflare Pages to a Cloudflare Worker named
    `attester-no`, connected to the repo with Workers Builds: root directory
    the repo root, build command `npm run cf:build -w @attester/web`, deploy
-   command `npx wrangler deploy -c apps/web/wrangler.toml`. Set
+   command `npm exec -w @attester/web -- wrangler deploy`, preview command
+   `npm exec -w @attester/web -- wrangler versions upload`. Set
    `NEXT_PUBLIC_NHOST_*` as build variables, `API_URL` (the API's `/v1`
    root) and `NHOST_ADMIN_SECRET` as runtime secrets, then move the
    `attester.no` domain from the Pages project to the Worker. These settings
