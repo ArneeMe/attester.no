@@ -62,8 +62,8 @@ Details for each step are in DEVELOPMENT.md "Deploy checklist".
    (`platform_errors`) and `2026-11-submission-status.sql` (three columns on
    `submissions`; reload the table in Hasura). The admin dashboard fails
    without the second, and submitting fails without the fourth.
-3. Choose a host for the API container, deploy it and set its secrets.
-   `PUBLIC_APP_URL` is required.
+3. Deploy the API on UpCloud with `ops/api/` (DEVELOPMENT.md "On UpCloud")
+   and fill in its `.env`. `PUBLIC_APP_URL` is required.
 4. Move the web app from Cloudflare Pages to a Cloudflare Worker named
    `attester-no`, connected to the repo with Workers Builds: root directory
    the repo root, build command `npm run cf:build -w @attester/web`, deploy
@@ -255,8 +255,6 @@ Left open on purpose, each needing a decision or more than a small fix:
 
 Asked 2026-11-13, not answered yet. None of them blocks the cut-over.
 
-- **Where the API container runs.** One small European VPS that also holds
-  an uptime monitor and future hobby backends, or a managed container host.
 - **The Android app in `arneeme/apps`.** It calls the unversioned `/api/...`
   paths and stops working at cut-over. Updating it needs push access there.
   It could also issue from the phone now.
@@ -273,7 +271,8 @@ Asked 2026-11-13, not answered yet. None of them blocks the cut-over.
    the web app's. Left:
    - Run the uptime check (`ops/uptime/`, Gatus). Built and tested against
      fakes; needs somewhere to run.
-   - Log retention. Logs live as long as the container host keeps stdout.
+   - Log retention. Docker keeps the API's log in five files of 10 MB on the
+     server (`ops/api/docker-compose.yml`).
      If that is too short, run Vector with Loki or plain files on a volume.
 3. **Database changes in git.** Run `nhost init --remote` once, commit the
    result, and let migrations and tracking deploy with the code. Five tables
