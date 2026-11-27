@@ -52,7 +52,7 @@ npm run stack:down    # stop it and delete its data
 | Service | Where | What it is |
 |---|---|---|
 | Postgres, Hasura | `localhost:8080/console` | The real database layer, same Hasura version as Nhost |
-| Nhost Auth | `localhost:4000` | The real auth service. Sign-up, verification and reset mails go to the mail catcher |
+| Nhost Auth | `localhost:4000` | The real auth service, with email verification off as in production. Reset mails go to the mail catcher |
 | API | `localhost:8787` | Built from the same `Dockerfile` as production |
 | Mailpit | `localhost:8025` | Catches every email. Nothing leaves the machine |
 | Fake Digipost | `localhost:8090` | Checks each request's signature like Digipost does, and shows the letters it received |
@@ -218,8 +218,9 @@ configuration. Those need a staging copy, see ROADMAP.
      A missing entry fails password reset with `The value of
      "options.redirectTo" is not allowed` — it's an allowlist, not a bug.
    - **Client URL** should be the production origin, not localhost.
-   - **Email verification must be on.** The API refuses platform-admin access
-     and invite redemption for an unverified address.
+   - **Email verification stays off.** Only platform admins need a verified
+     address, set once in the SQL editor:
+     `update auth.users set email_verified = true where email = '<admin>';`
    - Email verification and the minimum password length are project settings,
      not code. `PASSWORD_MIN_LENGTH` in `apps/web/src/util/auth.ts` only mirrors the
      latter for a friendly client-side message — keep the two in sync.

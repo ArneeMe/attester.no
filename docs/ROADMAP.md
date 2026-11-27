@@ -54,8 +54,8 @@ a critical flaw that allows code to run on the server. `develop` is on
 
 Details for each step are in DEVELOPMENT.md "Deploy checklist".
 
-1. Turn on email verification in Nhost. The API refuses `/admin` and invite
-   redemption to an unverified address.
+1. Leave email verification off in Nhost, and mark the platform admins'
+   addresses as verified in SQL. `/admin` is refused to an unverified address.
 2. Run the four new migrations and track their tables in Hasura:
    `2026-11-notices.sql` (`notices`), `2026-11-digipost.sql` (`org_settings`,
    `submission_recipients`, `deliveries`), `2026-11-platform-errors.sql`

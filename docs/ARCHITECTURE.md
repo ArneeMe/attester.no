@@ -317,9 +317,12 @@ reportError(e, source, place)          apps/api/src/errors/report.ts
 - **Ids are checked to be uuids before they reach Hasura** (`lib/input.ts`).
   Hasura quotes a malformed uuid back in its error and errors are logged, so
   this keeps caller-chosen text out of the log.
-- **Email addresses count only when verified.** The platform-admin allowlist
-  and invite redemption both require `emailVerified`. Otherwise whoever first
-  registers someone else's address inherits its rights.
+- **Only platform admins need a verified address.** The allowlist requires
+  `emailVerified`, so whoever first registers the owner's address cannot
+  inherit the platform. Ordinary users never verify (the owner's choice,
+  2026-11): an invite needs the secret link and an account with the invited
+  address, and the link is the proof. Set `email_verified` for platform
+  admins once in SQL; email verification in Nhost stays off.
 - **Bounded everywhere a stranger can write.** Anonymous bodies are capped at
   128 KB before a route sees them, an organisation's unissued queue at 2,000
   rows and pending organisation requests at 100. Lists are bounded too: the
