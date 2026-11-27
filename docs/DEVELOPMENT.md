@@ -194,6 +194,21 @@ configuration. Those need a staging copy, see ROADMAP.
      public HTTPS address: Fly.io, Cloud Run, Railway, Nhost Run. It listens
      on `PORT`, answers `/healthz`, runs as a non-root user and keeps no
      state on disk. Give it at least 512 MB; rendering a PDF needs memory.
+   - **On UpCloud (chosen 2026-11).** `ops/api/` holds a compose file that
+     runs the API behind Caddy, which fetches the HTTPS certificate itself.
+     1. Create a Cloud Server: Ubuntu 24.04 LTS, 2 GB, in Stavanger or
+        Helsinki, with your SSH key. Open ports 22, 80 and 443 in its
+        firewall.
+     2. Point an A record for `api.attester.no` at the server's IP.
+     3. On the server: `curl -fsSL https://get.docker.com | sh`, then
+        `git clone https://github.com/ArneeMe/attester.no && cd attester.no/ops/api`,
+        `cp .env.example .env` and fill it in.
+     4. `docker compose up -d --build`. Check with
+        `curl https://api.attester.no/healthz`.
+     5. To update: `git pull && docker compose up -d --build`.
+     Caddy writes no access log, so no IP address is kept. The API's own log
+     goes to Docker, capped at five files of 10 MB. Nothing here is
+     UpCloud-specific: the same steps work on any Linux machine.
 4. Digipost (optional; without it the feature is hidden everywhere). Set
    these as secrets on the API container:
    - `DELIVERY_KEY`: `openssl rand -base64 32`. Seals fødselsnummer and
