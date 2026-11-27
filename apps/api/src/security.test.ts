@@ -169,6 +169,29 @@ describe("platform admin", () => {
     });
 });
 
+describe("invite", () => {
+    const TOKEN = "55555555-5555-5555-5555-555555555555";
+
+    beforeEach(() => {
+        answers.GetInvite = { invites: [{ id: "i1", organization_id: ORG, email: "ny@echo.no", expires_at: "2999-01-01T00:00:00Z", redeemed_at: null }] };
+        answers.AlreadyMember = { user_organizations: [] };
+        answers.Join = {};
+        answers.MarkRedeemed = {};
+        answers.OrgById = { organizations: [{ id: ORG, slug: "echo", name: "echo" }] };
+    });
+
+    it("needs no verified email: the secret link is the proof", async () => {
+        answers.GetUsersByIds = { users: [{ id: USER, email: "ny@echo.no", displayName: null, emailVerified: false }] };
+        expect((await call("POST", "/invites/redeem", { token: TOKEN })).status).toBe(200);
+    });
+
+    it("is still refused to an account with another address", async () => {
+        answers.GetUsersByIds = { users: [{ id: USER, email: "annen@echo.no", displayName: null, emailVerified: true }] };
+        expect((await call("POST", "/invites/redeem", { token: TOKEN })).status).toBe(403);
+        expect(mutations()).toHaveLength(0);
+    });
+});
+
 describe("templates", () => {
     const qr = { name: "qr", type: "qrcode", position: { x: 0, y: 0 }, width: 30, height: 30 };
     const mark = { name: "brand", type: "text", content: "attester.no", position: { x: 0, y: 40 }, width: 30, height: 5 };
