@@ -170,7 +170,8 @@ configuration. Those need a staging copy, see ROADMAP.
 1. Merge to `main`; `npm run deploy -w @attester/web` (OpenNext build, then
    wrangler → Cloudflare Workers) or Workers Builds. The Worker builds from
    the repo root with `npm run cf:build -w @attester/web` and deploys with
-   `npx wrangler deploy -c apps/web/wrangler.toml`. `npm run preview -w
+   `npm exec -w @attester/web -- wrangler deploy`; wrangler is installed in
+   `apps/web`, so `npx wrangler` from the root finds nothing. `npm run preview -w
    @attester/web` runs the built Worker locally.
 2. Run any new `scripts/migrations/*.sql` in the Hasura console and (re-)track
    affected tables. The first deploy of the rebuild needs four:
