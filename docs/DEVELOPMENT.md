@@ -169,7 +169,7 @@ it went"), and the same works for a risky change.
 
 ## Deploy checklist (per release)
 
-1. Merge `develop` to `main`. Workers Builds then deploys the web app by
+1. Merge the PR to `main`. Workers Builds then deploys the web app by
    itself; `npm run deploy -w @attester/web` does the same by hand. Update
    the API on its server too, if `apps/api` or `packages/shared` changed:
    `ssh` in, then in `~/attester.no/ops/api` run
@@ -261,10 +261,9 @@ it went"), and the same works for a risky change.
 - Small, independently shippable slices; stacked PRs when they depend on each
   other (base each PR on its parent branch, retarget as parents merge).
 - **`main` auto-deploys the web app to production** through Workers Builds,
-  so anything merged is live. Work goes to `develop` in small PRs and the
-  owner merges `develop` to `main` when it suits. The branch is `develop` and
-  not `dev` because old `dev/*` branches block that name.
-- Stack only genuinely dependent work; unrelated branches go off `develop` in
+  so anything merged is live. Work goes straight to `main` in small PRs;
+  `develop` was the integration branch for the rebuild and is retired.
+- Stack only genuinely dependent work; unrelated branches go off `main` in
   parallel. A stacked child does NOT auto-retarget unless the merged branch is
   deleted, and a child that quietly merges into a dead branch loses its work.
   This has happened once already.
