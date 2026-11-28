@@ -3,85 +3,49 @@
 Deliberate future work, with the reasoning captured so it doesn't have to be
 re-derived. Items are parked, not forgotten — each says what unblocks it.
 
-## Where things stand (2026-11-14)
+## Where things stand (2026-11-28)
 
-`main` is the MVP: one Next.js app that is also the backend. `develop` holds
-the rebuild described under "The platform rebuild" below, nineteen PRs (#70
-to #88). `develop` is green in CI and has never been deployed.
+The rebuild is live. `develop` was merged to `main` on 2026-11-28 (#111) and
+`attester.no` runs on it:
 
-On `develop`, built and tested:
-
-| Area | State |
+| Part | Where |
 |---|---|
-| Monorepo: `apps/web`, `apps/api`, `packages/shared` | Done |
-| API as a container with its own scheduler | Done. CI builds the image and checks it starts |
-| Server renders the PDF and registers the certificate | Done |
-| Email notices to admins through an outbox | Done |
-| Digipost delivery, granted per organisation by the owner | Done against a fake that checks signatures. Never sent a real letter |
-| Security audit and fixes | Done. Open items listed below |
-| Own error tracking and JSON logging | Done for the API, the browser and the web app's server code |
-| Status link and reminder for the volunteer | Done |
-| Pending count in the menu, paged and lighter lists | Done |
-| Template editor with one button per kind of field and its own drawing | Done |
-| `docs/API.md` for the mobile app | Done |
-| Local test rig, also run in CI | Done. Passes 36 checks. Not yet run on the owner's machine |
+| Web (`apps/web`) | Cloudflare Worker `attester-no`, built by Workers Builds from `main` |
+| API (`apps/api`) | Container on UpCloud in Stavanger, `api.attester.no`, from `ops/api/` |
+| Database and login | Nhost (Postgres, Hasura, Auth), as before |
 
-**What "tested" means here.** Unit tests, e2e tests with the API mocked, and
-the local test rig (DEVELOPMENT.md "The local test rig"), which runs the real
-Postgres, Hasura, Nhost Auth and API image and passes every flow through
-them in CI. Not yet met: Nhost's hosted project, Cloudflare Workers, Resend and
-the real Digipost. The Digipost adapter passes a fake that checks signatures
-the way Digipost does, and matches the owner's Android client, but has never
-sent a real letter.
+Tried against the real services on 2026-11-28: sign in, `/admin`, submit,
+issue, verify a new certificate and an old echo one, password reset.
 
-**Urgent, and separate from the rebuild:** `main` runs Next 15.5.2, which has
-a critical flaw that allows code to run on the server. `develop` is on
-15.5.29. Take that bump to `main` on its own if the cut-over is not close.
+Not yet met in production:
+- **Email.** Resend needs its DKIM records in DNS (below). Until then no
+  notice or invite email is sent; the invite dialog shows the link to copy.
+- **Digipost.** Needs the sender agreement, the key and `DELIVERY_KEY`. The
+  adapter has only met a fake that checks signatures.
+- **The retention sweep on real data.** Confirm once that an issued
+  submission disappears after the window and an unissued one stays.
 
-### Before the cut-over: try it
+The old Cloudflare Pages project (`inf319-certificate`) has its builds paused.
+Cloudflare refuses to delete a project with many deployments; delete those
+first if the project is ever removed.
 
-1. On your own machine, with invented data: `npm run stack:up`, then
-   `npm run dev`. DEVELOPMENT.md "The local test rig" has the addresses, the
-   logins and what the rig covers.
-2. Against Digipost's test environment: point the rig's API at
-   `api.test.digipost.no` with the test certificate (same section). This is
-   the only way to see a real Digipost letter before production.
-3. A staging copy, as the dress rehearsal: a second Nhost project, the API
-   container on its real host and a Cloudflare preview. The rig cannot stand
-   in for those three.
+### The cut-over, as it went
 
-### Cut-over checklist, in order
-
-Details for each step are in DEVELOPMENT.md "Deploy checklist".
-
-1. Leave email verification off in Nhost, and mark the platform admins'
-   addresses as verified in SQL. `/admin` is refused to an unverified address.
-2. Run the four new migrations and track their tables in Hasura:
-   `2026-11-notices.sql` (`notices`), `2026-11-digipost.sql` (`org_settings`,
-   `submission_recipients`, `deliveries`), `2026-11-platform-errors.sql`
-   (`platform_errors`) and `2026-11-submission-status.sql` (three columns on
-   `submissions`; reload the table in Hasura). The admin dashboard fails
-   without the second, and submitting fails without the fourth.
-3. Deploy the API on UpCloud with `ops/api/` (DEVELOPMENT.md "On UpCloud")
-   and fill in its `.env`. `PUBLIC_APP_URL` is required.
-4. Move the web app from Cloudflare Pages to a Cloudflare Worker named
-   `attester-no`, connected to the repo with Workers Builds: root directory
-   the repo root, build command `npm run cf:build -w @attester/web`, deploy
-   command `npm exec -w @attester/web -- wrangler deploy`, preview command
-   `npm exec -w @attester/web -- wrangler versions upload`. Set
-   `NEXT_PUBLIC_NHOST_*` as build variables, `API_URL` (the API's `/v1`
-   root) and `NHOST_ADMIN_SECRET` as runtime secrets, then move the
-   `attester.no` domain from the Pages project to the Worker. These settings
-   are not verified against Cloudflare; staging will show. The Pages
-   preview check fails on every PR to `develop` until the Pages project is
-   removed.
-5. Merge `develop` to `main`.
-6. One full pass against the real services: sign in, password reset, invite,
-   submit, issue, verify on paper, and confirm the sweep deletes an issued
-   submission after the window and leaves an unissued one alone. Then check
-   that `/admin` shows no errors.
-7. Optional, each can wait: Resend DKIM records in DNS for email; the
-   Digipost sender agreement, the key as PEM and `DELIVERY_KEY` for Digipost.
+Kept so the next move does not rediscover the same things:
+- Email verification stays off in Nhost; platform admins are marked verified
+  once in SQL.
+- The four 2026-11 migrations ran, and **every new table had to be tracked
+  in Hasura by hand**. An untracked `org_settings` gave a 500 on the admin
+  dashboard.
+- `PUBLIC_APP_URL` must be in the API's `.env`, or issuing fails with a 500.
+- Workers Builds: build `npm run cf:build -w @attester/web`, deploy
+  `npm exec -w @attester/web -- wrangler deploy`, version command
+  `npm exec -w @attester/web -- wrangler versions upload`. `npx wrangler`
+  from the root fails, wrangler lives in `apps/web`. `NEXT_PUBLIC_NHOST_*`
+  are build variables; `API_URL` and `NHOST_ADMIN_SECRET` are runtime
+  **secrets**, since a deploy replaces plain variables with `wrangler.toml`.
+- Cloudflare's Email Address Obfuscation rewrites `hei@attester.no` in the
+  HTML and causes React error #418. Turn it off for the zone.
 
 After that, the **pilot**: echo plus one external organisation through the
 whole lifecycle.
@@ -147,8 +111,7 @@ notices, Digipost delivery) and, some day, customers calling the API. A backend
 on Nhost was rejected on 2026-07-12 with integrations named as the reason to
 revisit. Integrations are now the goal, so this replaces that decision.
 
-The work lands on `develop`, not `main`. The cut-over needs downtime and the
-owner chooses when. See CLAUDE.md "How this repo is worked".
+The work landed on `develop` and went live on 2026-11-28 (top of this file).
 
 ### Layout
 
@@ -250,15 +213,17 @@ Left open on purpose, each needing a decision or more than a small fix:
   name (`identification-result` in Digipost's `api_v8.xsd`, checked
   2026-11-15).
 - **No rate limit.** The ceilings above bound the damage. Real limiting
-  belongs at the edge (Cloudflare) in front of both web and API.
+  belongs in front of both web and API: Cloudflare today, Caddy once
+  Cloudflare is gone (below).
 
 ### Decisions waiting on the owner
 
-Asked 2026-11-13, not answered yet. None of them blocks the cut-over.
+Asked 2026-11-13, not answered yet.
 
 - **The Android app in `arneeme/apps`.** It calls the unversioned `/api/...`
-  paths and stops working at cut-over. Updating it needs push access there.
-  It could also issue from the phone now.
+  paths, which are gone since the cut-over, so it does not work until it is
+  moved to `/api/v1/...`. Updating it needs push access there. It could also
+  issue from the phone now.
 - **The look as a theme.** Whether attester's colours and type become a
   second theme in `arneeme/design`. The Android app copies them by hand.
 - **Product or workshop project.** If attester may become a product, the
@@ -266,12 +231,12 @@ Asked 2026-11-13, not answered yet. None of them blocks the cut-over.
 
 ### Next steps, in the order they pay off
 
-1. **Go live on the new structure.** The cut-over checklist at the top of
-   this file.
+1. **Finish going live.** Resend DNS, then Digipost, then the sweep check
+   (top of this file).
 2. **Finish error tracking.** Built: the API's own errors, the browser's and
    the web app's. Left:
    - Run the uptime check (`ops/uptime/`, Gatus). Built and tested against
-     fakes; needs somewhere to run.
+     fakes; needs a machine that is not the API's own server.
    - Log retention. Docker keeps the API's log in five files of 10 MB on the
      server (`ops/api/docker-compose.yml`).
      If that is too short, run Vector with Loki or plain files on a volume.
@@ -279,11 +244,39 @@ Asked 2026-11-13, not answered yet. None of them blocks the cut-over.
    result, and let migrations and tracking deploy with the code. Five tables
    were added by hand this round; that does not scale.
 4. **The mobile app** against `docs/API.md`. The Android app in
-   `arneeme/apps` still calls the unversioned `/api/...` paths and will stop
-   working at cut-over until it is moved to `/api/v1/...`. It can also issue
-   now, since the server renders the PDF.
+   `arneeme/apps` still calls the unversioned `/api/...` paths and does not
+   work until it is moved to `/api/v1/...`. It can also issue now, since the
+   server renders the PDF.
 5. **Hash v2** when a reason to touch certificates appears: escape the
    separator and tag the version, as CLAUDE.md describes.
+
+## Leaving Cloudflare (the owner's wish, 2026-11-28)
+
+The aim is to run everything on hosts the owner can move, ideally Nordic or
+self-hosted, with Cloudflare gone in the end. Nothing is decided on timing.
+
+What depends on Cloudflare today:
+- **Hosting the web app.** The OpenNext adapter (`@opennextjs/cloudflare`),
+  `apps/web/wrangler.toml`, `open-next.config.ts`, the `cf:build` script and
+  Workers Builds.
+- **DNS for `attester.no`.** The domain is registered at Subsys; the zone is
+  on Cloudflare.
+- **The old Pages project**, paused.
+
+The likely path, in small steps:
+1. Run `apps/web` as a plain Node server (`next start`, or `output:
+   "standalone"` in a container) beside the API in `ops/`, with Caddy serving
+   both `attester.no` and `api.attester.no`. The UpCloud server has 1 GB; two
+   Node processes may need 2 GB.
+2. Point `attester.no` at that server, keep the Worker as a fallback for a
+   while, then remove the adapter, `wrangler.toml` and the `cf:build` script.
+3. Move DNS from Cloudflare back to the registrar, or to a Nordic DNS host.
+4. Delete the Worker and the Pages project.
+
+The cost: no CDN and no DDoS shield in front. At this size neither matters;
+rate limiting would move into Caddy. Rules already in place make this
+cheaper: the web app's code has no Cloudflare-specific API, and logs and
+errors are not built on Cloudflare features (CLAUDE.md "Logs and errors").
 
 ## Explicitly frozen
 

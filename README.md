@@ -8,7 +8,7 @@ Når noen trenger en attest, fyller de ut et skjema med navn, rolle og tidsperio
 
 Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og oppdatere signaturer. En organisasjon kan også la den frivillige få attesten rett i Digipost.
 
-`main` er MVP-en. `develop` har en ombygging som ikke er satt i drift ennå. Status og sjekklisten for overgangen står øverst i [docs/ROADMAP.md](docs/ROADMAP.md).
+Den nye plattformen gikk i drift 28. november 2026. Status står øverst i [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Tech
 
@@ -17,7 +17,7 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
 - Material UI
 - Nhost (Postgres + Hasura + Auth)
 - pdfme for PDF-generering på serveren
-- Cloudflare Workers for web (via OpenNext), en container for API-et
+- Cloudflare Workers for web (via OpenNext), og API-et som container på UpCloud i Stavanger. Målet er å bli kvitt Cloudflare på sikt (docs/ROADMAP.md)
 
 ## Datamodell i grove trekk
 
