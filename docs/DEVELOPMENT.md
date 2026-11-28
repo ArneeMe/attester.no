@@ -73,7 +73,9 @@ npm run stack:down    # stop it and delete its data
   `api` service to your test sender's values. Keep them out of git.
 
 What the rig does not cover: Cloudflare Workers, Resend, and Nhost's hosted
-configuration. Those need a staging copy, see ROADMAP.
+configuration. There is no staging copy; the cut-over was tried on the
+Worker's `workers.dev` address against production (ROADMAP "The cut-over, as
+it went"), and the same works for a risky change.
 
 ## Conventions
 
@@ -167,8 +169,12 @@ configuration. Those need a staging copy, see ROADMAP.
 
 ## Deploy checklist (per release)
 
-1. Merge to `main`; `npm run deploy -w @attester/web` (OpenNext build, then
-   wrangler → Cloudflare Workers) or Workers Builds. The Worker builds from
+1. Merge `develop` to `main`. Workers Builds then deploys the web app by
+   itself; `npm run deploy -w @attester/web` does the same by hand. Update
+   the API on its server too, if `apps/api` or `packages/shared` changed:
+   `ssh` in, then in `~/attester.no/ops/api` run
+   `git pull && docker compose up -d --build && docker builder prune -f`.
+   The server's checkout follows `main`. The Worker builds from
    the repo root with `npm run cf:build -w @attester/web` and deploys with
    `npm exec -w @attester/web -- wrangler deploy`; wrangler is installed in
    `apps/web`, so `npx wrangler` from the root finds nothing. `npm run preview -w
@@ -206,7 +212,9 @@ configuration. Those need a staging copy, see ROADMAP.
         `cp .env.example .env` and fill it in.
      4. `docker compose up -d --build`. Check with
         `curl https://api.attester.no/healthz`.
-     5. To update: `git pull && docker compose up -d --build`.
+     5. To update: `git pull && docker compose up -d --build`, then
+        `docker builder prune -f` so old build layers do not fill the 10 GB
+        disk.
      Caddy writes no access log, so no IP address is kept. The API's own log
      goes to Docker, capped at five files of 10 MB. Nothing here is
      UpCloud-specific: the same steps work on any Linux machine.
@@ -252,11 +260,10 @@ configuration. Those need a staging copy, see ROADMAP.
 
 - Small, independently shippable slices; stacked PRs when they depend on each
   other (base each PR on its parent branch, retarget as parents merge).
-- **`main` auto-deploys to production** via the Cloudflare Git
-  integration, so anything merged is live. While the platform rebuild runs
-  (docs/ROADMAP.md), work goes to `develop` in small PRs and the owner merges
-  `develop` to `main` when the downtime suits. The branch is `develop` and not
-  `dev` because old `dev/*` branches block that name.
+- **`main` auto-deploys the web app to production** through Workers Builds,
+  so anything merged is live. Work goes to `develop` in small PRs and the
+  owner merges `develop` to `main` when it suits. The branch is `develop` and
+  not `dev` because old `dev/*` branches block that name.
 - Stack only genuinely dependent work; unrelated branches go off `develop` in
   parallel. A stacked child does NOT auto-retarget unless the merged branch is
   deleted, and a child that quietly merges into a dead branch loses its work.
