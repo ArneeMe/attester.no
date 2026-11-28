@@ -31,11 +31,12 @@ that told users something false because the docs lagged the code.
   never what the code already says. Reasoning belongs in the commit message,
   where it is read once by someone deciding, not every time by someone
   scrolling. A comment restating its own function is worse than no comment.
-- **Small PRs, one squashed commit each, to `develop`.** The owner chooses
-  when `develop` goes to `main`. `main` deploys the web app to production on
-  merge, so nothing goes there without the owner. The API is updated by hand
-  on its server (DEVELOPMENT.md "Deploy checklist"). Each PR must still leave
-  `develop` green and working.
+- **Small PRs, one squashed commit each, straight to `main`.** The owner has
+  allowed them to be merged once the GitHub Actions jobs (ci, api-image,
+  stack, e2e) are green. `main` deploys the web app to production on merge,
+  so every PR must be shippable alone. The API is updated by hand on its
+  server (DEVELOPMENT.md "Deploy checklist"); say so when a PR touches
+  `apps/api` or `packages/shared`.
 - **Iterate.** Ship a step, look at it, decide the next one. Do not batch
   several steps into one branch because they are related.
 - **Hygiene-only PRs get closed unreviewed.** Fold small fixes into whatever
