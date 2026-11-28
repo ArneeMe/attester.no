@@ -1,0 +1,51 @@
+{
+  "name": "@attester/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "cf:build": "opennextjs-cloudflare build",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+  },
+  "dependencies": {
+    "@attester/shared": "*",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.7",
+    "@mui/material": "^7.3.7",
+    "@nhost/nhost-js": "^4.7.0",
+    "@pdfme/common": "^6.2.8",
+    "@pdfme/converter": "^6.2.8",
+    "@pdfme/generator": "^6.2.8",
+    "@pdfme/schemas": "^6.2.8",
+    "jose": "^6.2.3",
+    "jszip": "^3.10.1",
+    "next": "15.5.29",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@opennextjs/cloudflare": "^1.20.15",
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^25",
+    "@types/react": "19.2.8",
+    "@types/react-dom": "19.2.3",
+    "@vitest/coverage-v8": "^4.1.7",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^15.5.2",
+    "typescript": "^5",
+    "vitest": "^4.1.7",
+    "wrangler": "^4.162.0"
+  }
+}

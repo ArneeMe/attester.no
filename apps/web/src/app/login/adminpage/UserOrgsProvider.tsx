@@ -1,0 +1,81 @@
+'use client'
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { authHeader, nhost } from '@/lib/nhost';
+
+export type UserOrg = { id: string; slug: string; name: string; role: string; pending?: number };
+
+export type OrgsStatus = 'loading' | 'ok' | 'unauthenticated' | 'error';
+
+type Ctx = {
+    orgs: UserOrg[];
+    status: OrgsStatus;
+    refresh: () => Promise<void>;
+    // The dashboard knows the live count; this keeps the menu in step
+    // without asking the server again.
+    setPending: (slug: string, pending: number) => void;
+};
+
+const UserOrgsContext = createContext<Ctx | null>(null);
+
+export function UserOrgsProvider({ children }: { children: React.ReactNode }) {
+    const [orgs, setOrgs] = useState<UserOrg[]>([]);
+    const [status, setStatus] = useState<OrgsStatus>('loading');
+
+    const refresh = useCallback(async () => {
+        try {
+            const res = await fetch('/api/v1/me/organizations', { headers: authHeader() });
+            if (res.status === 401 || res.status === 403) {
+                setOrgs([]);
+                setStatus('unauthenticated');
+                return;
+            }
+            if (!res.ok) {
+                setOrgs([]);
+                setStatus('error');
+                return;
+            }
+            const json = await res.json();
+            setOrgs(json.organizations ?? []);
+            setStatus('ok');
+        } catch {
+            setOrgs([]);
+            setStatus('error');
+        }
+    }, []);
+
+    useEffect(() => {
+        refresh();
+        // On first login the token is not in storage yet at mount, so the
+        // initial refresh() would send no auth header.
+        return nhost.sessionStorage.onChange((session) => {
+            if (session) {
+                refresh();
+            } else {
+                setOrgs([]);
+                setStatus('unauthenticated');
+            }
+        });
+    }, [refresh]);
+
+    const setPending = useCallback((slug: string, pending: number) => {
+        setOrgs((prev) =>
+            prev.some((o) => o.slug === slug && o.pending !== pending)
+                ? prev.map((o) => (o.slug === slug ? { ...o, pending } : o))
+                : prev,
+        );
+    }, []);
+
+    return <UserOrgsContext.Provider value={{ orgs, status, refresh, setPending }}>{children}</UserOrgsContext.Provider>;
+}
+
+export function useUserOrgs(): Ctx {
+    const ctx = useContext(UserOrgsContext);
+    if (!ctx) throw new Error('useUserOrgs must be used inside <UserOrgsProvider>');
+    return ctx;
+}
+
+export function useCurrentOrg(slug: string): UserOrg | null | undefined {
+    const { orgs, status } = useUserOrgs();
+    if (status !== 'ok') return undefined;
+    return orgs.find((o) => o.slug === slug) ?? null;
+}

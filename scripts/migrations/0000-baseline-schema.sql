@@ -77,7 +77,7 @@ CREATE INDEX IF NOT EXISTS org_assets_kind_idx ON org_assets(organization_id, ki
 --
 -- issued_at is stamped when the certificate is inserted, and it is the
 -- deletion clock: the sweep removes rows whose issued_at is older than the
--- regeneration window (src/util/retention.ts). NULL means "not issued yet",
+-- regeneration window (packages/shared/src/retention.ts). NULL means "not issued yet",
 -- and those rows are never swept — they wait for an admin, who clears them
 -- with the explicit "Slett data" action. See CLAUDE.md "Volunteer deletion".
 CREATE TABLE IF NOT EXISTS submissions (
@@ -86,8 +86,14 @@ CREATE TABLE IF NOT EXISTS submissions (
     template_id uuid NOT NULL REFERENCES templates(id) ON DELETE RESTRICT,
     data jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now(),
-    issued_at timestamptz
+    issued_at timestamptz,
+    status_token_hash text,
+    reminded_at timestamptz,
+    reminder_count int NOT NULL DEFAULT 0
 );
+CREATE INDEX IF NOT EXISTS submissions_status_token_idx
+    ON submissions(status_token_hash)
+    WHERE status_token_hash IS NOT NULL;
 CREATE INDEX IF NOT EXISTS submissions_org_idx ON submissions(organization_id);
 CREATE INDEX IF NOT EXISTS submissions_template_idx ON submissions(template_id);
 CREATE INDEX IF NOT EXISTS submissions_issued_at_idx
@@ -157,13 +163,87 @@ CREATE TABLE IF NOT EXISTS org_requests (
 );
 CREATE INDEX IF NOT EXISTS org_requests_status_idx ON org_requests(status, created_at);
 
+-- Outbox for email notices to an organisation's admins. A row says that
+-- something is waiting for an organisation and nothing else: no submission
+-- id, no volunteer field, no recipient address. Recipients are looked up
+-- from the membership table when the notice is sent.
+CREATE TABLE IF NOT EXISTS notices (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    kind text NOT NULL CHECK (kind IN ('submission_waiting')),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    sent_at timestamptz,
+    attempts int NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS notices_unsent_idx ON notices(created_at) WHERE sent_at IS NULL;
+CREATE INDEX IF NOT EXISTS notices_org_idx ON notices(organization_id);
+
+-- Per-organisation switches. organizations stays identity only.
+CREATE TABLE IF NOT EXISTS org_settings (
+    organization_id uuid PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
+    digipost_enabled boolean NOT NULL DEFAULT false,
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Where a certificate may be delivered, kept apart from what it says. The
+-- fødselsnummer is sealed with a key the database does not hold, is never in
+-- submissions.data (so never in the QR link or the hash), dies with the
+-- submission, and is deleted as soon as the letter is sent.
+CREATE TABLE IF NOT EXISTS submission_recipients (
+    submission_id uuid PRIMARY KEY REFERENCES submissions(id) ON DELETE CASCADE,
+    national_id_enc text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Delivery queue and delivery record in one. While a letter is queued,
+-- payload holds the sealed PDF and recipient. The CHECK makes the database
+-- itself refuse to keep a payload on a row that is sent or failed, so what
+-- remains is "sent via Digipost at time T" and nothing about the content.
+CREATE TABLE IF NOT EXISTS deliveries (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    submission_id text NOT NULL,
+    channel text NOT NULL CHECK (channel IN ('digipost')),
+    status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sent', 'failed')),
+    payload text,
+    attempts int NOT NULL DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    sent_at timestamptz,
+    expires_at timestamptz NOT NULL,
+    CONSTRAINT deliveries_payload_only_while_queued CHECK (status = 'queued' OR payload IS NULL)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS deliveries_one_per_certificate
+    ON deliveries(organization_id, submission_id, channel);
+CREATE INDEX IF NOT EXISTS deliveries_queued_idx ON deliveries(created_at) WHERE status = 'queued';
+
+-- Errors the platform itself has hit, one row per distinct error. Holds what
+-- broke and where in the code. It must never hold who was affected or what
+-- they sent: no request body, no path with ids, no IP, no user. The message
+-- is scrubbed of quoted text, emails, ids and digit runs before it gets here
+-- (apps/api/src/lib/log.ts).
+CREATE TABLE IF NOT EXISTS platform_errors (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    fingerprint text NOT NULL UNIQUE,
+    source text NOT NULL,
+    place text NOT NULL,
+    kind text NOT NULL,
+    message text NOT NULL DEFAULT '',
+    stack text NOT NULL DEFAULT '',
+    request_id text,
+    count int NOT NULL DEFAULT 1,
+    first_seen timestamptz NOT NULL DEFAULT now(),
+    last_seen timestamptz NOT NULL DEFAULT now(),
+    resolved_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS platform_errors_last_seen_idx ON platform_errors(last_seen);
+
 -- Hasura console steps (fresh install):
 --   1. Data → "Untracked tables/views" → track every table above.
 --   2. Relationships: object relationships on each organization_id /
 --      template_id column, mirroring the tracked FKs.
---   3. No role permissions needed — the Next.js API routes talk to Hasura
---      with the admin secret and enforce tenancy in code
---      (src/lib/server/apiAuth.ts).
+--   3. No role permissions needed — the API talks to Hasura with the
+--      admin secret and enforces tenancy in code
+--      (apps/api/src/lib/apiAuth.ts).
 --   4. Create the first org + member by hand until the onboarding UI
 --      exists:
 --        INSERT INTO organizations (slug, name) VALUES ('myorg', 'My Org');

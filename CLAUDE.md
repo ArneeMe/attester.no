@@ -11,6 +11,8 @@ Companion docs (read as needed):
 - `docs/DEVELOPMENT.md` — commands, verification checklist, conventions
   (strings/i18n pattern, API route pattern, migrations workflow, test
   placement), and the gotchas that have cost real time.
+- `docs/API.md` — the `/v1` API every client uses, written for whoever builds
+  a client (the mobile app first).
 - `docs/ROADMAP.md` — parked work with the reasoning captured, so options
   don't get re-litigated or rebuilt by accident.
 - `docs/IDEAS.md` — feature ideas not built yet, with the open questions, so
@@ -29,9 +31,11 @@ that told users something false because the docs lagged the code.
   never what the code already says. Reasoning belongs in the commit message,
   where it is read once by someone deciding, not every time by someone
   scrolling. A comment restating its own function is worse than no comment.
-- **Small PRs, one squashed commit each, straight to `main`.** Each must be
-  shippable alone. Where a change is not, split it so the invisible half
-  (schema, API) merges first and nothing half-finished reaches production.
+- **Small PRs, one squashed commit each, to `develop`.** The platform rebuild
+  (docs/ROADMAP.md) lands there because the cut-over needs downtime, and the
+  owner chooses when `develop` goes to `main`. `main` deploys to production on
+  merge, so nothing goes there without the owner. Each PR must still leave
+  `develop` green and working.
 - **Iterate.** Ship a step, look at it, decide the next one. Do not batch
   several steps into one branch because they are related.
 - **Hygiene-only PRs get closed unreviewed.** Fold small fixes into whatever
@@ -45,9 +49,11 @@ what it says.
 Data flow:
 
 1. A volunteer submits their info via the public form (`/org/<slug>`).
-2. An admin reviews the submission and clicks "Generer PDF". The PDF
-   contains a QR code pointing to
+2. An admin reviews the submission and clicks "Generer PDF". The server
+   renders the PDF from the submission it already holds and returns it. The
+   PDF contains a QR code pointing to
    `/org/<slug>/verify?t=<template_id>&id=<vol_id>&name=&group=&...`.
+   The rendered PDF is returned to the caller and never stored.
 3. The server stores ONLY: `cert_id`, `hash(URL params)`, `template_id`,
    `organization_id`, `created_at`. Never the name, dates, group, role, or
    any other identifying field.
@@ -72,6 +78,9 @@ Do NOT add any of the following:
 - A "snapshot the cert data onto the certificate row" mechanism — this
   defeats the entire privacy design.
 - A background job that reads certificate data and does anything with it.
+- Storing a rendered PDF, or logging anything from a submission. The server
+  renders certificates, so volunteer fields pass through its memory. They
+  must not reach a log line, an error message or a table.
 - Any feature that re-derives "who was this cert about" from server state
   alone.
 
@@ -79,18 +88,109 @@ What IS acceptable:
 
 - An audit log row recording "user X issued cert &lt;id&gt; at time T"
   with no payload describing what the cert says. Low priority, but allowed.
+- An outbox row saying "organisation X has something waiting" (`notices`).
+  It holds no submission id and no recipient address.
+- A delivery row saying "the certificate for submission id X was sent via
+  Digipost at time T" (`deliveries`). See "Digipost delivery" below.
+- An error row saying "this code path failed N times" (`platform_errors`).
+  See "Logs and errors" below.
+
+### The volunteer's status link
+
+A volunteer can follow their request and remind the organisation, without an
+account and without the platform learning who they are. Keep it that way:
+
+- **The link is the only key, and the server does not hold it.** A random
+  token is returned once, when the submission is made. Only its SHA-256 is
+  stored (`submissions.status_token_hash`). A copy of the database can
+  neither look a request up nor send a reminder.
+- **The token travels after the `#` and in request bodies, never in a path
+  or a query.** Browsers do not send the fragment, so it stays out of logs,
+  proxies and the Referer header. Do not move it into the URL.
+- **The status answer is dates only.** Never return a name, a field or the
+  submission id from `POST /org/:slug/status`.
+- **"Not found" must not say why.** A wrong link, a deleted request and
+  another organisation's request get the same answer. The token dies with
+  the submission, so nothing remains to tell them apart, and nothing should
+  be added to do so.
+- **A reminder is the ordinary notice.** It queues "something is waiting"
+  for the organisation and names nobody. It is bounded per request (not in
+  the first three days, weekly at most, three in all) and by the outbox's
+  own limit per organisation.
+
+### Logs and errors
+
+The platform records its own failures and nothing about the people who hit
+them. This is a deliberate choice of the owner: full control, no tracking.
+
+- **Never call `console.*` in `apps/api`.** Use `log()` (`lib/log.ts`) for an
+  event and `reportError()` (`errors/report.ts`) for a failure. They are the
+  only two ways anything is written down.
+- **Free text is scrubbed before it is kept** (`scrub()` in `lib/log.ts`):
+  quoted text, emails, uuids and digit runs go. Error messages from Hasura, a
+  JSON parser or a provider can quote the value that caused them. Never log
+  or store an error message that has not been through `scrub()`.
+- **A log line or error row must not identify a caller.** No IP, no user
+  agent, no user id, no request body, no query string. The route is the
+  pattern (`/org/:slug/submissions`), never the path, so no slug or id.
+- **No third-party tracker.** Errors live in our own Postgres and logs go to
+  stdout. Do not add an SDK that phones home (Sentry SaaS, analytics,
+  session replay). A self-hosted collector reading stdout is fine.
+- **Reports from the browser carry the kind of page, never the page.** The
+  route goes as a pattern and the query string is never sent: on the verify
+  page the query is the certificate. `POST /v1/errors` must keep ignoring the
+  request's headers, so no IP or user agent can be stored by accident.
+- **Do not build this on a host's features.** No Cloudflare Workers Logs or
+  Analytics, no platform-specific log API. The rig must move with the code.
+
+### Digipost delivery
+
+An organisation can let volunteers receive the certificate in Digipost. That
+needs a fødselsnummer, the most sensitive field this system touches, and a
+PDF that waits in a queue while it is sent. Both are deliberate, bounded
+exceptions to "the server keeps nothing". These rules keep them bounded:
+
+- **The fødselsnummer is never certificate data.** It travels as its own
+  field, lives in `submission_recipients`, and must never be put in
+  `submissions.data`. That is what keeps it out of the QR link and the hash.
+- **It is sealed.** `apps/api/src/lib/seal.ts` encrypts it with
+  `DELIVERY_KEY`, which exists only in the API's environment. A copy of
+  the database alone reveals no fødselsnummer and no queued PDF. Without the
+  key the Digipost feature is off. Do not add a plaintext fallback.
+- **It never reaches a client or a log.** The admin API says only that a
+  recipient exists (`has_recipient`). Provider errors are logged by code,
+  never by message, because the message can quote the request.
+- **It dies with its purpose.** Deleted when Digipost accepts the letter,
+  when the organisation loses Digipost, and otherwise with its submission
+  (cascade). An unissued submission is never swept, so the sweep deletes
+  the number alone after `RECIPIENT_RETENTION_DAYS`. The submission stays
+  and the organisation hands the certificate over itself.
+- **Only the platform owner grants Digipost.** Every letter goes out in
+  attester.no's name and at its cost, so the switch sits behind
+  `requirePlatformAdmin`, and `DIGIPOST_DAILY_LIMIT` caps letters per
+  organisation per day. Do not move the switch back to the org's admins.
+- **A queued PDF is temporary.** `deliveries.payload` holds the sealed PDF
+  and recipient only while `status = 'queued'`. A CHECK constraint makes the
+  database refuse a payload on a sent or failed row. After
+  `DELIVERY_TTL_HOURS` or five attempts the payload is erased whether or not
+  the letter went out. The retention sweep does the erasing too, so the limit
+  holds with the scheduler off. Deleting a submission cancels its queued
+  letter. Do not lengthen this into storage.
+- **No print fallback.** The adapter sends no print details, so a person
+  without Digipost is refused and the admin hands over the PDF as before.
 
 ### Volunteer deletion
 
 The deletion clock starts at **issuance**, not submission. Issuing a
 certificate stamps `submissions.issued_at`; a lazy sweep
-(`src/lib/server/retention.ts`, window in `src/util/retention.ts`) then
+(`apps/api/src/lib/retention.ts`, window in `packages/shared/src/retention.ts`) then
 deletes rows whose `issued_at` is older than `ISSUED_RETENTION_HOURS`. The
-sweep runs whenever the submissions API is touched (GET or POST) — no
-scheduler exists on the edge runtime, and none is needed, because the
-window only starts when an admin acts and admin activity is exactly what
-triggers the sweep. Do not remove the sweep calls from the submissions
-GET/POST routes.
+sweep runs whenever the submissions API is touched (GET or POST) and on
+every scheduled round (`apps/api/src/jobs/scheduled.ts`, every ten minutes
+inside the API process). Do not remove the sweep calls from the submissions
+GET/POST routes: the scheduler can be switched off (`SCHEDULER=off`) and a
+host may put the process to sleep, so the lazy calls are what makes deletion
+happen regardless.
 
 **Unissued submissions are never swept.** The `issued_at IS NOT NULL`
 guard in the sweep is load-bearing. An earlier version deleted every
@@ -109,9 +209,10 @@ long" is NOT automatic for unissued rows, and copy must not claim it is.
 
 **Issuing a certificate does NOT immediately delete the submission.** The
 window is the point: if a PDF is lost, misprinted, or a mistake is spotted
-late, "Generer PDF" can be run again any time before the sweep. The
-certificates POST route is idempotent per submission (returns the existing
-cert instead of minting a duplicate) and deliberately does **not**
+late, "Generer PDF" can be run again any time before the sweep. The issue
+route (`apps/api/src/issuance/issue.ts`) is idempotent per submission
+(returns the existing cert instead of minting a duplicate) and deliberately
+does **not**
 re-stamp `issued_at`, so regenerating cannot be used to extend retention
 indefinitely.
 
@@ -128,13 +229,13 @@ delete or refactor any of the files below before then.
 
 Files that exist solely for legacy back-compat:
 
-- `src/app/verify/page.tsx` — legacy verify page (positional URL parser).
-- `src/app/api/certificates/verify/route.ts` — reads from the
+- `apps/web/src/app/verify/page.tsx` — legacy verify page (positional URL parser).
+- `apps/web/src/app/api/certificates/verify/route.ts` — reads from the
   `legacy_certificates` table.
-- `src/app/login/adminpage/generateParams.ts` — old positional hash
+- `apps/web/src/app/login/adminpage/generateParams.ts` — old positional hash
   input builder. Not used at issuance anymore, kept as a record of the
   legacy URL contract.
-- `src/util/hashFunction.ts` — old SHA-512 over the positional string.
+- `apps/web/src/util/hashFunction.ts` — old SHA-512 over the positional string.
   Not used at issuance anymore.
 
 The `legacy_certificates` table is a one-time snapshot taken during the
@@ -169,10 +270,10 @@ number can be offered at once: with one the volunteer never sees a
 chooser, with several they pick. Because saving a template inserts a new
 row, the templates POST route retires superseded revisions by clearing
 `is_offered` on older rows with the same `name`
-(`src/lib/server/templateOffering.ts`) — otherwise every past revision
+(`apps/api/src/lib/templateOffering.ts`) — otherwise every past revision
 would pile up in the chooser. The selection rule lives in
-`src/util/offeredTemplates.ts` and is served publicly by
-`/api/org/[slug]/offered-templates`, which exposes id, name and
+`packages/shared/src/offeredTemplates.ts` and is served publicly by
+`/api/v1/org/[slug]/offered-templates`, which exposes id, name and
 description only.
 
 Verification never consults `is_offered`: `templates/[id]` fetches by id
@@ -187,7 +288,7 @@ points to (which you shouldn't, but the hash would still match).
 
 ## Canonical hash format
 
-Single source of truth: `src/util/canonicalHash.ts` + `src/util/certParams.ts`.
+Single source of truth: `packages/shared/src/canonicalHash.ts` + `packages/shared/src/certParams.ts`.
 
 Algorithm:
 1. Build a `URLSearchParams` from the cert fields (issuer side: see
@@ -197,7 +298,8 @@ Algorithm:
 4. Join as `key=value&key=value&...`.
 5. SHA-512 hex over that UTF-8 byte sequence.
 
-Issuer (`submitHash`), verifier (`OrgVerifyClient`), and seed scripts
+Issuer (`issueCertificate` in `apps/api/src/issuance/issue.ts`),
+verifier (`OrgVerifyClient`), and seed scripts
 all import from these utilities. Do NOT inline the algorithm anywhere
 else — drift will silently invalidate certificates.
 
@@ -213,6 +315,12 @@ slot in the cert URL **and** in the hash inputs. The verifier reads
 v1 forever; new certs get the new algorithm. Storing the `v` on the
 certificates row (alongside the hash) lets the verifier route without
 trusting the URL.
+
+One known weakness to fix in v2: pairs are joined as `key=value&key=value`
+without escaping. `name=Ola&role=Leder` in one field hashes the same as two
+separate fields, so a link holder can move text between declared fields and
+still see "verified". The moved text stays visible, and v1 is frozen, so it
+is recorded here and not changed.
 
 NOT implemented today and deliberately not added preemptively — the
 dispatch costs nothing once we actually need v2, and adding it before
@@ -261,8 +369,12 @@ schema field names to a data source:
   swap of "current Leder" propagates automatically)
 - `lookup` — find an item in a lookup_list by matching its `name`
   against a submission key, return the named sub-field
+- `choice` — `{ key, texts }`: the text written in the template for the
+  option the volunteer chose in a dropdown. The editor's way to give each
+  choice its own text; `lookup` does the same from Content and is kept only
+  for templates that already use it
 
-The resolver is `src/util/resolveBinding.ts`. The single PDF-input
+The resolver is `packages/shared/src/resolveBinding.ts`. The single PDF-input
 builder is `buildPdfInput` in the same file.
 
 ### Implicit fallback
@@ -285,13 +397,29 @@ Dropdowns can specify static `options` or `optionsFromAsset` (a
 `optionsFromAsset` → `options` so the volunteer sees a static dropdown
 without ever seeing the asset id.
 
-The Designer page's `SchemaEditor` lets admins edit the form_schema; the
-`fromPdfmeTemplate` helper auto-derives a starter schema from the
-pdfme placeholder names when the admin hasn't set one.
+`maxLength` on a text question is how much fits in the PDF box. The editor
+works it out from the box size, the font size and any text around the answer
+(`answerLimits` in `templateDraft.ts`) and writes it on save; the admin never
+types it. The form stops at it and the submissions POST refuses anything
+longer, so a long answer cannot spill over the rest of the certificate.
+
+The template editor never shows a key or a binding. Each button
+(`apps/web/src/util/templateDraft.ts`) writes the PDF field, its binding and,
+for a question, its form entry together, with the key made from the label.
+Removing a field removes all three. Fixed text is a `readOnly` field with no
+binding: pdfme prints a field's own content only when it is `readOnly`. Text
+with answers in it is shown as `[Question label]` and stored as a `composite`
+binding with `{key}`; a question only used inside such a text stays in the
+form and in the editor's list until it is removed there. The question dialog
+takes the text before and after the answer, so admins never type brackets; an
+optional answer with text around it gets `requireAll`, so the text disappears
+with the answer. The Content page shows text blocks and lookup lists only to
+organisations that already have some; new templates keep that content in the
+template instead.
 
 ## Mandatory PDF elements
 
-`validateTemplateForSave` (`src/util/validateTemplate.ts`) is run by the
+`validateTemplateForSave` (`packages/shared/src/validateTemplate.ts`) is run by the
 designer before save and refuses templates without:
 
 - A `qrcode` field (so certs are verifiable).

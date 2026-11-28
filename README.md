@@ -6,7 +6,9 @@ En enkel løsning for å lage attester som kan verifiseres digitalt.
 
 Når noen trenger en attest, fyller de ut et skjema med navn, rolle og tidsperiode. Systemet lager en PDF, og lagrer en hash av innholdet i databasen. Attesten får en QR-kode som lenker til en verifiseringsside — der kan hvem som helst sjekke at attesten er ekte.
 
-Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og oppdatere signaturer.
+Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og oppdatere signaturer. En organisasjon kan også la den frivillige få attesten rett i Digipost.
+
+`main` er MVP-en. `develop` har en ombygging som ikke er satt i drift ennå. Status og sjekklisten for overgangen står øverst i [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Tech
 
@@ -14,8 +16,8 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
 - TypeScript
 - Material UI
 - Nhost (Postgres + Hasura + Auth)
-- pdfme for PDF-generering i nettleseren
-- Cloudflare Pages
+- pdfme for PDF-generering på serveren
+- Cloudflare Workers for web (via OpenNext), en container for API-et
 
 ## Datamodell i grove trekk
 
@@ -32,22 +34,32 @@ Admin-brukere kan logge inn for å godkjenne forespørsler, redigere maler og op
   ikke automatisk — de venter på administratoren (se CLAUDE.md).
 - `certificates` — kun id, hash, template-id, org-id, tidsstempel.
   Ingen personalia.
+- `notices` — utboks for e-postvarsler til admin. Bare org-id.
+- `org_settings`, `submission_recipients`, `deliveries` — Digipost:
+  om org-en har det, et kryptert fødselsnummer som slettes når brevet er
+  sendt og senest etter 30 dager, og kø og kvittering for sendingen.
+- `platform_errors` — systemets egne feil. Ingenting om brukeren.
 
 Se [CLAUDE.md](CLAUDE.md) for personvernsmodellen og hvorfor det er
 viktig at strukturen forblir slik. Utfyllende dokumentasjon ligger i
-[docs/](docs/): arkitektur, utviklingsguide, roadmap, ideer og SEO.
+[docs/](docs/): arkitektur, utviklingsguide, API-referanse, roadmap, ideer
+og SEO.
 
 ## Struktur
 
 ```
-src/app/
-  api/       — server-side API-ruter (DB-tilgang via Hasura admin)
+apps/web/src/app/
+  api/       — videresender /api/v1/* til API-et, pluss den gamle
+               verify-ruten
   login/     — admin-innlogging og dashboard
   verify/    — gamle offentlige verifiseringssiden (legacy)
   org/       — per-org offentlig form og verifisering
   pdfinfo/   — bundlede pdfme-maler og startermaler
-util/        — resolveBinding, validateTemplate, hashing, …
-types/       — formSchema, fieldBindings, orgAssets, templateTypes
+apps/api/src/
+             — API-et: ruter, utstedelse, varsler og Digipost
+packages/shared/src/
+             — hashing, resolveBinding, validering og typer som deles
+               av web og backend
 ```
 
 ## Migrasjoner
@@ -61,10 +73,17 @@ echo-databasen.
 
 ## Kjøre lokalt
 
-Krever Nhost-miljøvariabler i `.env.local` — kopier fra `.env.example`.
+Den enkleste måten er testriggen. Den starter database, innlogging, API,
+e-postfanger og en liksom-Digipost på egen maskin, med oppdiktede data.
+Krever Docker.
 
 ```bash
-cp .env.example .env.local
 npm install
-npm run dev
+npm run stack:up     # starter alt og skriver ut adresser og innlogginger
+npm run dev          # web-appen på :3000, mot riggen
+npm run stack:smoke  # går gjennom hele løpet og sjekker at alt virker
+npm run stack:down   # stopper alt og sletter dataene
 ```
+
+Mer om riggen, og om å kjøre mot et ekte Nhost-prosjekt, står i
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
